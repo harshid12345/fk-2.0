@@ -885,6 +885,153 @@ async function runMatchScoring(supabase: any, applicantId: string) {
 }
 
 // ═══════════════════════════════════════════
+// AI-POWERED RESPONSE HANDLER
+// ═══════════════════════════════════════════
+async function handleAIResponse(supabase: any, token: string, chatId: number, applicant: any, userText: string) {
+  const firstName = (applicant.full_name || 'there').split(' ')[0];
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+
+  if (!LOVABLE_API_KEY) {
+    console.error('[AI] LOVABLE_API_KEY not configured');
+    await sendMessage(token, chatId, `Hey ${firstName}! Your application is with the landlord — I'll message you as soon as there's an update. Hang tight! 😊`);
+    return;
+  }
+
+  try {
+    // Check for cancellation intent first (fast path)
+    const cancelWords = ['cancel', 'annuleren', 'afzeggen', 'can\'t make it', 'cant make it', 'not coming', 'cancel viewing', 'cancel my viewing'];
+    const lowerText = userText.toLowerCase();
+    const wantsCancellation = cancelWords.some(w => lowerText.includes(w));
+
+    if (wantsCancellation) {
+      // Find active booking
+      const { data: booking } = await supabase.from('viewing_bookings')
+        .select('*').eq('applicant_id', applicant.id)
+        .in('status', ['confirmed', 'pending_landlord'])
+        .order('slot_start', { ascending: true })
+        .limit(1).maybeSingle();
+
+      if (booking) {
+        await sendMessage(token, chatId,
+          `Got it ${firstName}, would you like me to cancel your viewing?`,
+          { reply_markup: { inline_keyboard: [
+            [{ text: "Yes, cancel it ❌", callback_data: 'remind_cancel' }],
+            [{ text: "No, keep it ✅", callback_data: 'remind_yes' }],
+          ] } }
+        );
+        return;
+      } else {
+        await sendMessage(token, chatId, `Hey ${firstName}, I don't see any upcoming viewings to cancel. If you think this is wrong, just let me know! 😊`);
+        return;
+      }
+    }
+
+    // Fetch property info for context
+    const { data: property } = await supabase.from('landlord_properties')
+      .select('address, city, rent_amount, surface_m2, num_rooms, property_type, accommodation_type, building_year, energy_label, furnished_status, available_date, min_lease_length, postcode')
+      .eq('id', applicant.property_id).maybeSingle();
+
+    // Fetch viewing booking info
+    const { data: booking } = await supabase.from('viewing_bookings')
+      .select('slot_start, slot_end, status')
+      .eq('applicant_id', applicant.id)
+      .in('status', ['confirmed', 'pending_landlord'])
+      .order('slot_start', { ascending: true })
+      .limit(1).maybeSingle();
+
+    // Build property context
+    let propertyContext = '';
+    if (property) {
+      const details: string[] = [];
+      if (property.address) details.push(`Address: ${property.address}`);
+      if (property.city) details.push(`City: ${property.city}`);
+      if (property.postcode) details.push(`Postcode: ${property.postcode}`);
+      if (property.rent_amount) details.push(`Rent: €${property.rent_amount}/month`);
+      if (property.surface_m2) details.push(`Surface: ${property.surface_m2}m²`);
+      if (property.num_rooms) details.push(`Rooms: ${property.num_rooms}`);
+      if (property.property_type) details.push(`Type: ${property.property_type}`);
+      if (property.accommodation_type) details.push(`Accommodation: ${property.accommodation_type}`);
+      if (property.building_year) details.push(`Built: ${property.building_year}`);
+      if (property.energy_label) details.push(`Energy label: ${property.energy_label}`);
+      if (property.furnished_status) details.push(`Furnished: ${property.furnished_status}`);
+      if (property.available_date) details.push(`Available from: ${property.available_date}`);
+      if (property.min_lease_length) details.push(`Minimum lease: ${property.min_lease_length}`);
+      propertyContext = details.join('\n');
+    }
+
+    let bookingContext = '';
+    if (booking) {
+      const dt = new Date(booking.slot_start);
+      bookingContext = `\nViewing: ${dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })} at ${dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} (status: ${booking.status})`;
+    }
+
+    const stageContext = applicant.stage === 'screening_complete' ? 'Their screening is complete and under review.'
+      : applicant.stage === 'approved' ? 'They have been approved.'
+      : applicant.stage === 'viewing_pending' ? 'They have a viewing time pending landlord approval.'
+      : applicant.stage === 'viewing_booked' ? 'They have a confirmed viewing.'
+      : `Current stage: ${applicant.stage}`;
+
+    const systemPrompt = `You are a friendly, helpful rental assistant for FairKamer. You chat with tenants via Telegram about their rental application.
+
+Your personality:
+- Warm, casual, helpful — like texting a friend who works in real estate
+- Use the tenant's first name (${firstName})
+- Keep responses SHORT (2-4 sentences max) — this is Telegram, not email
+- Use emojis sparingly but naturally
+- Always be encouraging and supportive
+
+PROPERTY INFO:
+${propertyContext || 'No property details available yet.'}
+${bookingContext}
+
+TENANT STATUS: ${stageContext}
+
+RULES:
+- Answer questions about the property using the info above
+- If you don't have info the tenant asks about (e.g. parking, pets policy, specific amenities), say something like "Good question! I don't have that detail handy — I'd suggest asking the landlord directly during the viewing, or I can pass your question along."
+- If they want to cancel, ask them to confirm with the cancel button
+- If they ask about their application status, use the tenant status above
+- NEVER make up property details you don't have
+- NEVER discuss other applicants
+- Reply in the same language the tenant writes in (Dutch or English)
+- Keep it to plain text with minimal HTML — Telegram doesn't render complex HTML well`;
+
+    const response = await fetch(AI_GATEWAY, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userText },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[AI] Gateway error:', response.status, await response.text());
+      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back from the landlord. Hang tight! 😊`);
+      return;
+    }
+
+    const result = await response.json();
+    const aiReply = result.choices?.[0]?.message?.content;
+
+    if (aiReply && aiReply.trim()) {
+      await sendMessage(token, chatId, aiReply.trim());
+    } else {
+      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back. Sit tight! 😊`);
+    }
+  } catch (err) {
+    console.error('[AI] Error:', err);
+    await sendMessage(token, chatId, `Hey ${firstName}! I'm here if you need anything. Your application is with the landlord — I'll let you know as soon as there's news! 😊`);
+  }
+}
+
+// ═══════════════════════════════════════════
 // TELEGRAM HELPERS
 // ═══════════════════════════════════════════
 async function sendMessage(token: string, chatId: number, text: string, extra?: any) {
