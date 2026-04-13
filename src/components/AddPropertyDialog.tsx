@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { calculateWWS, getComplianceStatus } from '@/lib/wws';
 import { useToast } from '@/hooks/use-toast';
-import { Search, CheckCircle2, Loader2 } from 'lucide-react';
+import { Home, Users } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -20,8 +20,8 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [bagLoading, setBagLoading] = useState(false);
-  const [bagVerified, setBagVerified] = useState(false);
+  const [step, setStep] = useState<'status' | 'details'>('status');
+  const [status, setStatus] = useState<'rented' | 'seeking'>('seeking');
 
   const [address, setAddress] = useState('');
   const [postcode, setPostcode] = useState('');
@@ -32,51 +32,10 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
   const [rentAmount, setRentAmount] = useState('');
   const [accommodationType, setAccommodationType] = useState<'independent' | 'shared'>('independent');
 
-  const lookupBAG = async () => {
-    if (!postcode || !address) {
-      toast({ title: 'Enter address', description: 'Please enter postcode and house number first', variant: 'destructive' });
-      return;
-    }
-    setBagLoading(true);
-    try {
-      // Try BAG API directly (public API, no auth needed)
-      const houseNumber = address.match(/\d+/)?.[0] || '';
-      const pc = postcode.replace(/\s/g, '');
-      const res = await fetch(
-        `https://api.bag.kadaster.nl/lvbag/individuelebevragingen/v2/adressen?postcode=${pc}&huisnummer=${houseNumber}`,
-        { headers: { 'X-Api-Key': 'l7xx1f2e409d607a44baaebe22b2c7e2d0a7', 'Accept': 'application/hal+json' } }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const adres = data?._embedded?.adressen?.[0];
-        if (adres) {
-          setCity(adres.woonplaatsNaam || '');
-          // Try to get verblijfsobject for surface area
-          const voUrl = adres._links?.adresseerbaarObject?.href;
-          if (voUrl) {
-            const voRes = await fetch(voUrl, {
-              headers: { 'X-Api-Key': 'l7xx1f2e409d607a44baaebe22b2c7e2d0a7', 'Accept': 'application/hal+json' }
-            });
-            if (voRes.ok) {
-              const voData = await voRes.json();
-              if (voData.verblijfsobject) {
-                const vo = voData.verblijfsobject;
-                if (vo.oppervlakte) setSurfaceM2(vo.oppervlakte.toString());
-              }
-            }
-          }
-          setBagVerified(true);
-          toast({ title: 'BAG Verified', description: 'Address data fetched from Kadaster' });
-        } else {
-          toast({ title: 'Not found', description: 'Address not found in BAG registry', variant: 'destructive' });
-        }
-      }
-    } catch (err) {
-      console.error('BAG lookup failed:', err);
-      toast({ title: 'BAG Lookup Failed', description: 'Could not reach BAG API. You can enter details manually.', variant: 'destructive' });
-    }
-    setBagLoading(false);
-  };
+  // Tenant fields (only for rented)
+  const [tenantName, setTenantName] = useState('');
+  const [tenantContractStart, setTenantContractStart] = useState('');
+  const [tenantDeposit, setTenantDeposit] = useState('');
 
   const handleSave = async () => {
     if (!user || !address) return;
@@ -96,7 +55,7 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
 
     const compliance = getComplianceStatus(rent, wws.max_rent);
 
-    const { error } = await supabase.from('landlord_properties').insert({
+    const insertData: any = {
       landlord_id: user.id,
       address,
       postcode,
@@ -109,8 +68,17 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
       wws_points: wws.total_points,
       wws_max_rent: wws.max_rent,
       wws_compliant: compliance === 'compliant',
-      bag_verified: bagVerified,
-    });
+      status,
+    };
+
+    if (status === 'rented') {
+      insertData.tenant_name = tenantName || null;
+      insertData.tenant_contract_start = tenantContractStart || null;
+      insertData.tenant_monthly_rent = rent || null;
+      insertData.tenant_deposit = parseFloat(tenantDeposit) || null;
+    }
+
+    const { error } = await supabase.from('landlord_properties').insert(insertData);
 
     setLoading(false);
     if (error) {
@@ -126,75 +94,126 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
   const resetForm = () => {
     setAddress(''); setPostcode(''); setCity(''); setSurfaceM2('');
     setBuildingYear(''); setEnergyLabel(''); setRentAmount('');
-    setAccommodationType('independent'); setBagVerified(false);
+    setAccommodationType('independent'); setStatus('seeking');
+    setTenantName(''); setTenantContractStart(''); setTenantDeposit('');
+    setStep('status');
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Property</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Postcode</Label>
-              <Input value={postcode} onChange={e => setPostcode(e.target.value)} placeholder="1234 AB" />
-            </div>
-            <div className="space-y-2">
-              <Label>Address / House №</Label>
-              <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Keizersgracht 123" />
-            </div>
-          </div>
-          <Button variant="outline" className="w-full" onClick={lookupBAG} disabled={bagLoading}>
-            {bagLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : bagVerified ? <CheckCircle2 className="w-4 h-4 mr-2 text-success" /> : <Search className="w-4 h-4 mr-2" />}
-            {bagVerified ? 'BAG Verified' : 'Lookup from BAG'}
-          </Button>
-          <div className="space-y-2">
-            <Label>City</Label>
-            <Input value={city} onChange={e => setCity(e.target.value)} placeholder="Amsterdam" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Surface (m²)</Label>
-              <Input type="number" value={surfaceM2} onChange={e => setSurfaceM2(e.target.value)} placeholder="65" />
-            </div>
-            <div className="space-y-2">
-              <Label>Building Year</Label>
-              <Input type="number" value={buildingYear} onChange={e => setBuildingYear(e.target.value)} placeholder="1990" />
+
+        {step === 'status' ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">What's the current status of this property?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => { setStatus('rented'); setStep('details'); }}
+                className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border hover:border-primary/50 bg-card transition-all hover:bg-primary/5"
+              >
+                <Home className="w-8 h-8 text-primary" />
+                <div className="text-center">
+                  <p className="font-medium text-foreground text-sm">Already Rented</p>
+                  <p className="text-xs text-muted-foreground mt-1">Has a current tenant</p>
+                </div>
+              </button>
+              <button
+                onClick={() => { setStatus('seeking'); setStep('details'); }}
+                className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border hover:border-primary/50 bg-card transition-all hover:bg-primary/5"
+              >
+                <Users className="w-8 h-8 text-primary" />
+                <div className="text-center">
+                  <p className="font-medium text-foreground text-sm">Looking for Tenant</p>
+                  <p className="text-xs text-muted-foreground mt-1">Accepting applicants</p>
+                </div>
+              </button>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Energy Label</Label>
-              <Select value={energyLabel} onValueChange={setEnergyLabel}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {['A+++++','A++++','A+++','A++','A+','A','B','C','D','E','F','G'].map(l => (
-                    <SelectItem key={l} value={l}>{l}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        ) : (
+          <div className="space-y-4">
+            <Button variant="ghost" size="sm" onClick={() => setStep('status')} className="text-muted-foreground -ml-2">
+              ← Back
+            </Button>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Postcode</Label>
+                <Input value={postcode} onChange={e => setPostcode(e.target.value)} placeholder="1234 AB" />
+              </div>
+              <div className="space-y-2">
+                <Label>Address / House №</Label>
+                <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Keizersgracht 123" />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Type</Label>
-              <Select value={accommodationType} onValueChange={v => setAccommodationType(v as 'independent' | 'shared')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="independent">Independent</SelectItem>
-                  <SelectItem value="shared">Shared</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>City</Label>
+              <Input value={city} onChange={e => setCity(e.target.value)} placeholder="Amsterdam" />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Surface (m²)</Label>
+                <Input type="number" value={surfaceM2} onChange={e => setSurfaceM2(e.target.value)} placeholder="65" />
+              </div>
+              <div className="space-y-2">
+                <Label>Building Year</Label>
+                <Input type="number" value={buildingYear} onChange={e => setBuildingYear(e.target.value)} placeholder="1990" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Energy Label</Label>
+                <Select value={energyLabel} onValueChange={setEnergyLabel}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    {['A+++++','A++++','A+++','A++','A+','A','B','C','D','E','F','G'].map(l => (
+                      <SelectItem key={l} value={l}>{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select value={accommodationType} onValueChange={v => setAccommodationType(v as 'independent' | 'shared')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="independent">Independent</SelectItem>
+                    <SelectItem value="shared">Shared</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Current Rent (€/month)</Label>
+              <Input type="number" value={rentAmount} onChange={e => setRentAmount(e.target.value)} placeholder="850" />
+            </div>
+
+            {status === 'rented' && (
+              <div className="space-y-3 border-t border-border pt-4">
+                <p className="text-sm font-medium text-foreground">Tenant Details</p>
+                <div className="space-y-2">
+                  <Label>Tenant Name</Label>
+                  <Input value={tenantName} onChange={e => setTenantName(e.target.value)} placeholder="Full name" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Contract Start</Label>
+                    <Input type="date" value={tenantContractStart} onChange={e => setTenantContractStart(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Deposit (€)</Label>
+                    <Input type="number" value={tenantDeposit} onChange={e => setTenantDeposit(e.target.value)} placeholder="1700" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <Button className="w-full" onClick={handleSave} disabled={loading || !address}>
+              {loading ? 'Saving...' : 'Add Property'}
+            </Button>
           </div>
-          <div className="space-y-2">
-            <Label>Current Rent (€/month)</Label>
-            <Input type="number" value={rentAmount} onChange={e => setRentAmount(e.target.value)} placeholder="850" />
-          </div>
-          <Button className="w-full" onClick={handleSave} disabled={loading || !address}>
-            {loading ? 'Saving...' : 'Add Property'}
-          </Button>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );

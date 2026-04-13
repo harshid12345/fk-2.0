@@ -7,9 +7,6 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import AuthPage from "./pages/AuthPage";
 import PropertiesPage from "./pages/PropertiesPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
-import ApplicantsPage from "./pages/ApplicantsPage";
-import ViewingsPage from "./pages/ViewingsPage";
-import TenantsPage from "./pages/TenantsPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -41,9 +38,6 @@ const App = () => (
             <Route path="/auth" element={<AuthRoute><AuthPage /></AuthRoute>} />
             <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
             <Route path="/properties/:id" element={<ProtectedRoute><PropertyDetailPage /></ProtectedRoute>} />
-            <Route path="/applicants" element={<ProtectedRoute><ApplicantsPage /></ProtectedRoute>} />
-            <Route path="/viewings" element={<ProtectedRoute><ViewingsPage /></ProtectedRoute>} />
-            <Route path="/tenants" element={<ProtectedRoute><TenantsPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

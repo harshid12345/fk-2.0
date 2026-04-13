@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, Users, Calendar, UserCheck, Settings, LogOut } from 'lucide-react';
+import { Building2, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -11,9 +11,6 @@ import {
 
 const navItems = [
   { path: '/properties', label: 'Properties', icon: Building2 },
-  { path: '/applicants', label: 'Applicants', icon: Users },
-  { path: '/viewings', label: 'Viewings', icon: Calendar },
-  { path: '/tenants', label: 'Tenants', icon: UserCheck },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
