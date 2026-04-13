@@ -161,6 +161,7 @@ export type Database = {
           tenant_deposit: number | null
           tenant_monthly_rent: number | null
           tenant_name: string | null
+          viewing_slots: Json | null
           wws_compliant: boolean | null
           wws_max_rent: number | null
           wws_points: number | null
@@ -184,6 +185,7 @@ export type Database = {
           tenant_deposit?: number | null
           tenant_monthly_rent?: number | null
           tenant_name?: string | null
+          viewing_slots?: Json | null
           wws_compliant?: boolean | null
           wws_max_rent?: number | null
           wws_points?: number | null
@@ -207,6 +209,7 @@ export type Database = {
           tenant_deposit?: number | null
           tenant_monthly_rent?: number | null
           tenant_name?: string | null
+          viewing_slots?: Json | null
           wws_compliant?: boolean | null
           wws_max_rent?: number | null
           wws_points?: number | null

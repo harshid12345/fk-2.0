@@ -258,7 +258,7 @@ export default function PropertyDetailPage() {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  navigator.clipboard.writeText('https://t.me/FairKamerBot?start=' + id);
+                  navigator.clipboard.writeText(`https://t.me/fairkamer_screen_bot?start=${id}`);
                   toast({ title: t('detail.link_copied') });
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary bg-primary/10"
@@ -279,36 +279,65 @@ export default function PropertyDetailPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  className="glass-card rounded-2xl p-4 flex items-center justify-between"
+                  className="glass-card rounded-2xl p-4 space-y-3"
                 >
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{a.full_name || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {a.occupation || '—'} · €{a.monthly_income || '—'}/mo
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{a.full_name || 'Unknown'}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {a.occupation || '—'} · €{a.monthly_income || '—'}/mo
+                        {a.age ? ` · Age ${a.age}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {a.match_score != null && (
+                        <div className="relative w-11 h-11">
+                          <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
+                            <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3" className="stroke-accent" />
+                            <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3"
+                              stroke={a.match_score > 70 ? 'hsl(152, 60%, 52%)' : a.match_score > 40 ? 'hsl(38, 92%, 50%)' : 'hsl(0, 60%, 55%)'}
+                              strokeDasharray={`${(a.match_score / 100) * 94.2} 94.2`}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-foreground">{a.match_score}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {a.match_score != null && (
-                      <div className="relative w-9 h-9">
-                        <svg className="w-9 h-9 -rotate-90" viewBox="0 0 36 36">
-                          <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3" className="stroke-accent" />
-                          <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3"
-                            stroke={a.match_score > 70 ? 'hsl(152, 60%, 52%)' : a.match_score > 40 ? 'hsl(38, 92%, 50%)' : 'hsl(0, 60%, 55%)'}
-                            strokeDasharray={`${(a.match_score / 100) * 94.2} 94.2`}
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold text-foreground">{a.match_score}</span>
-                      </div>
-                    )}
-                    {a.viewing_booked_at && (
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(a.viewing_booked_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+
+                  {/* Status badges */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {a.id_verified && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-[hsl(152,60%,52%)]/10 text-[hsl(152,60%,52%)]">
+                        ✅ ID Verified
                       </span>
                     )}
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    {a.viewing_booked_at && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-primary/10 text-primary">
+                        📅 {new Date(a.viewing_booked_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                    {a.social_handle && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-medium bg-accent text-muted-foreground">
+                        📸 @{a.social_handle}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-medium bg-accent text-muted-foreground capitalize">
+                      {a.stage || 'new'}
+                    </span>
                   </div>
+
+                  {/* Match flags */}
+                  {a.match_flags && Array.isArray(a.match_flags) && a.match_flags.length > 0 && (
+                    <div className="space-y-1">
+                      {(a.match_flags as string[]).map((flag, fi) => (
+                        <p key={fi} className="text-[11px] text-[hsl(38,92%,50%)] flex items-center gap-1">
+                          ⚠️ {flag}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               ))
             )}
