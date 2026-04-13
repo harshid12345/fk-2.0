@@ -31,6 +31,7 @@ const defaultCriteria: CriteriaState = {
 };
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_INDEX: Record<string, number> = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5, Sunday: 6 };
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -85,6 +86,23 @@ export default function SettingsPage() {
         });
       }
     });
+    // Load viewing schedule from DB
+    supabase.from('viewing_schedule').select('*').eq('landlord_id', user.id).then(({ data }) => {
+      if (data && data.length > 0) {
+        const updated = { ...availability };
+        data.forEach((row: any) => {
+          const dayName = DAYS[row.day_of_week];
+          if (dayName) {
+            updated[dayName] = {
+              enabled: row.enabled,
+              from: row.start_time?.slice(0, 5) || '10:00',
+              to: row.end_time?.slice(0, 5) || '18:00',
+            };
+          }
+        });
+        setAvailability(updated);
+      }
+    });
   }, [user]);
 
   const saveProfile = async () => {
@@ -118,6 +136,24 @@ export default function SettingsPage() {
     setCriteriaCompleted(true);
     setCriteriaStep(-1);
     toast({ title: t('settings.criteria_saved') });
+  };
+
+  const saveAvailability = async () => {
+    if (!user) return;
+    setLoading(true);
+    // Delete existing schedule
+    await supabase.from('viewing_schedule').delete().eq('landlord_id', user.id);
+    // Insert new schedule
+    const rows = DAYS.map(day => ({
+      landlord_id: user.id,
+      day_of_week: DAY_INDEX[day],
+      start_time: availability[day].from + ':00',
+      end_time: availability[day].to + ':00',
+      enabled: availability[day].enabled,
+    }));
+    await supabase.from('viewing_schedule').insert(rows as any);
+    setLoading(false);
+    toast({ title: t('settings.availability_saved') });
   };
 
   const renderCriteriaQuestion = () => {
@@ -204,8 +240,8 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><p className="text-[11px] text-muted-foreground">{t('settings.gender_pref')}</p><p className="text-foreground capitalize mt-0.5">{criteria.preferred_gender === 'any' ? t('settings.any') : criteria.preferred_gender}</p></div>
                   <div><p className="text-[11px] text-muted-foreground">{t('settings.age_range')}</p><p className="text-foreground mt-0.5">{criteria.min_age}–{criteria.max_age}</p></div>
-                  <div><p className="text-[11px] text-muted-foreground">{t('settings.smoking')}</p><p className="text-foreground mt-0.5">{criteria.smoking_allowed ? t('settings.allowed') : t('settings.not_allowed')}</p></div>
-                  <div><p className="text-[11px] text-muted-foreground">{t('settings.pets')}</p><p className="text-foreground mt-0.5">{criteria.pets_allowed ? t('settings.allowed') : t('settings.not_allowed')}</p></div>
+                  <div><p className="text-[11px] text-muted-foreground">{t('settings.smoking')}</p><p className="text-foreground mt-0.5">{criteria.smoking_allowed}</p></div>
+                  <div><p className="text-[11px] text-muted-foreground">{t('settings.pets')}</p><p className="text-foreground mt-0.5">{criteria.pets_allowed}</p></div>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-border/50">
                   <Label className="text-xs">{t('settings.same_for_all')}</Label>
@@ -237,7 +273,8 @@ export default function SettingsPage() {
 
         <Section id="availability" icon={Clock} title={t('settings.availability')}>
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground mb-3">{t('settings.availability_desc')}</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('settings.availability_desc')}</p>
+            <p className="text-[10px] text-muted-foreground/70 mb-3">{t('settings.slot_info')}</p>
             {DAYS.map(day => (
               <div key={day} className="flex items-center gap-3 py-1.5">
                 <Switch checked={availability[day].enabled} onCheckedChange={v => setAvailability({ ...availability, [day]: { ...availability[day], enabled: v } })} />
@@ -251,7 +288,11 @@ export default function SettingsPage() {
                 ) : <span className="text-xs text-muted-foreground">{t('settings.unavailable')}</span>}
               </div>
             ))}
-            <motion.div whileTap={{ scale: 0.97 }} className="pt-2"><Button onClick={() => toast({ title: t('settings.availability_saved') })} className="w-full h-10 rounded-xl">{t('settings.save_availability')}</Button></motion.div>
+            <motion.div whileTap={{ scale: 0.97 }} className="pt-2">
+              <Button onClick={saveAvailability} disabled={loading} className="w-full h-10 rounded-xl">
+                {loading ? t('settings.saving') : t('settings.save_availability')}
+              </Button>
+            </motion.div>
           </div>
         </Section>
 
