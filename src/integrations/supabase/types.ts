@@ -14,7 +14,237 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      applicants: {
+        Row: {
+          age: number | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          gender: string | null
+          id: string
+          id_document_url: string | null
+          id_verified: boolean | null
+          lifestyle_answers: Json | null
+          match_flags: Json | null
+          match_score: number | null
+          monthly_income: number | null
+          occupation: string | null
+          phone: string | null
+          property_id: string
+          social_handle: string | null
+          social_scrape_data: Json | null
+          stage: string | null
+          telegram_user_id: string | null
+          viewing_booked_at: string | null
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          id_document_url?: string | null
+          id_verified?: boolean | null
+          lifestyle_answers?: Json | null
+          match_flags?: Json | null
+          match_score?: number | null
+          monthly_income?: number | null
+          occupation?: string | null
+          phone?: string | null
+          property_id: string
+          social_handle?: string | null
+          social_scrape_data?: Json | null
+          stage?: string | null
+          telegram_user_id?: string | null
+          viewing_booked_at?: string | null
+        }
+        Update: {
+          age?: number | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          id_document_url?: string | null
+          id_verified?: boolean | null
+          lifestyle_answers?: Json | null
+          match_flags?: Json | null
+          match_score?: number | null
+          monthly_income?: number | null
+          occupation?: string | null
+          phone?: string | null
+          property_id?: string
+          social_handle?: string | null
+          social_scrape_data?: Json | null
+          stage?: string | null
+          telegram_user_id?: string | null
+          viewing_booked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applicants_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "landlord_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      landlord_criteria: {
+        Row: {
+          id: string
+          max_age: number | null
+          min_age: number | null
+          min_income_multiplier: number | null
+          notes: string | null
+          pets_allowed: boolean | null
+          preferred_gender: string | null
+          professionals_ok: boolean | null
+          property_id: string
+          smoking_allowed: boolean | null
+          students_ok: boolean | null
+        }
+        Insert: {
+          id?: string
+          max_age?: number | null
+          min_age?: number | null
+          min_income_multiplier?: number | null
+          notes?: string | null
+          pets_allowed?: boolean | null
+          preferred_gender?: string | null
+          professionals_ok?: boolean | null
+          property_id: string
+          smoking_allowed?: boolean | null
+          students_ok?: boolean | null
+        }
+        Update: {
+          id?: string
+          max_age?: number | null
+          min_age?: number | null
+          min_income_multiplier?: number | null
+          notes?: string | null
+          pets_allowed?: boolean | null
+          preferred_gender?: string | null
+          professionals_ok?: boolean | null
+          property_id?: string
+          smoking_allowed?: boolean | null
+          students_ok?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_criteria_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "landlord_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      landlord_properties: {
+        Row: {
+          accommodation_type: string | null
+          address: string
+          bag_verified: boolean | null
+          building_year: number | null
+          city: string | null
+          created_at: string | null
+          energy_label: string | null
+          id: string
+          landlord_id: string
+          postcode: string | null
+          property_type: string | null
+          rent_amount: number | null
+          surface_m2: number | null
+          tenant_contract_start: string | null
+          tenant_deposit: number | null
+          tenant_monthly_rent: number | null
+          tenant_name: string | null
+          wws_compliant: boolean | null
+          wws_max_rent: number | null
+          wws_points: number | null
+        }
+        Insert: {
+          accommodation_type?: string | null
+          address: string
+          bag_verified?: boolean | null
+          building_year?: number | null
+          city?: string | null
+          created_at?: string | null
+          energy_label?: string | null
+          id?: string
+          landlord_id: string
+          postcode?: string | null
+          property_type?: string | null
+          rent_amount?: number | null
+          surface_m2?: number | null
+          tenant_contract_start?: string | null
+          tenant_deposit?: number | null
+          tenant_monthly_rent?: number | null
+          tenant_name?: string | null
+          wws_compliant?: boolean | null
+          wws_max_rent?: number | null
+          wws_points?: number | null
+        }
+        Update: {
+          accommodation_type?: string | null
+          address?: string
+          bag_verified?: boolean | null
+          building_year?: number | null
+          city?: string | null
+          created_at?: string | null
+          energy_label?: string | null
+          id?: string
+          landlord_id?: string
+          postcode?: string | null
+          property_type?: string | null
+          rent_amount?: number | null
+          surface_m2?: number | null
+          tenant_contract_start?: string | null
+          tenant_deposit?: number | null
+          tenant_monthly_rent?: number | null
+          tenant_name?: string | null
+          wws_compliant?: boolean | null
+          wws_max_rent?: number | null
+          wws_points?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_properties_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      landlords: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          portfolio_size: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          portfolio_size?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          portfolio_size?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
