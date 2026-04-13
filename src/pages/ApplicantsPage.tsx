@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { calculateMatchScore } from '@/lib/matchScore';
 import { Button } from '@/components/ui/button';
-import { Users, Building2, ChevronDown, ChevronUp, Check, X, Calendar } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Users, Building2, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const SCORE_COLORS = {
@@ -35,7 +33,6 @@ export default function ApplicantsPage() {
   const [criteria, setCriteria] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-  const [showDisqualified, setShowDisqualified] = useState(false);
 
   const load = async () => {
     if (!user) return;
@@ -57,8 +54,7 @@ export default function ApplicantsPage() {
 
   const approveApplicant = async (applicant: any) => {
     await supabase.from('applicants').update({ stage: 'approved' } as any).eq('id', applicant.id);
-    
-    // Trigger the bot to send available slots to the tenant
+
     const prop = properties.find(p => p.id === applicant.property_id);
     if (applicant.telegram_user_id && prop) {
       await supabase.functions.invoke('telegram-screener', {
@@ -77,7 +73,7 @@ export default function ApplicantsPage() {
 
   const rejectApplicant = async (applicant: any) => {
     await supabase.from('applicants').update({ stage: 'rejected' } as any).eq('id', applicant.id);
-    
+
     if (applicant.telegram_user_id) {
       await supabase.functions.invoke('telegram-screener', {
         body: {
@@ -99,13 +95,11 @@ export default function ApplicantsPage() {
 
     let matchResult;
     if (crit) {
-      // Always recalculate live using current criteria
       matchResult = calculateMatchScore(
         { ...a, smoking: a.lifestyle_answers?.smoking, pets: a.lifestyle_answers?.pets },
         crit, rent, null
       );
     } else if (a.match_label && a.match_score != null) {
-      // Fallback to stored scores only if no criteria available
       const score = a.match_score <= 10 ? a.match_score : a.match_score / 10;
       matchResult = {
         score, label: a.match_label,
@@ -121,24 +115,29 @@ export default function ApplicantsPage() {
     return { ...a, matchResult, propertyAddress: prop?.address || '—' };
   });
 
-  const qualified = enriched.filter(a => !a.matchResult?.hardDisqualified);
-  const disqualified = enriched.filter(a => a.matchResult?.hardDisqualified);
-  qualified.sort((a, b) => (b.matchResult?.score || 0) - (a.matchResult?.score || 0));
+  const reviewable = [...enriched].sort((a, b) => {
+    const aFlagged = a.matchResult?.hardDisqualified ? 1 : 0;
+    const bFlagged = b.matchResult?.hardDisqualified ? 1 : 0;
+    if (aFlagged !== bFlagged) return aFlagged - bFlagged;
+    return (b.matchResult?.score || 0) - (a.matchResult?.score || 0);
+  });
 
-  const filtered = qualified.filter(a => {
-    if (filter === 'pending') return !a.stage || a.stage === 'new' || a.stage === 'welcome' || a.stage === 'done';
+  const isPendingStage = (stage: string | null | undefined) => !stage || stage === 'new' || stage === 'welcome' || stage === 'done' || stage === 'screening_complete';
+
+  const filtered = reviewable.filter(a => {
+    if (filter === 'pending') return isPendingStage(a.stage);
     if (filter === 'approved') return a.stage === 'approved';
     if (filter === 'rejected') return a.stage === 'rejected';
     return true;
   });
 
-  const pendingCount = qualified.filter(a => !a.stage || a.stage === 'new' || a.stage === 'welcome' || a.stage === 'done').length;
+  const pendingCount = reviewable.filter(a => isPendingStage(a.stage)).length;
 
   const filters = [
-    { key: 'all' as const, label: t('applicants.filter_all'), count: qualified.length },
+    { key: 'all' as const, label: t('applicants.filter_all'), count: reviewable.length },
     { key: 'pending' as const, label: t('applicants.filter_pending'), count: pendingCount },
-    { key: 'approved' as const, label: t('applicants.filter_approved'), count: qualified.filter(a => a.stage === 'approved').length },
-    { key: 'rejected' as const, label: t('applicants.filter_rejected'), count: qualified.filter(a => a.stage === 'rejected').length },
+    { key: 'approved' as const, label: t('applicants.filter_approved'), count: reviewable.filter(a => a.stage === 'approved').length },
+    { key: 'rejected' as const, label: t('applicants.filter_rejected'), count: reviewable.filter(a => a.stage === 'rejected').length },
   ];
 
   if (loading) return (
@@ -166,7 +165,7 @@ export default function ApplicantsPage() {
         ))}
       </div>
 
-      {filtered.length === 0 && disqualified.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="glass-card rounded-2xl p-8 text-center">
           <Users className="w-9 h-9 text-muted-foreground mx-auto mb-2.5" />
           <p className="text-sm text-muted-foreground max-w-xs mx-auto">{t('applicants.empty')}</p>
@@ -176,20 +175,6 @@ export default function ApplicantsPage() {
           {filtered.map((a, i) => (
             <ApplicantCard key={a.id} applicant={a} index={i} onApprove={approveApplicant} onReject={rejectApplicant} />
           ))}
-
-          {disqualified.length > 0 && (
-            <Collapsible open={showDisqualified} onOpenChange={setShowDisqualified}>
-              <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-accent/50 text-sm text-muted-foreground hover:bg-accent transition-colors">
-                <span>Disqualified ({disqualified.length})</span>
-                {showDisqualified ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3 pt-2">
-                {disqualified.map((a, i) => (
-                  <DisqualifiedCard key={a.id} applicant={a} index={i} />
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          )}
         </div>
       )}
 
@@ -204,9 +189,14 @@ export default function ApplicantsPage() {
 function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant: any; index: number; onApprove: (a: any) => void; onReject: (a: any) => void }) {
   const mr = a.matchResult;
   const score = mr?.score ?? 0;
-  const color = getScoreColor(score, false);
-  const borderClass = score >= 8.5 ? 'border-l-2' : '';
-  const isPending = !a.stage || a.stage === 'new' || a.stage === 'welcome' || a.stage === 'done';
+  const isCriteriaFlagged = mr?.hardDisqualified || false;
+  const displayLabel = isCriteriaFlagged ? 'Needs review' : (mr?.label || 'Unscored');
+  const visibleFlags = Array.isArray(mr?.flags)
+    ? mr.flags.filter((flag: string) => !flag.startsWith('Hard disqualifier'))
+    : [];
+  const color = getScoreColor(score, isCriteriaFlagged);
+  const borderClass = !isCriteriaFlagged && score >= 8.5 ? 'border-l-2' : '';
+  const isPending = !a.stage || a.stage === 'new' || a.stage === 'welcome' || a.stage === 'done' || a.stage === 'screening_complete';
   const isApproved = a.stage === 'approved';
   const isRejected = a.stage === 'rejected';
 
@@ -216,7 +206,7 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03 }}
       className={`glass-card rounded-2xl p-4 space-y-3 ${borderClass}`}
-      style={score >= 8.5 ? { borderLeftColor: SCORE_COLORS.strong } : {}}
+      style={!isCriteriaFlagged && score >= 8.5 ? { borderLeftColor: SCORE_COLORS.strong } : {}}
     >
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
@@ -224,6 +214,7 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant
             <p className="text-sm font-medium text-foreground">{a.full_name || 'Unknown'}</p>
             {isApproved && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#4ADE80]/15 text-[#4ADE80]">APPROVED</span>}
             {isRejected && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#E55B5B]/15 text-[#E55B5B]">REJECTED</span>}
+            {!isApproved && !isRejected && isCriteriaFlagged && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#E55B5B]/15 text-[#E55B5B]">REVIEW</span>}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             {a.employment_type || a.occupation || '—'} · €{a.monthly_income || '—'}/mo
@@ -236,10 +227,18 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant
         {mr && (
           <div className="text-right flex-shrink-0 ml-3">
             <p className="text-2xl font-bold" style={{ color }}>{score.toFixed(1)}</p>
-            <p className="text-[10px] font-medium" style={{ color }}>{mr.label}</p>
+            <p className="text-[10px] font-medium" style={{ color }}>{displayLabel}</p>
           </div>
         )}
       </div>
+
+      {isCriteriaFlagged && (
+        <div className="rounded-xl border border-[#E55B5B]/30 bg-[#E55B5B]/5 px-3 py-2">
+          <p className="text-[11px] font-medium" style={{ color: SCORE_COLORS.disqualified }}>
+            Criteria alert: {mr?.hardDisqualifyReason || 'This applicant conflicts with one of your current rules.'}
+          </p>
+        </div>
+      )}
 
       {mr && mr.breakdown && (
         <div className="space-y-2">
@@ -249,7 +248,6 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant
         </div>
       )}
 
-      {/* Key info badges */}
       <div className="flex flex-wrap gap-1.5">
         {a.num_occupants && <Badge text={`👤 ${a.num_occupants}`} variant="neutral" />}
         {a.desired_move_in && <Badge text={`📅 ${a.desired_move_in}`} variant="neutral" />}
@@ -263,9 +261,9 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant
         )}
       </div>
 
-      {mr?.flags && mr.flags.length > 0 && (
+      {visibleFlags.length > 0 && (
         <div className="space-y-1">
-          {mr.flags.map((flag: string, fi: number) => (
+          {visibleFlags.map((flag: string, fi: number) => (
             <p key={fi} className="text-[11px] flex items-center gap-1" style={{ color: SCORE_COLORS.moderate }}>
               ⚠️ {flag}
             </p>
@@ -273,7 +271,6 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant
         </div>
       )}
 
-      {/* Approve / Reject buttons for pending applicants */}
       {isPending && (
         <div className="flex gap-2 pt-1">
           <Button size="sm" onClick={() => onApprove(a)} className="flex-1 h-9 rounded-xl text-xs">
@@ -284,28 +281,6 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant
           </Button>
         </div>
       )}
-    </motion.div>
-  );
-}
-
-function DisqualifiedCard({ applicant: a, index }: { applicant: any; index: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03 }}
-      className="rounded-2xl p-4 space-y-2 border border-[#E55B5B]/30 bg-[#E55B5B]/5"
-    >
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-bold text-[#E55B5B] uppercase tracking-wider">🔴 Disqualified</span>
-      </div>
-      <p className="text-sm font-medium text-foreground">{a.full_name || 'Unknown'}</p>
-      <p className="text-xs text-muted-foreground">
-        {a.employment_type || a.occupation || '—'} · €{a.monthly_income || '—'}/mo
-      </p>
-      <p className="text-xs text-[#E55B5B]">
-        Reason: {a.matchResult?.hardDisqualifyReason || 'Does not meet requirements'}
-      </p>
     </motion.div>
   );
 }
