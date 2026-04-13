@@ -617,8 +617,9 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
       related_applicant_id: applicant.id,
     });
 
+    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address)}`;
     await sendMessage(token, chatId,
-      `Nice choice, ${firstName}! 🎉\n\nYou picked <b>${selectedSlot.label}</b>. I've sent this to the landlord for approval — you'll get a confirmation as soon as they say yes!\n\nHang tight ⏳`
+      `Nice choice, ${firstName}! 🎉\n\nYou picked <b>${selectedSlot.label}</b> at <b>${property.address}</b>.\n\n📍 <a href="${mapsLink}">Open in Google Maps</a>\n\nI've sent this to the landlord for approval — you'll get a confirmation as soon as they say yes!\n\nHang tight ⏳`
     );
 
     await runMatchScoring(supabase, applicant.id);
