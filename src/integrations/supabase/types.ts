@@ -17,20 +17,33 @@ export type Database = {
       applicants: {
         Row: {
           age: number | null
+          bkr_status: string | null
+          consent_given: boolean | null
           created_at: string | null
+          desired_lease_length: string | null
+          desired_move_in: string | null
           email: string | null
+          employment_type: string | null
           full_name: string | null
           gender: string | null
+          hard_disqualified: boolean | null
+          hard_disqualify_reason: string | null
           id: string
           id_document_url: string | null
           id_verified: boolean | null
           lifestyle_answers: Json | null
           match_flags: Json | null
+          match_label: string | null
           match_score: number | null
           monthly_income: number | null
+          num_occupants: string | null
           occupation: string | null
           phone: string | null
           property_id: string
+          scrape_facebook: Json | null
+          scrape_google: Json | null
+          scrape_kvk: Json | null
+          scrape_linkedin: Json | null
           social_handle: string | null
           social_scrape_data: Json | null
           stage: string | null
@@ -39,20 +52,33 @@ export type Database = {
         }
         Insert: {
           age?: number | null
+          bkr_status?: string | null
+          consent_given?: boolean | null
           created_at?: string | null
+          desired_lease_length?: string | null
+          desired_move_in?: string | null
           email?: string | null
+          employment_type?: string | null
           full_name?: string | null
           gender?: string | null
+          hard_disqualified?: boolean | null
+          hard_disqualify_reason?: string | null
           id?: string
           id_document_url?: string | null
           id_verified?: boolean | null
           lifestyle_answers?: Json | null
           match_flags?: Json | null
+          match_label?: string | null
           match_score?: number | null
           monthly_income?: number | null
+          num_occupants?: string | null
           occupation?: string | null
           phone?: string | null
           property_id: string
+          scrape_facebook?: Json | null
+          scrape_google?: Json | null
+          scrape_kvk?: Json | null
+          scrape_linkedin?: Json | null
           social_handle?: string | null
           social_scrape_data?: Json | null
           stage?: string | null
@@ -61,20 +87,33 @@ export type Database = {
         }
         Update: {
           age?: number | null
+          bkr_status?: string | null
+          consent_given?: boolean | null
           created_at?: string | null
+          desired_lease_length?: string | null
+          desired_move_in?: string | null
           email?: string | null
+          employment_type?: string | null
           full_name?: string | null
           gender?: string | null
+          hard_disqualified?: boolean | null
+          hard_disqualify_reason?: string | null
           id?: string
           id_document_url?: string | null
           id_verified?: boolean | null
           lifestyle_answers?: Json | null
           match_flags?: Json | null
+          match_label?: string | null
           match_score?: number | null
           monthly_income?: number | null
+          num_occupants?: string | null
           occupation?: string | null
           phone?: string | null
           property_id?: string
+          scrape_facebook?: Json | null
+          scrape_google?: Json | null
+          scrape_kvk?: Json | null
+          scrape_linkedin?: Json | null
           social_handle?: string | null
           social_scrape_data?: Json | null
           stage?: string | null
@@ -93,42 +132,54 @@ export type Database = {
       }
       landlord_criteria: {
         Row: {
+          accepted_tenant_types: Json | null
           id: string
           max_age: number | null
+          max_occupants: number | null
           min_age: number | null
+          min_income: number | null
           min_income_multiplier: number | null
           notes: string | null
-          pets_allowed: boolean | null
+          pets_allowed: string | null
           preferred_gender: string | null
           professionals_ok: boolean | null
           property_id: string
-          smoking_allowed: boolean | null
+          references_required: boolean | null
+          smoking_allowed: string | null
           students_ok: boolean | null
         }
         Insert: {
+          accepted_tenant_types?: Json | null
           id?: string
           max_age?: number | null
+          max_occupants?: number | null
           min_age?: number | null
+          min_income?: number | null
           min_income_multiplier?: number | null
           notes?: string | null
-          pets_allowed?: boolean | null
+          pets_allowed?: string | null
           preferred_gender?: string | null
           professionals_ok?: boolean | null
           property_id: string
-          smoking_allowed?: boolean | null
+          references_required?: boolean | null
+          smoking_allowed?: string | null
           students_ok?: boolean | null
         }
         Update: {
+          accepted_tenant_types?: Json | null
           id?: string
           max_age?: number | null
+          max_occupants?: number | null
           min_age?: number | null
+          min_income?: number | null
           min_income_multiplier?: number | null
           notes?: string | null
-          pets_allowed?: boolean | null
+          pets_allowed?: string | null
           preferred_gender?: string | null
           professionals_ok?: boolean | null
           property_id?: string
-          smoking_allowed?: boolean | null
+          references_required?: boolean | null
+          smoking_allowed?: string | null
           students_ok?: boolean | null
         }
         Relationships: [
@@ -145,16 +196,21 @@ export type Database = {
         Row: {
           accommodation_type: string | null
           address: string
+          available_date: string | null
           bag_verified: boolean | null
           building_year: number | null
           city: string | null
           created_at: string | null
           energy_label: string | null
+          furnished_status: string | null
           id: string
           landlord_id: string
+          min_lease_length: string | null
+          num_rooms: number | null
           postcode: string | null
           property_type: string | null
           rent_amount: number | null
+          sector: string | null
           status: string
           surface_m2: number | null
           tenant_contract_start: string | null
@@ -169,16 +225,21 @@ export type Database = {
         Insert: {
           accommodation_type?: string | null
           address: string
+          available_date?: string | null
           bag_verified?: boolean | null
           building_year?: number | null
           city?: string | null
           created_at?: string | null
           energy_label?: string | null
+          furnished_status?: string | null
           id?: string
           landlord_id: string
+          min_lease_length?: string | null
+          num_rooms?: number | null
           postcode?: string | null
           property_type?: string | null
           rent_amount?: number | null
+          sector?: string | null
           status?: string
           surface_m2?: number | null
           tenant_contract_start?: string | null
@@ -193,16 +254,21 @@ export type Database = {
         Update: {
           accommodation_type?: string | null
           address?: string
+          available_date?: string | null
           bag_verified?: boolean | null
           building_year?: number | null
           city?: string | null
           created_at?: string | null
           energy_label?: string | null
+          furnished_status?: string | null
           id?: string
           landlord_id?: string
+          min_lease_length?: string | null
+          num_rooms?: number | null
           postcode?: string | null
           property_type?: string | null
           rent_amount?: number | null
+          sector?: string | null
           status?: string
           surface_m2?: number | null
           tenant_contract_start?: string | null

@@ -16,8 +16,8 @@ interface CriteriaState {
   preferred_gender: string;
   min_age: string;
   max_age: string;
-  smoking_allowed: boolean;
-  pets_allowed: boolean;
+  smoking_allowed: string;
+  pets_allowed: string;
   students_ok: boolean;
   professionals_ok: boolean;
   min_income_multiplier: string;
@@ -26,7 +26,7 @@ interface CriteriaState {
 
 const defaultCriteria: CriteriaState = {
   preferred_gender: 'any', min_age: '18', max_age: '65',
-  smoking_allowed: false, pets_allowed: false, students_ok: true,
+  smoking_allowed: 'No', pets_allowed: 'No', students_ok: true,
   professionals_ok: true, min_income_multiplier: '3.0', notes: '',
 };
 
@@ -58,8 +58,8 @@ export default function SettingsPage() {
     { key: 'preferred_gender', question: t('criteria.q_gender'), type: 'select', options: [{ value: 'any', label: t('criteria.no_pref') }, { value: 'male', label: t('criteria.male') }, { value: 'female', label: t('criteria.female') }] },
     { key: 'min_age', question: t('criteria.q_min_age'), type: 'number', placeholder: '18' },
     { key: 'max_age', question: t('criteria.q_max_age'), type: 'number', placeholder: '65' },
-    { key: 'smoking_allowed', question: t('criteria.q_smoking'), type: 'toggle' },
-    { key: 'pets_allowed', question: t('criteria.q_pets'), type: 'toggle' },
+    { key: 'smoking_allowed', question: t('criteria.q_smoking'), type: 'select', options: [{ value: 'No', label: t('criteria.no') }, { value: 'Outside only', label: 'Outside only' }, { value: 'Yes', label: t('criteria.yes') }] },
+    { key: 'pets_allowed', question: t('criteria.q_pets'), type: 'select', options: [{ value: 'No', label: t('criteria.no') }, { value: 'Negotiable', label: 'Negotiable' }, { value: 'Yes', label: t('criteria.yes') }] },
     { key: 'students_ok', question: t('criteria.q_students'), type: 'toggle' },
     { key: 'professionals_ok', question: t('criteria.q_professionals'), type: 'toggle' },
     { key: 'min_income_multiplier', question: t('criteria.q_income'), type: 'number', placeholder: '3.0' },
@@ -78,8 +78,8 @@ export default function SettingsPage() {
         const first = data[0];
         setCriteria({
           preferred_gender: first.preferred_gender || 'any', min_age: first.min_age?.toString() || '18',
-          max_age: first.max_age?.toString() || '65', smoking_allowed: first.smoking_allowed || false,
-          pets_allowed: first.pets_allowed || false, students_ok: first.students_ok ?? true,
+          max_age: first.max_age?.toString() || '65', smoking_allowed: first.smoking_allowed || 'No',
+          pets_allowed: first.pets_allowed || 'No', students_ok: first.students_ok ?? true,
           professionals_ok: first.professionals_ok ?? true, min_income_multiplier: first.min_income_multiplier?.toString() || '3.0',
           notes: first.notes || '',
         });
@@ -108,11 +108,11 @@ export default function SettingsPage() {
     if (sameCriteriaForAll) {
       for (const prop of properties) {
         await supabase.from('landlord_criteria').delete().eq('property_id', prop.id);
-        await supabase.from('landlord_criteria').insert({ ...criteriaData, property_id: prop.id });
+        await supabase.from('landlord_criteria').insert([{ ...criteriaData, property_id: prop.id }] as any);
       }
     } else if (selectedPropertyForCriteria) {
       await supabase.from('landlord_criteria').delete().eq('property_id', selectedPropertyForCriteria);
-      await supabase.from('landlord_criteria').insert({ ...criteriaData, property_id: selectedPropertyForCriteria });
+      await supabase.from('landlord_criteria').insert([{ ...criteriaData, property_id: selectedPropertyForCriteria }] as any);
     }
     setLoading(false);
     setCriteriaCompleted(true);
