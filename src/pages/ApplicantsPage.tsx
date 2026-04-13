@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { calculateMatchScore } from '@/lib/matchScore';
 import { Button } from '@/components/ui/button';
-import { Users, Building2, Check, X } from 'lucide-react';
+import { Users, Building2, Check, X, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const SCORE_COLORS = {
@@ -32,6 +32,7 @@ export default function ApplicantsPage() {
   const [properties, setProperties] = useState<any[]>([]);
   const [criteria, setCriteria] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   const load = async () => {
@@ -46,6 +47,8 @@ export default function ApplicantsPage() {
       const critMap: Record<string, any> = {};
       (crits || []).forEach((c: any) => { critMap[c.property_id] = c; });
       setCriteria(critMap);
+    } else {
+      setApplicants([]);
     }
     setLoading(false);
   };
@@ -53,30 +56,60 @@ export default function ApplicantsPage() {
   useEffect(() => { load(); }, [user]);
 
   const approveApplicant = async (applicant: any) => {
-    const { error } = await supabase.functions.invoke('telegram-notify-tenant', {
-      body: { applicantId: applicant.id, action: 'approve' },
-    });
-    if (error) {
-      toast({ title: 'Failed to notify tenant', variant: 'destructive' as any });
-    } else {
-      toast({ title: `${applicant.full_name || 'Applicant'} approved! Viewing invitation sent via Telegram.` });
+    setActionLoading(applicant.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
+        body: { applicantId: applicant.id, action: 'approve' },
+      });
+      console.log('[Approve] Response:', data, 'Error:', error);
+      if (error) {
+        toast({ title: 'Failed to notify tenant', description: String(error.message || error), variant: 'destructive' as any });
+      } else {
+        toast({ title: `${applicant.full_name || 'Applicant'} approved! Viewing invitation sent.` });
+      }
+    } catch (e: any) {
+      console.error('[Approve] Exception:', e);
+      toast({ title: 'Error approving applicant', description: e.message, variant: 'destructive' as any });
     }
+    setActionLoading(null);
     load();
   };
 
   const rejectApplicant = async (applicant: any) => {
-    const { error } = await supabase.functions.invoke('telegram-notify-tenant', {
-      body: { applicantId: applicant.id, action: 'reject' },
-    });
-    if (error) {
-      toast({ title: 'Failed to notify tenant', variant: 'destructive' as any });
-    } else {
-      toast({ title: `${applicant.full_name || 'Applicant'} rejected. Notification sent.` });
+    setActionLoading(applicant.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
+        body: { applicantId: applicant.id, action: 'reject' },
+      });
+      console.log('[Reject] Response:', data, 'Error:', error);
+      if (error) {
+        toast({ title: 'Failed to notify tenant', description: String(error.message || error), variant: 'destructive' as any });
+      } else {
+        toast({ title: `${applicant.full_name || 'Applicant'} rejected. Notification sent.` });
+      }
+    } catch (e: any) {
+      console.error('[Reject] Exception:', e);
+      toast({ title: 'Error rejecting applicant', description: e.message, variant: 'destructive' as any });
     }
+    setActionLoading(null);
     load();
   };
 
-  // Compute match results — always recalculate live so criteria changes reflect immediately
+  const clearAllApplicants = async () => {
+    if (!user) return;
+    const ids = properties.map(p => p.id);
+    if (ids.length === 0) return;
+    // Delete bookings first, then applicants
+    await supabase.from('viewing_bookings').delete().eq('landlord_id', user.id);
+    await supabase.from('notifications').delete().eq('landlord_id', user.id);
+    for (const pid of ids) {
+      await supabase.from('applicants').delete().in('property_id', ids);
+    }
+    toast({ title: 'All applicants cleared (dev mode)' });
+    load();
+  };
+
+  // Compute match results
   const enriched = applicants.map(a => {
     const prop = properties.find(p => p.id === a.property_id);
     const crit = criteria[a.property_id];
@@ -115,7 +148,7 @@ export default function ApplicantsPage() {
 
   const filtered = reviewable.filter(a => {
     if (filter === 'pending') return isPendingStage(a.stage);
-    if (filter === 'approved') return a.stage === 'approved';
+    if (filter === 'approved') return a.stage === 'approved' || a.stage === 'viewing_pending' || a.stage === 'viewing_booked';
     if (filter === 'rejected') return a.stage === 'rejected';
     return true;
   });
@@ -125,7 +158,7 @@ export default function ApplicantsPage() {
   const filters = [
     { key: 'all' as const, label: t('applicants.filter_all'), count: reviewable.length },
     { key: 'pending' as const, label: t('applicants.filter_pending'), count: pendingCount },
-    { key: 'approved' as const, label: t('applicants.filter_approved'), count: reviewable.filter(a => a.stage === 'approved').length },
+    { key: 'approved' as const, label: t('applicants.filter_approved'), count: reviewable.filter(a => a.stage === 'approved' || a.stage === 'viewing_pending' || a.stage === 'viewing_booked').length },
     { key: 'rejected' as const, label: t('applicants.filter_rejected'), count: reviewable.filter(a => a.stage === 'rejected').length },
   ];
 
@@ -137,7 +170,19 @@ export default function ApplicantsPage() {
 
   return (
     <div className="px-5 py-5 pb-8 space-y-4">
-      <h1 className="text-lg font-semibold text-foreground">{t('applicants.title')}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-foreground">{t('applicants.title')}</h1>
+        {applicants.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={clearAllApplicants}
+            className="h-7 px-2 text-[10px] rounded-lg border-destructive/30 text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="w-3 h-3 mr-1" /> DEV: Clear All
+          </Button>
+        )}
+      </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {filters.map(f => (
@@ -162,7 +207,7 @@ export default function ApplicantsPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((a, i) => (
-            <ApplicantCard key={a.id} applicant={a} index={i} onApprove={approveApplicant} onReject={rejectApplicant} />
+            <ApplicantCard key={a.id} applicant={a} index={i} onApprove={approveApplicant} onReject={rejectApplicant} actionLoading={actionLoading} />
           ))}
         </div>
       )}
@@ -175,7 +220,7 @@ export default function ApplicantsPage() {
   );
 }
 
-function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant: any; index: number; onApprove: (a: any) => void; onReject: (a: any) => void }) {
+function ApplicantCard({ applicant: a, index, onApprove, onReject, actionLoading }: { applicant: any; index: number; onApprove: (a: any) => void; onReject: (a: any) => void; actionLoading: string | null }) {
   const mr = a.matchResult;
   const score = mr?.score ?? 0;
   const isCriteriaFlagged = mr?.hardDisqualified || false;
@@ -186,8 +231,19 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant
   const color = getScoreColor(score, isCriteriaFlagged);
   const borderClass = !isCriteriaFlagged && score >= 8.5 ? 'border-l-2' : '';
   const isPending = !a.stage || a.stage === 'new' || a.stage === 'welcome' || a.stage === 'done' || a.stage === 'screening_complete';
-  const isApproved = a.stage === 'approved';
+  const isApproved = a.stage === 'approved' || a.stage === 'viewing_pending' || a.stage === 'viewing_booked';
   const isRejected = a.stage === 'rejected';
+  const isLoading = actionLoading === a.id;
+
+  const stageLabel = (() => {
+    switch (a.stage) {
+      case 'approved': return 'APPROVED';
+      case 'viewing_pending': return 'VIEWING PENDING';
+      case 'viewing_booked': return 'VIEWING BOOKED';
+      case 'rejected': return 'REJECTED';
+      default: return null;
+    }
+  })();
 
   return (
     <motion.div
@@ -201,7 +257,7 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium text-foreground">{a.full_name || 'Unknown'}</p>
-            {isApproved && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#4ADE80]/15 text-[#4ADE80]">APPROVED</span>}
+            {isApproved && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#4ADE80]/15 text-[#4ADE80]">{stageLabel}</span>}
             {isRejected && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#E55B5B]/15 text-[#E55B5B]">REJECTED</span>}
             {!isApproved && !isRejected && isCriteriaFlagged && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#E55B5B]/15 text-[#E55B5B]">REVIEW</span>}
           </div>
@@ -262,11 +318,13 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant
 
       {isPending && (
         <div className="flex gap-2 pt-1">
-          <Button size="sm" onClick={() => onApprove(a)} className="flex-1 h-9 rounded-xl text-xs">
-            <Check className="w-3.5 h-3.5 mr-1" /> Approve & Send Slots
+          <Button size="sm" onClick={() => onApprove(a)} disabled={isLoading} className="flex-1 h-9 rounded-xl text-xs">
+            {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
+            {isLoading ? 'Sending...' : 'Approve & Send Slots'}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => onReject(a)} className="flex-1 h-9 rounded-xl text-xs">
-            <X className="w-3.5 h-3.5 mr-1" /> Reject
+          <Button size="sm" variant="outline" onClick={() => onReject(a)} disabled={isLoading} className="flex-1 h-9 rounded-xl text-xs">
+            {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <X className="w-3.5 h-3.5 mr-1" />}
+            Reject
           </Button>
         </div>
       )}
