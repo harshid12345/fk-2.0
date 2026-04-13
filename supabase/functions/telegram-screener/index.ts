@@ -764,15 +764,17 @@ async function handleReminders(supabase: any, token: string) {
 
   for (const booking of (threeDayBookings || [])) {
     const { data: property } = await supabase.from('landlord_properties').select('address').eq('id', booking.property_id).single();
+    const addr = property?.address || 'The property';
     const dt = new Date(booking.slot_start);
     const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
     const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const firstName = (booking.applicants?.full_name || 'there').split(' ')[0];
     const chatId = booking.applicants?.telegram_chat_id || (booking.applicants?.telegram_user_id ? parseInt(booking.applicants.telegram_user_id) : null);
+    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
 
     if (chatId) {
       await sendMessage(token, chatId,
-        `Hey ${firstName}! Just a heads up — your viewing is coming up in 3 days 📅\n\n🗓 <b>${dateStr} at ${timeStr}</b>\n📍 <b>${property?.address || 'The property'}</b>\n\nStill good to go?`,
+        `Hey ${firstName}! Just a heads up — your viewing is coming up in 3 days 📅\n\n🗓 <b>${dateStr} at ${timeStr}</b>\n📍 <b>${addr}</b>\n🗺 <a href="${mapsLink}">Open in Google Maps</a>\n\nStill good to go?`,
         { reply_markup: { inline_keyboard: [
           [{ text: "Yep, I'll be there! ✅", callback_data: 'remind_yes' }],
           [{ text: "I need to cancel ❌", callback_data: 'remind_cancel' }],
