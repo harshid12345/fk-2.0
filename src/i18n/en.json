@@ -1,6 +1,7 @@
 {
   "nav.properties": "Properties",
   "nav.issues": "Issues",
+  "nav.applicants": "Applicants",
   "nav.settings": "Settings",
   "properties.title": "Your properties",
   "properties.add": "Add property",
@@ -128,5 +129,18 @@
   "auth.almost_there": "Almost there!",
   "auth.almost_desc": "Click below to create your account. You can add properties from your dashboard.",
   "auth.or": "or",
-  "lang.toggle": "EN | NL"
+  "lang.toggle": "EN | NL",
+  "detail.viewing_slots": "Viewing slots",
+  "detail.add_slot": "Add slot",
+  "detail.no_slots": "No viewing slots added yet",
+  "detail.slot_added": "Slot added",
+  "detail.slot_removed": "Slot removed",
+  "detail.date_time": "Date & time",
+  "detail.label": "Label (e.g. Tue 15 Apr, 14:00)",
+  "applicants.title": "All applicants",
+  "applicants.empty": "No applicants yet. Share your screening bot links to start receiving applicants.",
+  "applicants.filter_all": "All",
+  "applicants.filter_new": "New",
+  "applicants.filter_done": "Complete",
+  "applicants.for_property": "for"
 }

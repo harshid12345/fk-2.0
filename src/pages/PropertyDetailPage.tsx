@@ -8,8 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Building2, ShieldCheck, Copy, Trash2, Home, Users, Calendar, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Building2, ShieldCheck, Copy, Trash2, Home, Users, Calendar, Plus, X } from 'lucide-react';
 import { getComplianceStatus } from '@/lib/wws';
+
+interface ViewingSlot {
+  label: string;
+  datetime: string;
+}
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +31,10 @@ export default function PropertyDetailPage() {
   const [tenantMonthlyRent, setTenantMonthlyRent] = useState('');
   const [tenantDeposit, setTenantDeposit] = useState('');
   const [applicants, setApplicants] = useState<any[]>([]);
+
+  // Viewing slots
+  const [newSlotLabel, setNewSlotLabel] = useState('');
+  const [newSlotDatetime, setNewSlotDatetime] = useState('');
 
   useEffect(() => { fetchData(); }, [id, user]);
 
@@ -63,6 +72,26 @@ export default function PropertyDetailPage() {
     navigate('/properties');
   };
 
+  const addViewingSlot = async () => {
+    if (!id || !newSlotLabel || !newSlotDatetime) return;
+    const slots: ViewingSlot[] = (property?.viewing_slots as ViewingSlot[]) || [];
+    const updated = [...slots, { label: newSlotLabel, datetime: newSlotDatetime }];
+    await supabase.from('landlord_properties').update({ viewing_slots: updated as any }).eq('id', id);
+    setNewSlotLabel('');
+    setNewSlotDatetime('');
+    toast({ title: t('detail.slot_added') });
+    fetchData();
+  };
+
+  const removeViewingSlot = async (index: number) => {
+    if (!id) return;
+    const slots: ViewingSlot[] = (property?.viewing_slots as ViewingSlot[]) || [];
+    const updated = slots.filter((_, i) => i !== index);
+    await supabase.from('landlord_properties').update({ viewing_slots: updated as any }).eq('id', id);
+    toast({ title: t('detail.slot_removed') });
+    fetchData();
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center py-20">
       <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -73,10 +102,12 @@ export default function PropertyDetailPage() {
   const complianceStatus = property.rent_amount && property.wws_max_rent
     ? getComplianceStatus(property.rent_amount, property.wws_max_rent) : null;
   const isRented = property.status === 'rented';
+  const viewingSlots: ViewingSlot[] = (property.viewing_slots as ViewingSlot[]) || [];
 
   const tabs = [
     { label: 'Overview' },
     { label: isRented ? 'Tenant' : 'Applicants' },
+    { label: t('detail.viewing_slots') },
   ];
 
   return (
@@ -84,30 +115,18 @@ export default function PropertyDetailPage() {
       {/* Sticky header */}
       <div className="sticky top-0 z-20 glass-surface border-b border-border/50">
         <div className="flex items-center justify-between px-4 py-3">
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => navigate('/properties')}
-            className="p-2 -ml-2 rounded-xl"
-          >
+          <motion.button whileTap={{ scale: 0.9 }} onClick={() => navigate('/properties')} className="p-2 -ml-2 rounded-xl">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </motion.button>
           <span className="font-medium text-foreground text-sm truncate max-w-[200px]">{property.address}</span>
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={deleteProperty}
-            className="p-2 -mr-2 rounded-xl text-muted-foreground hover:text-destructive"
-          >
+          <motion.button whileTap={{ scale: 0.9 }} onClick={deleteProperty} className="p-2 -mr-2 rounded-xl text-muted-foreground hover:text-destructive">
             <Trash2 className="w-4 h-4" />
           </motion.button>
         </div>
       </div>
 
       {/* Property hero */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="px-5 pt-5 pb-3"
-      >
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-5 pt-5 pb-3">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Building2 className="w-6 h-6 text-primary" />
@@ -165,12 +184,7 @@ export default function PropertyDetailPage() {
       {/* Tab content */}
       <div className="px-5 space-y-3">
         {activeTab === 0 && (
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-3"
-          >
-            {/* Property details card */}
+          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
             <div className="glass-card rounded-2xl p-5 space-y-4">
               <h3 className="font-medium text-foreground text-sm">{t('detail.property_details')}</h3>
               <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
@@ -193,7 +207,6 @@ export default function PropertyDetailPage() {
               )}
             </div>
 
-            {/* WWS card */}
             <div className="glass-card rounded-2xl p-5 space-y-4">
               <h3 className="font-medium text-foreground text-sm">{t('detail.wws_assessment')}</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -215,11 +228,7 @@ export default function PropertyDetailPage() {
         )}
 
         {activeTab === 1 && isRented && (
-          <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="glass-card rounded-2xl p-5 space-y-4"
-          >
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="glass-card rounded-2xl p-5 space-y-4">
             <h3 className="font-medium text-foreground text-sm">{t('detail.current_tenant')}</h3>
             <div className="space-y-3">
               <div className="space-y-1.5">
@@ -248,11 +257,7 @@ export default function PropertyDetailPage() {
         )}
 
         {activeTab === 1 && !isRented && (
-          <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-3"
-          >
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-medium text-foreground text-sm">{t('detail.applicants')}</h3>
               <motion.button
@@ -289,24 +294,21 @@ export default function PropertyDetailPage() {
                         {a.age ? ` · Age ${a.age}` : ''}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {a.match_score != null && (
-                        <div className="relative w-11 h-11">
-                          <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
-                            <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3" className="stroke-accent" />
-                            <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3"
-                              stroke={a.match_score > 70 ? 'hsl(152, 60%, 52%)' : a.match_score > 40 ? 'hsl(38, 92%, 50%)' : 'hsl(0, 60%, 55%)'}
-                              strokeDasharray={`${(a.match_score / 100) * 94.2} 94.2`}
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-foreground">{a.match_score}</span>
-                        </div>
-                      )}
-                    </div>
+                    {a.match_score != null && (
+                      <div className="relative w-11 h-11">
+                        <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
+                          <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3" className="stroke-accent" />
+                          <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3"
+                            stroke={a.match_score > 70 ? 'hsl(152, 60%, 52%)' : a.match_score > 40 ? 'hsl(38, 92%, 50%)' : 'hsl(0, 60%, 55%)'}
+                            strokeDasharray={`${(a.match_score / 100) * 94.2} 94.2`}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-foreground">{a.match_score}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Status badges */}
                   <div className="flex flex-wrap gap-1.5">
                     {a.id_verified && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-[hsl(152,60%,52%)]/10 text-[hsl(152,60%,52%)]">
@@ -328,7 +330,6 @@ export default function PropertyDetailPage() {
                     </span>
                   </div>
 
-                  {/* Match flags */}
                   {a.match_flags && Array.isArray(a.match_flags) && a.match_flags.length > 0 && (
                     <div className="space-y-1">
                       {(a.match_flags as string[]).map((flag, fi) => (
@@ -341,6 +342,67 @@ export default function PropertyDetailPage() {
                 </motion.div>
               ))
             )}
+          </motion.div>
+        )}
+
+        {/* Viewing Slots Tab */}
+        {activeTab === 2 && (
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
+            <div className="glass-card rounded-2xl p-5 space-y-4">
+              <h3 className="font-medium text-foreground text-sm">{t('detail.viewing_slots')}</h3>
+
+              {viewingSlots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t('detail.no_slots')}</p>
+              ) : (
+                <div className="space-y-2">
+                  {viewingSlots.map((slot, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-accent/50">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{slot.label}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(slot.datetime).toLocaleString('nl-NL')}</p>
+                      </div>
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => removeViewingSlot(i)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </motion.button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="border-t border-border/50 pt-4 space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t('detail.label')}</Label>
+                  <Input
+                    value={newSlotLabel}
+                    onChange={e => setNewSlotLabel(e.target.value)}
+                    placeholder="e.g. Tue 15 Apr, 14:00"
+                    className="bg-accent/50 border-border/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{t('detail.date_time')}</Label>
+                  <Input
+                    type="datetime-local"
+                    value={newSlotDatetime}
+                    onChange={e => setNewSlotDatetime(e.target.value)}
+                    className="bg-accent/50 border-border/50"
+                  />
+                </div>
+                <motion.div whileTap={{ scale: 0.97 }}>
+                  <Button
+                    onClick={addViewingSlot}
+                    disabled={!newSlotLabel || !newSlotDatetime}
+                    className="w-full h-10 rounded-xl text-sm font-medium"
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" /> {t('detail.add_slot')}
+                  </Button>
+                </motion.div>
+              </div>
+            </div>
           </motion.div>
         )}
       </div>

@@ -7,6 +7,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 
 const TABS = [
   { path: '/properties', icon: Building2, key: 'nav.properties' },
+  { path: '/applicants', icon: Users, key: 'nav.applicants' },
   { path: '/issues', icon: AlertCircle, key: 'nav.issues' },
   { path: '/settings', icon: Settings, key: 'nav.settings' },
 ];

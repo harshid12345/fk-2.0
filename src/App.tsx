@@ -11,6 +11,7 @@ import PropertiesPage from "./pages/PropertiesPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import IssuesPage from "./pages/IssuesPage";
 import SettingsPage from "./pages/SettingsPage";
+import ApplicantsPage from "./pages/ApplicantsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/auth" element={<AuthRoute><AuthPage /></AuthRoute>} />
               <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
               <Route path="/properties/:id" element={<ProtectedRoute><PropertyDetailPage /></ProtectedRoute>} />
+              <Route path="/applicants" element={<ProtectedRoute><ApplicantsPage /></ProtectedRoute>} />
               <Route path="/issues" element={<ProtectedRoute><IssuesPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />

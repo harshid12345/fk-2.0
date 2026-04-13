@@ -19,17 +19,43 @@ Deno.serve(async (req) => {
 
   try {
     const update = await req.json();
+
+    // Handle callback queries (button presses) — these don't have a top-level message
+    if (update.callback_query) {
+      const cbMessage = update.callback_query.message;
+      const cbChatId = cbMessage.chat.id;
+      const telegramUserId = String(update.callback_query.from.id);
+      const callbackData = update.callback_query.data;
+
+      const { data: applicant } = await supabase
+        .from('applicants')
+        .select('*')
+        .eq('telegram_user_id', telegramUserId)
+        .maybeSingle();
+
+      if (applicant) {
+        await handleCallback(supabase, BOT_TOKEN, cbChatId, telegramUserId, applicant, callbackData);
+      }
+
+      // Answer the callback to remove loading state
+      await fetch(`${TELEGRAM_API}${BOT_TOKEN}/answerCallbackQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callback_query_id: update.callback_query.id }),
+      });
+      return new Response('OK');
+    }
+
+    // Handle regular messages
     const message = update.message;
     if (!message) return new Response('OK', { status: 200 });
 
     const chatId = message.chat.id;
     const text = message.text?.trim() || '';
     const telegramUserId = String(message.from.id);
-
-    // Check for photo (ID upload)
     const photo = message.photo;
 
-    // Look up existing applicant by telegram_user_id
+    // Look up existing applicant
     const { data: applicant } = await supabase
       .from('applicants')
       .select('*')
@@ -37,7 +63,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!applicant) {
-      // New user — check if they started with a deep link /start <property_id>
+      // New user — check for deep link /start <property_id>
       if (text.startsWith('/start')) {
         const parts = text.split(' ');
         const propertyId = parts[1];
@@ -47,7 +73,6 @@ Deno.serve(async (req) => {
           return new Response('OK');
         }
 
-        // Verify property exists
         const { data: property } = await supabase
           .from('landlord_properties')
           .select('id, address, landlord_id')
@@ -59,14 +84,12 @@ Deno.serve(async (req) => {
           return new Response('OK');
         }
 
-        // Get landlord name
         const { data: landlord } = await supabase
           .from('landlords')
           .select('full_name')
           .eq('id', property.landlord_id)
           .maybeSingle();
 
-        // Create applicant record
         await supabase.from('applicants').insert({
           telegram_user_id: telegramUserId,
           property_id: propertyId,
@@ -93,20 +116,6 @@ Deno.serve(async (req) => {
       return new Response('OK');
     }
 
-    // Handle callback queries (button presses)
-    if (update.callback_query) {
-      const callbackData = update.callback_query.data;
-      const cbChatId = update.callback_query.message.chat.id;
-      await handleCallback(supabase, BOT_TOKEN, cbChatId, telegramUserId, applicant, callbackData);
-      // Answer the callback to remove loading state
-      await fetch(`${TELEGRAM_API}${BOT_TOKEN}/answerCallbackQuery`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callback_query_id: update.callback_query.id }),
-      });
-      return new Response('OK');
-    }
-
     // Handle photo upload for ID check stage
     if (photo && applicant.stage === 'id_check') {
       await handleIdUpload(supabase, BOT_TOKEN, chatId, applicant, photo, message);
@@ -115,16 +124,13 @@ Deno.serve(async (req) => {
 
     // Handle text-based conversation flow
     await handleTextMessage(supabase, BOT_TOKEN, chatId, applicant, text);
-
     return new Response('OK');
+
   } catch (error) {
     console.error('Error processing webhook:', error);
-    return new Response('OK', { status: 200 }); // Always return 200 to Telegram
+    return new Response('OK', { status: 200 });
   }
 });
-
-// Also handle callback_query at top level
-Deno.serve; // Already defined above, this is handled inline
 
 async function handleCallback(
   supabase: any, token: string, chatId: number,
@@ -277,27 +283,25 @@ async function handleCallback(
     );
   } else if (data.startsWith('slot_')) {
     const slotIndex = parseInt(data.replace('slot_', ''));
-    // Get property viewing slots
     const { data: property } = await supabase
       .from('landlord_properties')
       .select('viewing_slots, address')
       .eq('id', applicant.property_id)
       .single();
-    
+
     const slots = property?.viewing_slots || [];
     const selectedSlot = slots[slotIndex];
-    
+
     if (selectedSlot) {
       await supabase.from('applicants')
         .update({ viewing_booked_at: selectedSlot.datetime, stage: 'done' })
         .eq('id', applicant.id);
-      
+
       await sendMessage(token, chatId,
         `Confirmed! ✅\n\nYou're booked for ${selectedSlot.label} at ${property?.address || 'the property'}.\n\n` +
         `You'll get a reminder 24 hours before. See you there! 🏠`
       );
 
-      // Trigger match score calculation
       await calculateAndStoreMatchScore(supabase, applicant.id);
     }
   }
@@ -362,11 +366,9 @@ async function handleTextMessage(
 async function handleIdUpload(
   supabase: any, token: string, chatId: number, applicant: any, photos: any[], message: any
 ) {
-  // Get the highest resolution photo
   const photo = photos[photos.length - 1];
   const fileId = photo.file_id;
 
-  // Download file from Telegram
   const BOT_TOKEN = Deno.env.get('TELEGRAM_SCREENER_TOKEN')!;
   const fileInfoRes = await fetch(`${TELEGRAM_API}${BOT_TOKEN}/getFile?file_id=${fileId}`);
   const fileInfo = await fileInfoRes.json();
@@ -375,7 +377,6 @@ async function handleIdUpload(
   const fileRes = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`);
   const fileBytes = await fileRes.arrayBuffer();
 
-  // Upload to Supabase Storage
   const storagePath = `${applicant.id}/${Date.now()}.jpg`;
   const { error: uploadError } = await supabase.storage
     .from('id-documents')
@@ -397,7 +398,6 @@ async function handleIdUpload(
 
   await sendMessage(token, chatId, "Got it! Your ID is securely stored. ✅");
 
-  // Show available viewing slots
   const { data: property } = await supabase
     .from('landlord_properties')
     .select('viewing_slots, address')
@@ -435,7 +435,6 @@ async function calculateAndStoreMatchScore(supabase: any, applicantId: string) {
 
   if (!applicant) return;
 
-  // Get property rent
   const { data: property } = await supabase
     .from('landlord_properties')
     .select('rent_amount, landlord_id')
@@ -444,7 +443,6 @@ async function calculateAndStoreMatchScore(supabase: any, applicantId: string) {
 
   if (!property) return;
 
-  // Get landlord criteria
   const { data: criteria } = await supabase
     .from('landlord_criteria')
     .select('*')
@@ -465,7 +463,6 @@ async function calculateAndStoreMatchScore(supabase: any, applicantId: string) {
   else if (ratio >= 2) score += 10;
   else flags.push("Income below 2x rent");
 
-  // ID verification baseline
   if (!applicant.id_verified) flags.push("ID not yet verified");
 
   // LIFESTYLE MATCH (35 points)
@@ -478,9 +475,6 @@ async function calculateAndStoreMatchScore(supabase: any, applicantId: string) {
     if (criteria.pets_allowed === false && answers.pets !== 'none') {
       lifestyleScore -= 10;
       flags.push("Has pets — landlord does not allow pets");
-    }
-    if (criteria.preferred_gender && criteria.preferred_gender !== 'any') {
-      // Can't reliably determine gender from questionnaire, skip
     }
     if (answers.lifestyle === 'party' && criteria.notes?.toLowerCase().includes('quiet')) {
       lifestyleScore -= 10;
