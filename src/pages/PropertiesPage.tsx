@@ -6,7 +6,7 @@ import TopNav from '@/components/TopNav';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Building2, MapPin, Users } from 'lucide-react';
+import { Plus, Building2, MapPin, Home, Users } from 'lucide-react';
 import AddPropertyDialog from '@/components/AddPropertyDialog';
 import { getComplianceStatus } from '@/lib/wws';
 
@@ -21,6 +21,7 @@ interface Property {
   wws_points: number | null;
   tenant_name: string | null;
   accommodation_type: string | null;
+  status: string;
 }
 
 export default function PropertiesPage() {
@@ -44,9 +45,9 @@ export default function PropertiesPage() {
   const getStatusBadge = (p: Property) => {
     if (!p.rent_amount || !p.wws_max_rent) return null;
     const status = getComplianceStatus(p.rent_amount, p.wws_max_rent);
-    if (status === 'compliant') return <Badge className="bg-success/10 text-success border-success/20">Compliant</Badge>;
-    if (status === 'at_risk') return <Badge className="bg-warning/10 text-warning border-warning/20">At Risk</Badge>;
-    return <Badge className="bg-danger/10 text-danger border-danger/20">Over Limit</Badge>;
+    if (status === 'compliant') return <Badge className="bg-success/10 text-success border-success/20 text-[10px]">Compliant</Badge>;
+    if (status === 'at_risk') return <Badge className="bg-warning/10 text-warning border-warning/20 text-[10px]">At Risk</Badge>;
+    return <Badge className="bg-danger/10 text-danger border-danger/20 text-[10px]">Over Limit</Badge>;
   };
 
   return (
@@ -93,7 +94,12 @@ export default function PropertiesPage() {
                         </p>
                       </div>
                     </div>
-                    {getStatusBadge(p)}
+                    <div className="flex flex-col items-end gap-1">
+                      {getStatusBadge(p)}
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        {p.status === 'rented' ? <><Home className="w-3 h-3" /> Rented</> : <><Users className="w-3 h-3" /> Seeking</>}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
@@ -109,8 +115,8 @@ export default function PropertiesPage() {
                       <p className="font-medium text-foreground">{p.wws_points || '—'}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-xs">Tenant</p>
-                      <p className="font-medium text-foreground truncate">{p.tenant_name || 'Vacant'}</p>
+                      <p className="text-muted-foreground text-xs">{p.status === 'rented' ? 'Tenant' : 'Status'}</p>
+                      <p className="font-medium text-foreground truncate">{p.status === 'rented' ? (p.tenant_name || '—') : 'Accepting'}</p>
                     </div>
                   </div>
                 </Card>
