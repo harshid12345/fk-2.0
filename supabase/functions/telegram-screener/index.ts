@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const TELEGRAM_API = 'https://api.telegram.org/bot';
+const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
 // ═══════════════════════════════════════════
 // SCREENING QUESTIONS — conversational style
