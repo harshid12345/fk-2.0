@@ -128,5 +128,18 @@
   "auth.almost_there": "Bijna klaar!",
   "auth.almost_desc": "Klik hieronder om uw account aan te maken. U kunt woningen toevoegen vanuit uw dashboard.",
   "auth.or": "of",
-  "lang.toggle": "EN | NL"
+  "lang.toggle": "EN | NL",
+  "detail.viewing_slots": "Bezichtigingsslots",
+  "detail.add_slot": "Slot toevoegen",
+  "detail.no_slots": "Nog geen bezichtigingsslots toegevoegd",
+  "detail.slot_added": "Slot toegevoegd",
+  "detail.slot_removed": "Slot verwijderd",
+  "detail.date_time": "Datum & tijd",
+  "detail.label": "Label (bijv. Di 15 apr, 14:00)",
+  "applicants.title": "Alle kandidaten",
+  "applicants.empty": "Nog geen kandidaten. Deel uw screening bot links om kandidaten te ontvangen.",
+  "applicants.filter_all": "Alle",
+  "applicants.filter_new": "Nieuw",
+  "applicants.filter_done": "Compleet",
+  "applicants.for_property": "voor"
 }
