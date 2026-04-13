@@ -65,36 +65,39 @@ export default function NotificationsPage() {
     setLoadingAction('approve');
 
     try {
-      console.log('[Approve] Calling telegram-notify-tenant for applicant:', applicantId);
+      // Extract slot info from the notification message (e.g. "Tuesday 14 Apr at 10:00")
+      const slotMatch = notification.message?.match(/^(.+?) at (.+?)(?:\s*—|$)/);
+      const slotLabel = slotMatch ? `${slotMatch[1]} at ${slotMatch[2]}`.trim() : undefined;
+
+      console.log('[Confirm] Confirming booking for applicant:', applicantId, 'slot:', slotLabel);
 
       const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
-        body: { applicantId, action: 'approve' },
+        body: {
+          applicantId,
+          action: 'confirm_booking',
+          bookingId: notification.related_booking_id || undefined,
+          slotLabel,
+        },
       });
 
-      console.log('[Approve] Response:', { data, error });
+      console.log('[Confirm] Response:', { data, error });
 
       if (error) {
-        console.error('[Approve] Edge function error:', error);
-        toast.error('Failed to send approval. Check console for details.');
+        console.error('[Confirm] Edge function error:', error);
+        toast.error('Failed to send confirmation. Check console.');
         return;
       }
 
       if (data?.ok === false || data?.error) {
-        console.error('[Approve] Function returned error:', data.error);
-        toast.error(data.error || 'Applicant may have been deleted. Remove this notification.');
+        console.error('[Confirm] Function returned error:', data.error);
+        toast.error(data.error || 'Applicant may have been deleted.');
         await markRead(notification.id);
         return;
       }
 
-      // Mark notification as read
       await markRead(notification.id);
 
-      // Also mark the related booking if present
-      if (notification.related_booking_id) {
-        await supabase.from('viewing_bookings').update({ status: 'confirmed' } as any).eq('id', notification.related_booking_id);
-      }
-
-      toast.success('Tenant approved! Viewing invitation sent via Telegram.');
+      toast.success('Viewing confirmed! Tenant notified via Telegram 🎉');
       loadNotifications();
     } catch (err) {
       console.error('[Approve] Unexpected error:', err);
