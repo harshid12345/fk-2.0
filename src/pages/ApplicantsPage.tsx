@@ -3,10 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
-import { calculateMatchScore, getIncomeEstimate } from '@/lib/matchScore';
-import { Users, Building2, ChevronDown, ChevronUp } from 'lucide-react';
+import { calculateMatchScore } from '@/lib/matchScore';
+import { Button } from '@/components/ui/button';
+import { Users, Building2, ChevronDown, ChevronUp, Check, X, Calendar } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useToast } from '@/hooks/use-toast';
 
 const SCORE_COLORS = {
   strong: '#4ADE80',
@@ -27,46 +29,79 @@ function getScoreColor(score: number, disqualified: boolean) {
 export default function ApplicantsPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { toast } = useToast();
   const [applicants, setApplicants] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [criteria, setCriteria] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'new' | 'done'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [showDisqualified, setShowDisqualified] = useState(false);
 
-  useEffect(() => {
+  const load = async () => {
     if (!user) return;
-    const load = async () => {
-      const { data: props } = await supabase.from('landlord_properties').select('id, address, rent_amount').eq('landlord_id', user.id);
-      setProperties(props || []);
-      if (props && props.length > 0) {
-        const ids = props.map(p => p.id);
-        const { data: apps } = await supabase.from('applicants').select('*').in('property_id', ids).order('created_at', { ascending: false });
-        setApplicants(apps || []);
-        const { data: crits } = await supabase.from('landlord_criteria').select('*').in('property_id', ids);
-        const critMap: Record<string, any> = {};
-        (crits || []).forEach((c: any) => { critMap[c.property_id] = c; });
-        setCriteria(critMap);
-      }
-      setLoading(false);
-    };
-    load();
-  }, [user]);
+    const { data: props } = await supabase.from('landlord_properties').select('id, address, rent_amount, landlord_id').eq('landlord_id', user.id);
+    setProperties(props || []);
+    if (props && props.length > 0) {
+      const ids = props.map(p => p.id);
+      const { data: apps } = await supabase.from('applicants').select('*').in('property_id', ids).order('created_at', { ascending: false });
+      setApplicants(apps || []);
+      const { data: crits } = await supabase.from('landlord_criteria').select('*').in('property_id', ids);
+      const critMap: Record<string, any> = {};
+      (crits || []).forEach((c: any) => { critMap[c.property_id] = c; });
+      setCriteria(critMap);
+    }
+    setLoading(false);
+  };
 
-  // Compute match results client-side for display
+  useEffect(() => { load(); }, [user]);
+
+  const approveApplicant = async (applicant: any) => {
+    await supabase.from('applicants').update({ stage: 'approved' } as any).eq('id', applicant.id);
+    
+    // Trigger the bot to send available slots to the tenant
+    const prop = properties.find(p => p.id === applicant.property_id);
+    if (applicant.telegram_user_id && prop) {
+      await supabase.functions.invoke('telegram-screener', {
+        body: {
+          action: 'send_slots',
+          telegram_user_id: applicant.telegram_user_id,
+          applicant_id: applicant.id,
+          property_id: applicant.property_id,
+          landlord_id: prop.landlord_id,
+        },
+      });
+    }
+    toast({ title: t('applicants.approved') });
+    load();
+  };
+
+  const rejectApplicant = async (applicant: any) => {
+    await supabase.from('applicants').update({ stage: 'rejected' } as any).eq('id', applicant.id);
+    
+    if (applicant.telegram_user_id) {
+      await supabase.functions.invoke('telegram-screener', {
+        body: {
+          action: 'send_rejection',
+          telegram_user_id: applicant.telegram_user_id,
+          applicant_name: applicant.full_name,
+        },
+      });
+    }
+    toast({ title: t('applicants.rejected') });
+    load();
+  };
+
+  // Compute match results
   const enriched = applicants.map(a => {
     const prop = properties.find(p => p.id === a.property_id);
     const crit = criteria[a.property_id];
     const rent = prop?.rent_amount || 1000;
 
-    // Use stored values or compute
     let matchResult;
     if (a.match_label && a.match_score != null) {
-      // Use stored score (divide by 10 since stored as 0-100)
       const score = a.match_score <= 10 ? a.match_score : a.match_score / 10;
       matchResult = {
-        score,
-        label: a.match_label,
+        score, label: a.match_label,
         hardDisqualified: a.hard_disqualified || false,
         hardDisqualifyReason: a.hard_disqualify_reason || null,
         breakdown: { preferenceScore: 0, financialScore: 0, scrapedScore: 0 },
@@ -86,20 +121,22 @@ export default function ApplicantsPage() {
 
   const qualified = enriched.filter(a => !a.matchResult?.hardDisqualified);
   const disqualified = enriched.filter(a => a.matchResult?.hardDisqualified);
-
-  // Sort qualified by score descending
   qualified.sort((a, b) => (b.matchResult?.score || 0) - (a.matchResult?.score || 0));
 
   const filtered = qualified.filter(a => {
-    if (filter === 'new') return !a.stage || a.stage === 'new' || a.stage === 'welcome';
-    if (filter === 'done') return a.stage === 'done';
+    if (filter === 'pending') return !a.stage || a.stage === 'new' || a.stage === 'welcome' || a.stage === 'done';
+    if (filter === 'approved') return a.stage === 'approved';
+    if (filter === 'rejected') return a.stage === 'rejected';
     return true;
   });
 
+  const pendingCount = qualified.filter(a => !a.stage || a.stage === 'new' || a.stage === 'welcome' || a.stage === 'done').length;
+
   const filters = [
-    { key: 'all' as const, label: t('applicants.filter_all') },
-    { key: 'new' as const, label: t('applicants.filter_new') },
-    { key: 'done' as const, label: t('applicants.filter_done') },
+    { key: 'all' as const, label: t('applicants.filter_all'), count: qualified.length },
+    { key: 'pending' as const, label: t('applicants.filter_pending'), count: pendingCount },
+    { key: 'approved' as const, label: t('applicants.filter_approved'), count: qualified.filter(a => a.stage === 'approved').length },
+    { key: 'rejected' as const, label: t('applicants.filter_rejected'), count: qualified.filter(a => a.stage === 'rejected').length },
   ];
 
   if (loading) return (
@@ -112,18 +149,17 @@ export default function ApplicantsPage() {
     <div className="px-5 py-5 pb-8 space-y-4">
       <h1 className="text-lg font-semibold text-foreground">{t('applicants.title')}</h1>
 
-      {/* Filters */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         {filters.map(f => (
           <motion.button
             key={f.key}
             whileTap={{ scale: 0.95 }}
             onClick={() => setFilter(f.key)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors whitespace-nowrap ${
               filter === f.key ? 'bg-primary text-primary-foreground' : 'bg-accent text-muted-foreground'
             }`}
           >
-            {f.label} {f.key === 'all' ? `(${qualified.length})` : ''}
+            {f.label} ({f.count})
           </motion.button>
         ))}
       </div>
@@ -135,12 +171,10 @@ export default function ApplicantsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Qualified applicants */}
           {filtered.map((a, i) => (
-            <ApplicantCard key={a.id} applicant={a} index={i} />
+            <ApplicantCard key={a.id} applicant={a} index={i} onApprove={approveApplicant} onReject={rejectApplicant} />
           ))}
 
-          {/* Disqualified section */}
           {disqualified.length > 0 && (
             <Collapsible open={showDisqualified} onOpenChange={setShowDisqualified}>
               <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-accent/50 text-sm text-muted-foreground hover:bg-accent transition-colors">
@@ -157,7 +191,6 @@ export default function ApplicantsPage() {
         </div>
       )}
 
-      {/* Legal footer */}
       <p className="text-[10px] text-muted-foreground/60 leading-relaxed pt-4">
         Matching is based on financial fit and practical preferences only. In compliance with Dutch AWGB and AVG,
         no scoring is applied based on nationality, religion, gender, or other protected characteristics.
@@ -166,11 +199,14 @@ export default function ApplicantsPage() {
   );
 }
 
-function ApplicantCard({ applicant: a, index }: { applicant: any; index: number }) {
+function ApplicantCard({ applicant: a, index, onApprove, onReject }: { applicant: any; index: number; onApprove: (a: any) => void; onReject: (a: any) => void }) {
   const mr = a.matchResult;
   const score = mr?.score ?? 0;
   const color = getScoreColor(score, false);
   const borderClass = score >= 8.5 ? 'border-l-2' : '';
+  const isPending = !a.stage || a.stage === 'new' || a.stage === 'welcome' || a.stage === 'done';
+  const isApproved = a.stage === 'approved';
+  const isRejected = a.stage === 'rejected';
 
   return (
     <motion.div
@@ -180,10 +216,13 @@ function ApplicantCard({ applicant: a, index }: { applicant: any; index: number 
       className={`glass-card rounded-2xl p-4 space-y-3 ${borderClass}`}
       style={score >= 8.5 ? { borderLeftColor: SCORE_COLORS.strong } : {}}
     >
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground">{a.full_name || 'Unknown'}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-foreground">{a.full_name || 'Unknown'}</p>
+            {isApproved && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#4ADE80]/15 text-[#4ADE80]">APPROVED</span>}
+            {isRejected && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#E55B5B]/15 text-[#E55B5B]">REJECTED</span>}
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             {a.employment_type || a.occupation || '—'} · €{a.monthly_income || '—'}/mo
             {a.lifestyle_answers?.smoking === 'No' ? ' · Non-smoker' : ''}
@@ -200,7 +239,6 @@ function ApplicantCard({ applicant: a, index }: { applicant: any; index: number 
         )}
       </div>
 
-      {/* Score breakdown bars */}
       {mr && mr.breakdown && (
         <div className="space-y-2">
           <ScoreBar label="Preference" value={mr.breakdown.preferenceScore} max={4} color={color} />
@@ -209,23 +247,20 @@ function ApplicantCard({ applicant: a, index }: { applicant: any; index: number 
         </div>
       )}
 
-      {/* Badges */}
+      {/* Key info badges */}
       <div className="flex flex-wrap gap-1.5">
-        {a.lifestyle_answers?.smoking === 'No' && (
-          <Badge text="✅ Non-smoker" variant="green" />
-        )}
-        {(!a.lifestyle_answers?.pets || a.lifestyle_answers?.pets === 'No pets') && (
-          <Badge text="✅ No pets" variant="green" />
-        )}
-        {a.id_verified && (
-          <Badge text="✅ ID verified" variant="green" />
-        )}
+        {a.num_occupants && <Badge text={`👤 ${a.num_occupants}`} variant="neutral" />}
+        {a.desired_move_in && <Badge text={`📅 ${a.desired_move_in}`} variant="neutral" />}
+        {a.desired_lease_length && <Badge text={`📋 ${a.desired_lease_length}`} variant="neutral" />}
+        {a.lifestyle_answers?.smoking === 'No' && <Badge text="✅ Non-smoker" variant="green" />}
+        {(!a.lifestyle_answers?.pets || a.lifestyle_answers?.pets === 'No pets') && <Badge text="✅ No pets" variant="green" />}
+        {a.id_verified && <Badge text="✅ ID verified" variant="green" />}
+        {a.consent_given && <Badge text="✅ GDPR consent" variant="green" />}
         {a.viewing_booked_at && (
-          <Badge text={`📅 ${new Date(a.viewing_booked_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`} variant="primary" />
+          <Badge text={`📅 Viewing: ${new Date(a.viewing_booked_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`} variant="primary" />
         )}
       </div>
 
-      {/* Warning flags */}
       {mr?.flags && mr.flags.length > 0 && (
         <div className="space-y-1">
           {mr.flags.map((flag: string, fi: number) => (
@@ -233,6 +268,18 @@ function ApplicantCard({ applicant: a, index }: { applicant: any; index: number 
               ⚠️ {flag}
             </p>
           ))}
+        </div>
+      )}
+
+      {/* Approve / Reject buttons for pending applicants */}
+      {isPending && (
+        <div className="flex gap-2 pt-1">
+          <Button size="sm" onClick={() => onApprove(a)} className="flex-1 h-9 rounded-xl text-xs">
+            <Check className="w-3.5 h-3.5 mr-1" /> Approve & Send Slots
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => onReject(a)} className="flex-1 h-9 rounded-xl text-xs">
+            <X className="w-3.5 h-3.5 mr-1" /> Reject
+          </Button>
         </div>
       )}
     </motion.div>

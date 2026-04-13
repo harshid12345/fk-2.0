@@ -140,7 +140,16 @@
   "applicants.title": "Alle kandidaten",
   "applicants.empty": "Nog geen kandidaten. Deel uw screening bot links om kandidaten te ontvangen.",
   "applicants.filter_all": "Alle",
-  "applicants.filter_new": "Nieuw",
-  "applicants.filter_done": "Compleet",
-  "applicants.for_property": "voor"
+  "applicants.filter_pending": "In afwachting",
+  "applicants.filter_approved": "Goedgekeurd",
+  "applicants.filter_rejected": "Afgewezen",
+  "applicants.for_property": "voor",
+  "applicants.approved": "Kandidaat goedgekeurd — bezichtigingstijden verzonden",
+  "applicants.rejected": "Kandidaat afgewezen",
+  "nav.notifications": "Meldingen",
+  "notifications.title": "Meldingen",
+  "notifications.empty": "Nog geen meldingen. Boekingsverzoeken, annuleringen en herinneringen verschijnen hier.",
+  "notifications.approve": "Goedkeuren",
+  "notifications.reject": "Afwijzen",
+  "settings.slot_info": "Slots van 30 minuten met 10 minuten pauze. Uniform voor alle woningen."
 }

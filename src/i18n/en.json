@@ -140,7 +140,16 @@
   "applicants.title": "All applicants",
   "applicants.empty": "No applicants yet. Share your screening bot links to start receiving applicants.",
   "applicants.filter_all": "All",
-  "applicants.filter_new": "New",
-  "applicants.filter_done": "Complete",
-  "applicants.for_property": "for"
+  "applicants.filter_pending": "Pending",
+  "applicants.filter_approved": "Approved",
+  "applicants.filter_rejected": "Rejected",
+  "applicants.for_property": "for",
+  "applicants.approved": "Applicant approved — viewing slots sent",
+  "applicants.rejected": "Applicant rejected",
+  "nav.notifications": "Notifications",
+  "notifications.title": "Notifications",
+  "notifications.empty": "No notifications yet. Booking requests, cancellations and reminders will appear here.",
+  "notifications.approve": "Approve",
+  "notifications.reject": "Reject",
+  "settings.slot_info": "30-minute slots with 10-minute breaks. Uniform across all properties."
 }
