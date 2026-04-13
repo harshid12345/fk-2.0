@@ -1,14 +1,14 @@
 import { ReactNode, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Building2, Users, AlertCircle, TrendingUp, Menu, X, Settings, LogOut, Globe } from 'lucide-react';
+import { Building2, Users, AlertCircle, Bell, Menu, X, Settings, LogOut, Globe } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 
 const TABS = [
   { path: '/properties', icon: Building2, key: 'nav.properties' },
   { path: '/applicants', icon: Users, key: 'nav.applicants' },
-  { path: '/issues', icon: AlertCircle, key: 'nav.issues' },
+  { path: '/notifications', icon: Bell, key: 'nav.notifications' },
   { path: '/settings', icon: Settings, key: 'nav.settings' },
 ];
 

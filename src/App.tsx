@@ -12,6 +12,7 @@ import PropertyDetailPage from "./pages/PropertyDetailPage";
 import IssuesPage from "./pages/IssuesPage";
 import SettingsPage from "./pages/SettingsPage";
 import ApplicantsPage from "./pages/ApplicantsPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
               <Route path="/properties/:id" element={<ProtectedRoute><PropertyDetailPage /></ProtectedRoute>} />
               <Route path="/applicants" element={<ProtectedRoute><ApplicantsPage /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
               <Route path="/issues" element={<ProtectedRoute><IssuesPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
