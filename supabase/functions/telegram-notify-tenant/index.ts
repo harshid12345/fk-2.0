@@ -143,6 +143,27 @@ Deno.serve(async (req) => {
       return ok(corsHeaders);
     }
 
+    // ─── CONFIRM BOOKING (landlord approves a specific time slot the tenant picked) ───
+    if (action === 'confirm_booking') {
+      console.log('[notify] Processing booking confirmation for', firstName);
+      const { slotStart, slotLabel } = body;
+
+      // Update applicant stage
+      await supabase.from('applicants').update({ stage: 'viewing_booked' }).eq('id', applicantId);
+
+      // Update booking status if booking ID provided
+      if (body.bookingId) {
+        await supabase.from('viewing_bookings').update({ status: 'confirmed' } as any).eq('id', body.bookingId);
+      }
+
+      const slotDisplay = slotLabel || (slotStart ? new Date(slotStart).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'your scheduled time');
+
+      await sendTg(BOT_TOKEN, chatId,
+        `Hey ${firstName}! 🎉 You're all set!\n\nYour viewing at <b>${address}</b> is confirmed for <b>${slotDisplay}</b>.\n\n📍 <a href="${mapsLink}">Get directions on Google Maps</a>\n\nJust show up a couple minutes early — the landlord is looking forward to meeting you! See you there 🏠✨`
+      );
+      return ok(corsHeaders);
+    }
+
     // ─── REJECT ───
     if (action === 'reject') {
       console.log('[notify] Processing rejection for', firstName);
