@@ -1,0 +1,1 @@
+ALTER TABLE public.applicants ADD COLUMN IF NOT EXISTS pending_viewing_slots text;

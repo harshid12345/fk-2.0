@@ -38,6 +38,7 @@ export type Database = {
           monthly_income: number | null
           num_occupants: string | null
           occupation: string | null
+          pending_viewing_slots: string | null
           phone: string | null
           property_id: string
           scrape_facebook: Json | null
@@ -74,6 +75,7 @@ export type Database = {
           monthly_income?: number | null
           num_occupants?: string | null
           occupation?: string | null
+          pending_viewing_slots?: string | null
           phone?: string | null
           property_id: string
           scrape_facebook?: Json | null
@@ -110,6 +112,7 @@ export type Database = {
           monthly_income?: number | null
           num_occupants?: string | null
           occupation?: string | null
+          pending_viewing_slots?: string | null
           phone?: string | null
           property_id?: string
           scrape_facebook?: Json | null
