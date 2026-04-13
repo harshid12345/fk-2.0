@@ -91,14 +91,21 @@ export default function ApplicantsPage() {
     load();
   };
 
-  // Compute match results
+  // Compute match results — always recalculate live so criteria changes reflect immediately
   const enriched = applicants.map(a => {
     const prop = properties.find(p => p.id === a.property_id);
     const crit = criteria[a.property_id];
     const rent = prop?.rent_amount || 1000;
 
     let matchResult;
-    if (a.match_label && a.match_score != null) {
+    if (crit) {
+      // Always recalculate live using current criteria
+      matchResult = calculateMatchScore(
+        { ...a, smoking: a.lifestyle_answers?.smoking, pets: a.lifestyle_answers?.pets },
+        crit, rent, null
+      );
+    } else if (a.match_label && a.match_score != null) {
+      // Fallback to stored scores only if no criteria available
       const score = a.match_score <= 10 ? a.match_score : a.match_score / 10;
       matchResult = {
         score, label: a.match_label,
@@ -107,11 +114,6 @@ export default function ApplicantsPage() {
         breakdown: { preferenceScore: 0, financialScore: 0, scrapedScore: 0 },
         flags: Array.isArray(a.match_flags) ? a.match_flags : [],
       };
-    } else if (crit) {
-      matchResult = calculateMatchScore(
-        { ...a, smoking: a.lifestyle_answers?.smoking, pets: a.lifestyle_answers?.pets },
-        crit, rent, null
-      );
     } else {
       matchResult = null;
     }
