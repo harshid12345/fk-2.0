@@ -248,6 +248,48 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_issues: {
+        Row: {
+          ai_resolved: boolean | null
+          ai_response: string | null
+          category: string
+          created_at: string | null
+          id: string
+          landlord_resolved: boolean | null
+          message: string
+          photo_url: string | null
+          property_id: string
+          telegram_user_id: string | null
+          tenant_name: string | null
+        }
+        Insert: {
+          ai_resolved?: boolean | null
+          ai_response?: string | null
+          category?: string
+          created_at?: string | null
+          id?: string
+          landlord_resolved?: boolean | null
+          message: string
+          photo_url?: string | null
+          property_id: string
+          telegram_user_id?: string | null
+          tenant_name?: string | null
+        }
+        Update: {
+          ai_resolved?: boolean | null
+          ai_response?: string | null
+          category?: string
+          created_at?: string | null
+          id?: string
+          landlord_resolved?: boolean | null
+          message?: string
+          photo_url?: string | null
+          property_id?: string
+          telegram_user_id?: string | null
+          tenant_name?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
