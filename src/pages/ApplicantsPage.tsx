@@ -53,37 +53,26 @@ export default function ApplicantsPage() {
   useEffect(() => { load(); }, [user]);
 
   const approveApplicant = async (applicant: any) => {
-    await supabase.from('applicants').update({ stage: 'approved' } as any).eq('id', applicant.id);
-
-    const prop = properties.find(p => p.id === applicant.property_id);
-    if (applicant.telegram_user_id && prop) {
-      await supabase.functions.invoke('telegram-screener', {
-        body: {
-          action: 'send_slots',
-          telegram_user_id: applicant.telegram_user_id,
-          applicant_id: applicant.id,
-          property_id: applicant.property_id,
-          landlord_id: prop.landlord_id,
-        },
-      });
+    const { error } = await supabase.functions.invoke('telegram-notify-tenant', {
+      body: { applicantId: applicant.id, action: 'approve' },
+    });
+    if (error) {
+      toast({ title: 'Failed to notify tenant', variant: 'destructive' as any });
+    } else {
+      toast({ title: `${applicant.full_name || 'Applicant'} approved! Viewing invitation sent via Telegram.` });
     }
-    toast({ title: t('applicants.approved') });
     load();
   };
 
   const rejectApplicant = async (applicant: any) => {
-    await supabase.from('applicants').update({ stage: 'rejected' } as any).eq('id', applicant.id);
-
-    if (applicant.telegram_user_id) {
-      await supabase.functions.invoke('telegram-screener', {
-        body: {
-          action: 'send_rejection',
-          telegram_user_id: applicant.telegram_user_id,
-          applicant_name: applicant.full_name,
-        },
-      });
+    const { error } = await supabase.functions.invoke('telegram-notify-tenant', {
+      body: { applicantId: applicant.id, action: 'reject' },
+    });
+    if (error) {
+      toast({ title: 'Failed to notify tenant', variant: 'destructive' as any });
+    } else {
+      toast({ title: `${applicant.full_name || 'Applicant'} rejected. Notification sent.` });
     }
-    toast({ title: t('applicants.rejected') });
     load();
   };
 

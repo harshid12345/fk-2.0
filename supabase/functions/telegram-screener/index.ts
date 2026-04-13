@@ -389,6 +389,7 @@ Deno.serve(async (req) => {
 
         await supabase.from('applicants').insert({
           telegram_user_id: telegramUserId,
+          telegram_chat_id: chatId,
           property_id: propertyId,
           stage: 'welcome',
         });

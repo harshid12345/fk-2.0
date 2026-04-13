@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Building2, ShieldCheck, Copy, Trash2, Home, Users, Calendar, Plus, X } from 'lucide-react';
+import { ArrowLeft, Building2, ShieldCheck, Copy, Trash2, Home, Users, Calendar, Plus, X, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { getComplianceStatus } from '@/lib/wws';
 
 interface ViewingSlot {
@@ -263,12 +264,14 @@ export default function PropertyDetailPage() {
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  navigator.clipboard.writeText(`https://t.me/fairkamer_screen_bot?start=${id}`);
-                  toast({ title: t('detail.link_copied') });
+                  const link = `https://t.me/fairkamer_screen_bot?start=${id}`;
+                  const msg = `Hi! I use FairKamer to screen tenants for my property at ${property.address}.\n\nIt takes about 5 minutes and helps you stand out from other applicants. Click the link below to get started:\n\n👉 ${link}`;
+                  navigator.clipboard.writeText(msg);
+                  toast.success('Message copied! Paste it to your applicants.');
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary bg-primary/10"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-primary text-primary-foreground"
               >
-                <Copy className="w-3.5 h-3.5" /> {t('detail.copy_bot_link')}
+                <Share2 className="w-3.5 h-3.5" /> Share with applicants
               </motion.button>
             </div>
 
