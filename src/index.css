@@ -6,48 +6,51 @@
 
 @layer base {
   :root {
-    --background: 216 20% 8%;
+    --background: 220 15% 7%;
     --foreground: 210 25% 96%;
 
-    --card: 215 18% 13%;
+    --card: 220 15% 12%;
     --card-foreground: 210 25% 96%;
 
-    --popover: 215 18% 13%;
+    --popover: 220 15% 12%;
     --popover-foreground: 210 25% 96%;
 
     --primary: 174 64% 47%;
-    --primary-foreground: 216 20% 8%;
+    --primary-foreground: 220 15% 7%;
 
-    --secondary: 215 14% 18%;
+    --secondary: 220 12% 18%;
     --secondary-foreground: 210 25% 96%;
 
-    --muted: 215 14% 18%;
-    --muted-foreground: 214 14% 63%;
+    --muted: 220 12% 18%;
+    --muted-foreground: 214 14% 55%;
 
-    --accent: 215 14% 18%;
+    --accent: 220 12% 16%;
     --accent-foreground: 210 25% 96%;
 
-    --destructive: 0 60% 60%;
+    --destructive: 0 60% 55%;
     --destructive-foreground: 210 25% 96%;
 
-    --border: 215 16% 22%;
-    --input: 215 16% 22%;
+    --border: 220 12% 18%;
+    --input: 220 12% 20%;
     --ring: 174 64% 47%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    --sidebar-background: 216 20% 8%;
+    --sidebar-background: 220 15% 7%;
     --sidebar-foreground: 210 25% 96%;
     --sidebar-primary: 174 64% 47%;
-    --sidebar-primary-foreground: 216 20% 8%;
-    --sidebar-accent: 215 14% 18%;
+    --sidebar-primary-foreground: 220 15% 7%;
+    --sidebar-accent: 220 12% 16%;
     --sidebar-accent-foreground: 210 25% 96%;
-    --sidebar-border: 215 16% 22%;
+    --sidebar-border: 220 12% 18%;
     --sidebar-ring: 174 64% 47%;
 
-    --success: 142 71% 45%;
+    --success: 152 60% 52%;
     --warning: 38 92% 50%;
-    --danger: 0 60% 60%;
+    --danger: 0 60% 55%;
+
+    --glass: 220 15% 14%;
+    --glass-border: 220 12% 22%;
   }
 }
 
@@ -60,5 +63,50 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-size: 14px;
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: hsl(var(--glass) / 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--glass-border) / 0.5);
+  }
+
+  .glass-surface {
+    background: hsl(var(--glass) / 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--card)) 0%,
+      hsl(var(--accent)) 50%,
+      hsl(var(--card)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .tap-scale {
+    transition: transform 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .tap-scale:active {
+    transform: scale(0.96);
+  }
+
+  .scroll-shadow {
+    mask-image: linear-gradient(to bottom, transparent, black 32px, black calc(100% - 32px), transparent);
   }
 }
