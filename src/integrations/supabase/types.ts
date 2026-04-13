@@ -155,6 +155,7 @@ export type Database = {
           postcode: string | null
           property_type: string | null
           rent_amount: number | null
+          status: string
           surface_m2: number | null
           tenant_contract_start: string | null
           tenant_deposit: number | null
@@ -177,6 +178,7 @@ export type Database = {
           postcode?: string | null
           property_type?: string | null
           rent_amount?: number | null
+          status?: string
           surface_m2?: number | null
           tenant_contract_start?: string | null
           tenant_deposit?: number | null
@@ -199,6 +201,7 @@ export type Database = {
           postcode?: string | null
           property_type?: string | null
           rent_amount?: number | null
+          status?: string
           surface_m2?: number | null
           tenant_contract_start?: string | null
           tenant_deposit?: number | null
