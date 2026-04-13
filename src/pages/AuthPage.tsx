@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,9 +70,8 @@ export default function AuthPage() {
       if (!fullName || !email || !password) { toast({ title: 'Missing fields', description: 'Please fill in all fields', variant: 'destructive' }); return; }
       if (password.length < 6) { toast({ title: 'Weak password', description: 'Password must be at least 6 characters', variant: 'destructive' }); return; }
       setStep(2);
-    } else if (step === 2) {
-      setStep(3);
-    } else if (step === 3) {
+    } else if (step === 2) { setStep(3); }
+    else if (step === 3) {
       setLoading(true);
       const { error } = await signUp(email, password, fullName);
       if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); setLoading(false); return; }
@@ -82,95 +82,121 @@ export default function AuthPage() {
     }
   };
 
+  const FormContainer = ({ children }: { children: React.ReactNode }) => (
+    <div className="min-h-screen flex items-center justify-center bg-background px-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', damping: 25 }}
+        className="w-full max-w-sm space-y-6"
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+
   if (!isSignUp) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="w-full max-w-sm space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center mx-auto">
-              <Building2 className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <h1 className="text-lg font-semibold text-foreground">{t('auth.welcome_back')}</h1>
-            <p className="text-sm text-muted-foreground">{t('auth.sign_in_to')}</p>
-          </div>
-          <div className="space-y-3">
-            <div className="space-y-1.5"><Label className="text-xs">{t('settings.email')}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></div>
-            <div className="space-y-1.5"><Label className="text-xs">Password</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" /></div>
-            <Button className="w-full h-9 text-sm font-medium" onClick={handleSignIn} disabled={loading}>{loading ? t('auth.signing_in') : t('auth.sign_in')}</Button>
-          </div>
-          <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div><div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">{t('auth.or')}</span></div></div>
-          <Button variant="outline" className="w-full h-9 text-sm border-dashed border-primary/40 text-primary" onClick={handleDevLogin} disabled={devLoading}>
+      <FormContainer>
+        <div className="text-center space-y-3">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 0.1 }}
+            className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto"
+          >
+            <Building2 className="w-6 h-6 text-primary-foreground" />
+          </motion.div>
+          <h1 className="text-xl font-semibold text-foreground">{t('auth.welcome_back')}</h1>
+          <p className="text-sm text-muted-foreground">{t('auth.sign_in_to')}</p>
+        </div>
+        <div className="space-y-3">
+          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
+          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Password</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
+          <motion.div whileTap={{ scale: 0.97 }}><Button className="w-full h-11 rounded-xl text-sm font-medium" onClick={handleSignIn} disabled={loading}>{loading ? t('auth.signing_in') : t('auth.sign_in')}</Button></motion.div>
+        </div>
+        <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/50" /></div><div className="relative flex justify-center text-xs"><span className="bg-background px-3 text-muted-foreground">{t('auth.or')}</span></div></div>
+        <motion.div whileTap={{ scale: 0.97 }}>
+          <Button variant="outline" className="w-full h-11 rounded-xl text-sm border-dashed border-primary/30 text-primary" onClick={handleDevLogin} disabled={devLoading}>
             <Zap className="w-4 h-4 mr-1.5" /> {devLoading ? t('auth.setting_up') : t('auth.dev_skip')}
           </Button>
-          <p className="text-center text-sm text-muted-foreground">{t('auth.no_account')} <button onClick={() => setIsSignUp(true)} className="text-primary hover:underline">{t('auth.sign_up')}</button></p>
-        </div>
-      </div>
+        </motion.div>
+        <p className="text-center text-sm text-muted-foreground">{t('auth.no_account')} <button onClick={() => setIsSignUp(true)} className="text-primary hover:underline">{t('auth.sign_up')}</button></p>
+      </FormContainer>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center mx-auto">
-            <Building2 className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <h1 className="text-lg font-semibold text-foreground">{t('auth.create_account')}</h1>
-          <p className="text-sm text-muted-foreground">{t('auth.step_of', { step: step.toString() })}</p>
-          <div className="flex gap-1.5 justify-center">
-            {[1, 2, 3].map(s => <div key={s} className={`h-1 w-8 rounded-full transition-colors ${s <= step ? 'bg-primary' : 'bg-border'}`} />)}
-          </div>
+    <FormContainer>
+      <div className="text-center space-y-3">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', damping: 15, delay: 0.1 }}
+          className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto"
+        >
+          <Building2 className="w-6 h-6 text-primary-foreground" />
+        </motion.div>
+        <h1 className="text-xl font-semibold text-foreground">{t('auth.create_account')}</h1>
+        <div className="flex gap-2 justify-center">
+          {[1, 2, 3].map(s => (
+            <motion.div key={s} animate={{ scale: s === step ? 1.2 : 1, backgroundColor: s <= step ? 'hsl(174 64% 47%)' : 'hsl(220 12% 18%)' }}
+              className="w-2 h-2 rounded-full" transition={{ type: 'spring', damping: 15 }} />
+          ))}
         </div>
-        <div className="space-y-3">
-          {step === 1 && (
-            <>
-              <div className="space-y-1.5"><Label className="text-xs">{t('settings.full_name')}</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Doe" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">{t('settings.email')}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Password</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" /></div>
-            </>
-          )}
-          {step === 2 && (
-            <>
-              <div className="space-y-1.5"><Label className="text-xs">{t('settings.phone')}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+31 6 1234 5678" /></div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">How many properties do you rent out?</Label>
-                <Select value={portfolioSize} onValueChange={setPortfolioSize}>
-                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 property</SelectItem>
-                    <SelectItem value="2-5">2-5 properties</SelectItem>
-                    <SelectItem value="6-20">6-20 properties</SelectItem>
-                    <SelectItem value="20+">20+ properties</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-          {step === 3 && (
-            <div className="text-center space-y-3 py-4">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-                <Building2 className="w-7 h-7 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-medium text-foreground text-sm">{t('auth.almost_there')}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{t('auth.almost_desc')}</p>
-              </div>
+      </div>
+      <motion.div key={step} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ type: 'spring', damping: 25 }} className="space-y-3">
+        {step === 1 && (
+          <>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.full_name')}</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Doe" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Password</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
+          </>
+        )}
+        {step === 2 && (
+          <>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.phone')}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+31 6 1234 5678" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Portfolio size</Label>
+              <Select value={portfolioSize} onValueChange={setPortfolioSize}>
+                <SelectTrigger className="h-11 rounded-xl bg-accent/50 border-border/50"><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 property</SelectItem>
+                  <SelectItem value="2-5">2-5 properties</SelectItem>
+                  <SelectItem value="6-20">6-20 properties</SelectItem>
+                  <SelectItem value="20+">20+ properties</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
-          <div className="flex gap-2">
-            {step > 1 && <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1 h-9 text-sm"><ArrowLeft className="w-4 h-4 mr-1" /> {t('settings.back')}</Button>}
-            <Button onClick={handleNextStep} disabled={loading} className="flex-1 h-9 text-sm">
+          </>
+        )}
+        {step === 3 && (
+          <div className="text-center space-y-3 py-4">
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.1 }}
+              className="w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto">
+              <Building2 className="w-8 h-8 text-primary" />
+            </motion.div>
+            <h3 className="font-medium text-foreground">{t('auth.almost_there')}</h3>
+            <p className="text-sm text-muted-foreground">{t('auth.almost_desc')}</p>
+          </div>
+        )}
+        <div className="flex gap-2">
+          {step > 1 && <motion.div whileTap={{ scale: 0.97 }} className="flex-1"><Button variant="outline" onClick={() => setStep(step - 1)} className="w-full h-11 rounded-xl"><ArrowLeft className="w-4 h-4 mr-1" /> {t('settings.back')}</Button></motion.div>}
+          <motion.div whileTap={{ scale: 0.97 }} className="flex-1">
+            <Button onClick={handleNextStep} disabled={loading} className="w-full h-11 rounded-xl">
               {step === 3 ? (loading ? t('auth.creating') : t('auth.create')) : t('auth.continue')}
               {step < 3 && <ArrowRight className="w-4 h-4 ml-1" />}
             </Button>
-          </div>
+          </motion.div>
         </div>
-        <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div><div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">{t('auth.or')}</span></div></div>
-        <Button variant="outline" className="w-full h-9 text-sm border-dashed border-primary/40 text-primary" onClick={handleDevLogin} disabled={devLoading}>
+      </motion.div>
+      <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/50" /></div><div className="relative flex justify-center text-xs"><span className="bg-background px-3 text-muted-foreground">{t('auth.or')}</span></div></div>
+      <motion.div whileTap={{ scale: 0.97 }}>
+        <Button variant="outline" className="w-full h-11 rounded-xl text-sm border-dashed border-primary/30 text-primary" onClick={handleDevLogin} disabled={devLoading}>
           <Zap className="w-4 h-4 mr-1.5" /> {devLoading ? t('auth.setting_up') : t('auth.dev_skip')}
         </Button>
-        <p className="text-center text-sm text-muted-foreground">{t('auth.have_account')} <button onClick={() => setIsSignUp(false)} className="text-primary hover:underline">{t('auth.sign_in')}</button></p>
-      </div>
-    </div>
+      </motion.div>
+      <p className="text-center text-sm text-muted-foreground">{t('auth.have_account')} <button onClick={() => setIsSignUp(false)} className="text-primary hover:underline">{t('auth.sign_in')}</button></p>
+    </FormContainer>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -9,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Bot, MessageCircle, ArrowRight, Check, RotateCcw, Clock, Building2 } from 'lucide-react';
+import { Copy, Bot, MessageCircle, ArrowRight, Check, RotateCcw, Clock, Building2, User, ChevronDown } from 'lucide-react';
 
 interface CriteriaState {
   preferred_gender: string;
@@ -24,15 +25,9 @@ interface CriteriaState {
 }
 
 const defaultCriteria: CriteriaState = {
-  preferred_gender: 'any',
-  min_age: '18',
-  max_age: '65',
-  smoking_allowed: false,
-  pets_allowed: false,
-  students_ok: true,
-  professionals_ok: true,
-  min_income_multiplier: '3.0',
-  notes: '',
+  preferred_gender: 'any', min_age: '18', max_age: '65',
+  smoking_allowed: false, pets_allowed: false, students_ok: true,
+  professionals_ok: true, min_income_multiplier: '3.0', notes: '',
 };
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -45,13 +40,13 @@ export default function SettingsPage() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-
   const [criteriaStep, setCriteriaStep] = useState(-1);
   const [criteria, setCriteria] = useState<CriteriaState>({ ...defaultCriteria });
   const [sameCriteriaForAll, setSameCriteriaForAll] = useState(true);
   const [properties, setProperties] = useState<any[]>([]);
   const [selectedPropertyForCriteria, setSelectedPropertyForCriteria] = useState<string | null>(null);
   const [criteriaCompleted, setCriteriaCompleted] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string | null>('profile');
 
   const [availability, setAvailability] = useState<Record<string, { enabled: boolean; from: string; to: string }>>(() => {
     const init: Record<string, { enabled: boolean; from: string; to: string }> = {};
@@ -82,14 +77,10 @@ export default function SettingsPage() {
         setCriteriaCompleted(true);
         const first = data[0];
         setCriteria({
-          preferred_gender: first.preferred_gender || 'any',
-          min_age: first.min_age?.toString() || '18',
-          max_age: first.max_age?.toString() || '65',
-          smoking_allowed: first.smoking_allowed || false,
-          pets_allowed: first.pets_allowed || false,
-          students_ok: first.students_ok ?? true,
-          professionals_ok: first.professionals_ok ?? true,
-          min_income_multiplier: first.min_income_multiplier?.toString() || '3.0',
+          preferred_gender: first.preferred_gender || 'any', min_age: first.min_age?.toString() || '18',
+          max_age: first.max_age?.toString() || '65', smoking_allowed: first.smoking_allowed || false,
+          pets_allowed: first.pets_allowed || false, students_ok: first.students_ok ?? true,
+          professionals_ok: first.professionals_ok ?? true, min_income_multiplier: first.min_income_multiplier?.toString() || '3.0',
           notes: first.notes || '',
         });
       }
@@ -109,14 +100,10 @@ export default function SettingsPage() {
     setLoading(true);
     const criteriaData = {
       preferred_gender: criteria.preferred_gender === 'any' ? null : criteria.preferred_gender,
-      min_age: parseInt(criteria.min_age) || null,
-      max_age: parseInt(criteria.max_age) || null,
-      smoking_allowed: criteria.smoking_allowed,
-      pets_allowed: criteria.pets_allowed,
-      students_ok: criteria.students_ok,
-      professionals_ok: criteria.professionals_ok,
-      min_income_multiplier: parseFloat(criteria.min_income_multiplier) || 3.0,
-      notes: criteria.notes || null,
+      min_age: parseInt(criteria.min_age) || null, max_age: parseInt(criteria.max_age) || null,
+      smoking_allowed: criteria.smoking_allowed, pets_allowed: criteria.pets_allowed,
+      students_ok: criteria.students_ok, professionals_ok: criteria.professionals_ok,
+      min_income_multiplier: parseFloat(criteria.min_income_multiplier) || 3.0, notes: criteria.notes || null,
     };
     if (sameCriteriaForAll) {
       for (const prop of properties) {
@@ -138,156 +125,158 @@ export default function SettingsPage() {
     if (!q) return null;
     const key = q.key as keyof CriteriaState;
     return (
-      <div className="space-y-4">
+      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
         <p className="text-sm font-medium text-foreground">{q.question}</p>
         {q.type === 'select' && (
           <Select value={criteria[key] as string} onValueChange={v => setCriteria({ ...criteria, [key]: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger className="bg-accent/50 border-border/50"><SelectValue /></SelectTrigger>
             <SelectContent>{q.options!.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
         )}
-        {q.type === 'number' && <Input type="number" value={criteria[key] as string} onChange={e => setCriteria({ ...criteria, [key]: e.target.value })} placeholder={q.placeholder} />}
+        {q.type === 'number' && <Input type="number" value={criteria[key] as string} onChange={e => setCriteria({ ...criteria, [key]: e.target.value })} placeholder={q.placeholder} className="bg-accent/50 border-border/50" />}
         {q.type === 'toggle' && (
           <div className="flex items-center gap-3">
             <Switch checked={criteria[key] as boolean} onCheckedChange={v => setCriteria({ ...criteria, [key]: v })} />
             <span className="text-sm text-muted-foreground">{(criteria[key] as boolean) ? t('criteria.yes') : t('criteria.no')}</span>
           </div>
         )}
-        {q.type === 'textarea' && <Textarea value={criteria[key] as string} onChange={e => setCriteria({ ...criteria, [key]: e.target.value })} placeholder={q.placeholder} rows={3} />}
+        {q.type === 'textarea' && <Textarea value={criteria[key] as string} onChange={e => setCriteria({ ...criteria, [key]: e.target.value })} placeholder={q.placeholder} rows={3} className="bg-accent/50 border-border/50" />}
         <div className="flex gap-2">
-          {criteriaStep > 0 && <Button variant="outline" onClick={() => setCriteriaStep(criteriaStep - 1)} className="flex-1 h-9">{t('settings.back')}</Button>}
-          {criteriaStep < CRITERIA_QUESTIONS.length - 1 ? (
-            <Button onClick={() => setCriteriaStep(criteriaStep + 1)} className="flex-1 h-9">{t('settings.next')} <ArrowRight className="w-4 h-4 ml-1" /></Button>
-          ) : (
-            <Button onClick={saveCriteria} disabled={loading} className="flex-1 h-9"><Check className="w-4 h-4 mr-1" /> {loading ? t('settings.saving') : t('settings.save_criteria')}</Button>
-          )}
+          {criteriaStep > 0 && <motion.div whileTap={{ scale: 0.97 }} className="flex-1"><Button variant="outline" onClick={() => setCriteriaStep(criteriaStep - 1)} className="w-full h-10 rounded-xl">{t('settings.back')}</Button></motion.div>}
+          <motion.div whileTap={{ scale: 0.97 }} className="flex-1">
+            {criteriaStep < CRITERIA_QUESTIONS.length - 1 ? (
+              <Button onClick={() => setCriteriaStep(criteriaStep + 1)} className="w-full h-10 rounded-xl">{t('settings.next')} <ArrowRight className="w-4 h-4 ml-1" /></Button>
+            ) : (
+              <Button onClick={saveCriteria} disabled={loading} className="w-full h-10 rounded-xl"><Check className="w-4 h-4 mr-1" /> {loading ? t('settings.saving') : t('settings.save_criteria')}</Button>
+            )}
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     );
   };
 
+  const Section = ({ id, icon: Icon, title, children }: { id: string; icon: any; title: string; children: React.ReactNode }) => (
+    <div className="glass-card rounded-2xl overflow-hidden">
+      <motion.button
+        whileTap={{ scale: 0.99 }}
+        onClick={() => setExpandedSection(expandedSection === id ? null : id)}
+        className="w-full flex items-center justify-between p-4"
+      >
+        <div className="flex items-center gap-3">
+          <Icon className="w-5 h-5 text-primary" />
+          <span className="font-medium text-foreground text-sm">{title}</span>
+        </div>
+        <motion.div animate={{ rotate: expandedSection === id ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        </motion.div>
+      </motion.button>
+      <motion.div
+        initial={false}
+        animate={{ height: expandedSection === id ? 'auto' : 0, opacity: expandedSection === id ? 1 : 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+        className="overflow-hidden"
+      >
+        <div className="px-4 pb-4">{children}</div>
+      </motion.div>
+    </div>
+  );
+
   return (
-    <div className="p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
-      <h1 className="text-xl font-semibold text-foreground">{t('settings.title')}</h1>
+    <div className="pb-8">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="px-5 pt-4 pb-4">
+        <h1 className="text-2xl font-semibold text-foreground">{t('settings.title')}</h1>
+      </motion.div>
 
-      {/* Profile */}
-      <div className="p-5 bg-card rounded-xl border border-border space-y-4">
-        <h3 className="font-medium text-foreground text-sm">{t('settings.profile')}</h3>
-        <div className="space-y-3">
-          <div className="space-y-1.5"><Label className="text-xs">{t('settings.full_name')}</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label className="text-xs">{t('settings.email')}</Label><Input value={email} onChange={e => setEmail(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label className="text-xs">{t('settings.phone')}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
-        </div>
-        <Button onClick={saveProfile} disabled={loading} className="h-9 text-sm">{loading ? t('settings.saving') : t('settings.save')}</Button>
-      </div>
+      <div className="px-5 space-y-3">
+        <Section id="profile" icon={User} title={t('settings.profile')}>
+          <div className="space-y-3">
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.full_name')}</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} className="bg-accent/50 border-border/50" /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input value={email} onChange={e => setEmail(e.target.value)} className="bg-accent/50 border-border/50" /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.phone')}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} className="bg-accent/50 border-border/50" /></div>
+            <motion.div whileTap={{ scale: 0.97 }}><Button onClick={saveProfile} disabled={loading} className="w-full h-10 rounded-xl">{loading ? t('settings.saving') : t('settings.save')}</Button></motion.div>
+          </div>
+        </Section>
 
-      {/* Criteria */}
-      <div className="p-5 bg-card rounded-xl border border-border space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-medium text-foreground text-sm">{t('settings.criteria')}</h3>
-          {criteriaCompleted && (
-            <Button variant="ghost" size="sm" onClick={() => setCriteriaStep(0)} className="h-7 text-xs text-muted-foreground">
-              <RotateCcw className="w-3.5 h-3.5 mr-1" /> {t('settings.retake')}
-            </Button>
-          )}
-        </div>
-        {criteriaStep === -1 ? (
-          criteriaCompleted ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-muted-foreground text-xs">{t('settings.gender_pref')}</p><p className="text-foreground capitalize mt-0.5">{criteria.preferred_gender === 'any' ? t('settings.any') : criteria.preferred_gender}</p></div>
-                <div><p className="text-muted-foreground text-xs">{t('settings.age_range')}</p><p className="text-foreground mt-0.5">{criteria.min_age}–{criteria.max_age}</p></div>
-                <div><p className="text-muted-foreground text-xs">{t('settings.smoking')}</p><p className="text-foreground mt-0.5">{criteria.smoking_allowed ? t('settings.allowed') : t('settings.not_allowed')}</p></div>
-                <div><p className="text-muted-foreground text-xs">{t('settings.pets')}</p><p className="text-foreground mt-0.5">{criteria.pets_allowed ? t('settings.allowed') : t('settings.not_allowed')}</p></div>
-                <div><p className="text-muted-foreground text-xs">{t('settings.students')}</p><p className="text-foreground mt-0.5">{criteria.students_ok ? t('settings.ok') : t('settings.no')}</p></div>
-                <div><p className="text-muted-foreground text-xs">{t('settings.income_mult')}</p><p className="text-foreground mt-0.5">{criteria.min_income_multiplier}x</p></div>
-              </div>
-              {criteria.notes && <p className="text-sm text-muted-foreground italic">"{criteria.notes}"</p>}
-              <div className="border-t border-border pt-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">{t('settings.same_for_all')}</Label>
+        <Section id="criteria" icon={Building2} title={t('settings.criteria')}>
+          {criteriaStep === -1 ? (
+            criteriaCompleted ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><p className="text-[11px] text-muted-foreground">{t('settings.gender_pref')}</p><p className="text-foreground capitalize mt-0.5">{criteria.preferred_gender === 'any' ? t('settings.any') : criteria.preferred_gender}</p></div>
+                  <div><p className="text-[11px] text-muted-foreground">{t('settings.age_range')}</p><p className="text-foreground mt-0.5">{criteria.min_age}–{criteria.max_age}</p></div>
+                  <div><p className="text-[11px] text-muted-foreground">{t('settings.smoking')}</p><p className="text-foreground mt-0.5">{criteria.smoking_allowed ? t('settings.allowed') : t('settings.not_allowed')}</p></div>
+                  <div><p className="text-[11px] text-muted-foreground">{t('settings.pets')}</p><p className="text-foreground mt-0.5">{criteria.pets_allowed ? t('settings.allowed') : t('settings.not_allowed')}</p></div>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <Label className="text-xs">{t('settings.same_for_all')}</Label>
                   <Switch checked={sameCriteriaForAll} onCheckedChange={setSameCriteriaForAll} />
                 </div>
-                {!sameCriteriaForAll && properties.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">{t('settings.select_property')}</p>
-                    {properties.map(p => (
-                      <button key={p.id} onClick={() => { setSelectedPropertyForCriteria(p.id); setCriteriaStep(0); }}
-                        className="flex items-center gap-2 w-full p-2.5 rounded-lg text-left text-sm hover:bg-accent transition-colors border border-border">
-                        <Building2 className="w-4 h-4 text-primary" />
-                        <span className="text-foreground">{p.address}</span>
-                        <span className="text-muted-foreground text-xs ml-auto">{p.city}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {!sameCriteriaForAll && properties.map(p => (
+                  <motion.button key={p.id} whileTap={{ scale: 0.98 }} onClick={() => { setSelectedPropertyForCriteria(p.id); setCriteriaStep(0); }}
+                    className="flex items-center gap-2 w-full p-3 rounded-xl text-left text-sm bg-accent/50 hover:bg-accent transition-colors">
+                    <Building2 className="w-4 h-4 text-primary" /><span className="text-foreground">{p.address}</span>
+                  </motion.button>
+                ))}
+                <motion.div whileTap={{ scale: 0.97 }}><Button variant="outline" onClick={() => setCriteriaStep(0)} className="w-full h-9 rounded-xl text-xs"><RotateCcw className="w-3.5 h-3.5 mr-1" /> {t('settings.retake')}</Button></motion.div>
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-4 space-y-3">
+                <p className="text-sm text-muted-foreground">{t('settings.criteria_desc')}</p>
+                <motion.div whileTap={{ scale: 0.97 }}><Button onClick={() => setCriteriaStep(0)} className="h-10 rounded-xl">{t('settings.start_questionnaire')} <ArrowRight className="w-4 h-4 ml-1" /></Button></motion.div>
+              </div>
+            )
           ) : (
-            <div className="text-center py-6 space-y-3">
-              <p className="text-sm text-muted-foreground">{t('settings.criteria_desc')}</p>
-              <Button onClick={() => setCriteriaStep(0)} className="h-9 text-sm">{t('settings.start_questionnaire')} <ArrowRight className="w-4 h-4 ml-1" /></Button>
+            <div>
+              <div className="flex gap-1 mb-4">
+                {CRITERIA_QUESTIONS.map((_, i) => <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= criteriaStep ? 'bg-primary' : 'bg-border'}`} />)}
+              </div>
+              {renderCriteriaQuestion()}
             </div>
-          )
-        ) : (
-          <div>
-            <div className="flex gap-1 mb-4">
-              {CRITERIA_QUESTIONS.map((_, i) => (
-                <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= criteriaStep ? 'bg-primary' : 'bg-border'}`} />
-              ))}
-            </div>
-            {renderCriteriaQuestion()}
-          </div>
-        )}
-      </div>
+          )}
+        </Section>
 
-      {/* Availability */}
-      <div className="p-5 bg-card rounded-xl border border-border space-y-4">
-        <div className="flex items-center gap-2">
-          <Clock className="w-[18px] h-[18px] text-primary" />
-          <h3 className="font-medium text-foreground text-sm">{t('settings.availability')}</h3>
-        </div>
-        <p className="text-sm text-muted-foreground">{t('settings.availability_desc')}</p>
-        <div className="space-y-1.5">
-          {DAYS.map(day => (
-            <div key={day} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/30 transition-colors">
-              <Switch checked={availability[day].enabled} onCheckedChange={v => setAvailability({ ...availability, [day]: { ...availability[day], enabled: v } })} />
-              <span className="text-sm text-foreground w-24">{day}</span>
-              {availability[day].enabled ? (
-                <div className="flex items-center gap-2 text-sm">
-                  <Input type="time" value={availability[day].from} onChange={e => setAvailability({ ...availability, [day]: { ...availability[day], from: e.target.value } })} className="w-28 h-8 text-xs" />
-                  <span className="text-muted-foreground">to</span>
-                  <Input type="time" value={availability[day].to} onChange={e => setAvailability({ ...availability, [day]: { ...availability[day], to: e.target.value } })} className="w-28 h-8 text-xs" />
+        <Section id="availability" icon={Clock} title={t('settings.availability')}>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground mb-3">{t('settings.availability_desc')}</p>
+            {DAYS.map(day => (
+              <div key={day} className="flex items-center gap-3 py-1.5">
+                <Switch checked={availability[day].enabled} onCheckedChange={v => setAvailability({ ...availability, [day]: { ...availability[day], enabled: v } })} />
+                <span className="text-sm text-foreground w-20">{day.slice(0, 3)}</span>
+                {availability[day].enabled ? (
+                  <div className="flex items-center gap-1.5 text-sm flex-1">
+                    <Input type="time" value={availability[day].from} onChange={e => setAvailability({ ...availability, [day]: { ...availability[day], from: e.target.value } })} className="h-8 text-xs bg-accent/50 border-border/50 flex-1" />
+                    <span className="text-muted-foreground text-xs">–</span>
+                    <Input type="time" value={availability[day].to} onChange={e => setAvailability({ ...availability, [day]: { ...availability[day], to: e.target.value } })} className="h-8 text-xs bg-accent/50 border-border/50 flex-1" />
+                  </div>
+                ) : <span className="text-xs text-muted-foreground">{t('settings.unavailable')}</span>}
+              </div>
+            ))}
+            <motion.div whileTap={{ scale: 0.97 }} className="pt-2"><Button onClick={() => toast({ title: t('settings.availability_saved') })} className="w-full h-10 rounded-xl">{t('settings.save_availability')}</Button></motion.div>
+          </div>
+        </Section>
+
+        <Section id="bots" icon={Bot} title={t('settings.telegram')}>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground mb-2">{t('settings.telegram_desc')}</p>
+            {[
+              { icon: Bot, name: t('settings.screening_bot'), desc: t('settings.screening_desc'), link: 'https://t.me/FairKamerBot' },
+              { icon: MessageCircle, name: t('settings.concierge_bot'), desc: t('settings.concierge_desc'), link: 'https://t.me/FairKamerConcierge' },
+            ].map((bot) => (
+              <motion.div key={bot.name} whileTap={{ scale: 0.98 }} className="flex items-center justify-between p-3 rounded-xl bg-accent/30">
+                <div className="flex items-center gap-3">
+                  <bot.icon className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{bot.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{bot.desc}</p>
+                  </div>
                 </div>
-              ) : (
-                <span className="text-xs text-muted-foreground">{t('settings.unavailable')}</span>
-              )}
-            </div>
-          ))}
-        </div>
-        <Button onClick={() => toast({ title: t('settings.availability_saved') })} className="h-9 text-sm">{t('settings.save_availability')}</Button>
-      </div>
-
-      {/* Telegram */}
-      <div className="p-5 bg-card rounded-xl border border-border space-y-4">
-        <h3 className="font-medium text-foreground text-sm">{t('settings.telegram')}</h3>
-        <p className="text-sm text-muted-foreground">{t('settings.telegram_desc')}</p>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-accent/50 border border-border">
-            <div className="flex items-center gap-3">
-              <Bot className="w-[18px] h-[18px] text-primary" />
-              <div><p className="text-sm font-medium text-foreground">{t('settings.screening_bot')}</p><p className="text-xs text-muted-foreground">{t('settings.screening_desc')}</p></div>
-            </div>
-            <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText('https://t.me/FairKamerBot'); toast({ title: 'Copied!' }); }} className="h-7"><Copy className="w-3.5 h-3.5" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(bot.link); toast({ title: 'Copied!' }); }} className="h-8 w-8 p-0 rounded-lg">
+                  <Copy className="w-3.5 h-3.5" />
+                </Button>
+              </motion.div>
+            ))}
           </div>
-          <div className="flex items-center justify-between p-3 rounded-lg bg-accent/50 border border-border">
-            <div className="flex items-center gap-3">
-              <MessageCircle className="w-[18px] h-[18px] text-primary" />
-              <div><p className="text-sm font-medium text-foreground">{t('settings.concierge_bot')}</p><p className="text-xs text-muted-foreground">{t('settings.concierge_desc')}</p></div>
-            </div>
-            <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText('https://t.me/FairKamerConcierge'); toast({ title: 'Copied!' }); }} className="h-7"><Copy className="w-3.5 h-3.5" /></Button>
-          </div>
-        </div>
+        </Section>
       </div>
     </div>
   );
