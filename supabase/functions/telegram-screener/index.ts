@@ -703,14 +703,20 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
     return;
   }
 
-  if (stage === 'done' || stage === 'screening_complete' || stage === 'viewing_pending' || stage === 'approved') {
-    await sendMessage(token, chatId,
-      `Hey ${firstName}! Your application is with the landlord — I'll message you as soon as there's an update. If you need anything in the meantime, just drop me a message here! 😊`
-    );
+  if (stage === 'done' || stage === 'screening_complete' || stage === 'viewing_pending' || stage === 'approved' || stage === 'viewing_booked') {
+    // AI-powered free-text handler for post-screening tenants
+    await handleAIResponse(supabase, token, chatId, applicant, text);
     return;
   }
 
-  await sendMessage(token, chatId, `Hey ${firstName}, could you use the buttons above to answer? It helps me keep track 😊`);
+  // During screening, if they type free text instead of using buttons, still try AI
+  if (stage?.startsWith('q_')) {
+    await sendMessage(token, chatId, `Hey ${firstName}, could you use the buttons above to answer? It helps me keep track 😊\n\nBut if you have a question, just ask!`);
+    return;
+  }
+
+  // Fallback — AI handles anything we don't recognize
+  await handleAIResponse(supabase, token, chatId, applicant, text);
 }
 
 // ═══════════════════════════════════════════
