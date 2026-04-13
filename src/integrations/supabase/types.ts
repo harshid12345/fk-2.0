@@ -47,6 +47,7 @@ export type Database = {
           social_handle: string | null
           social_scrape_data: Json | null
           stage: string | null
+          telegram_chat_id: number | null
           telegram_user_id: string | null
           viewing_booked_at: string | null
         }
@@ -82,6 +83,7 @@ export type Database = {
           social_handle?: string | null
           social_scrape_data?: Json | null
           stage?: string | null
+          telegram_chat_id?: number | null
           telegram_user_id?: string | null
           viewing_booked_at?: string | null
         }
@@ -117,6 +119,7 @@ export type Database = {
           social_handle?: string | null
           social_scrape_data?: Json | null
           stage?: string | null
+          telegram_chat_id?: number | null
           telegram_user_id?: string | null
           viewing_booked_at?: string | null
         }
