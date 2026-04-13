@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
-import { Bell, Check, X, Calendar, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Bell, Check, X, Calendar, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 
 const TYPE_CONFIG: Record<string, { icon: any; color: string }> = {
   booking_request: { icon: Calendar, color: '#2EC4B6' },
@@ -19,12 +20,13 @@ export default function NotificationsPage() {
   const { t } = useLanguage();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     loadNotifications();
 
-    // Realtime subscription
     const channel = supabase
       .channel('notifications')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `landlord_id=eq.${user.id}` },
@@ -52,38 +54,102 @@ export default function NotificationsPage() {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
 
-  const handleApproveBooking = async (notification: any) => {
-    if (!notification.related_booking_id) return;
-    // Update booking status to confirmed
-    await supabase.from('viewing_bookings').update({ status: 'confirmed' } as any).eq('id', notification.related_booking_id);
-    await markRead(notification.id);
-
-    // Get booking + applicant info to message tenant
-    const { data: booking } = await supabase.from('viewing_bookings').select('*').eq('id', notification.related_booking_id).single();
-    if (booking) {
-      const { data: applicant } = await supabase.from('applicants').select('telegram_user_id, full_name').eq('id', booking.applicant_id).single();
-      const { data: property } = await supabase.from('landlord_properties').select('address').eq('id', booking.property_id).single();
-      if (applicant?.telegram_user_id && property) {
-        // Call edge function to send confirmation to tenant
-        await supabase.functions.invoke('telegram-screener', {
-          body: {
-            action: 'send_confirmation',
-            telegram_user_id: applicant.telegram_user_id,
-            slot_start: booking.slot_start,
-            address: property.address,
-            tenant_name: applicant.full_name,
-          },
-        });
-      }
+  const handleApprove = async (notification: any) => {
+    const applicantId = notification.related_applicant_id;
+    if (!applicantId) {
+      toast.error('No applicant linked to this notification.');
+      return;
     }
-    loadNotifications();
+
+    setLoadingId(notification.id);
+    setLoadingAction('approve');
+
+    try {
+      console.log('[Approve] Calling telegram-notify-tenant for applicant:', applicantId);
+
+      const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
+        body: { applicantId, action: 'approve' },
+      });
+
+      console.log('[Approve] Response:', { data, error });
+
+      if (error) {
+        console.error('[Approve] Edge function error:', error);
+        toast.error('Failed to send approval. Check console for details.');
+        return;
+      }
+
+      if (data?.error) {
+        console.error('[Approve] Function returned error:', data.error);
+        toast.error(`Error: ${data.error}`);
+        return;
+      }
+
+      // Mark notification as read
+      await markRead(notification.id);
+
+      // Also mark the related booking if present
+      if (notification.related_booking_id) {
+        await supabase.from('viewing_bookings').update({ status: 'confirmed' } as any).eq('id', notification.related_booking_id);
+      }
+
+      toast.success('Tenant approved! Viewing invitation sent via Telegram.');
+      loadNotifications();
+    } catch (err) {
+      console.error('[Approve] Unexpected error:', err);
+      toast.error('Something went wrong. Check the browser console.');
+    } finally {
+      setLoadingId(null);
+      setLoadingAction(null);
+    }
   };
 
-  const handleRejectBooking = async (notification: any) => {
-    if (!notification.related_booking_id) return;
-    await supabase.from('viewing_bookings').update({ status: 'cancelled_landlord' } as any).eq('id', notification.related_booking_id);
-    await markRead(notification.id);
-    loadNotifications();
+  const handleReject = async (notification: any) => {
+    const applicantId = notification.related_applicant_id;
+    if (!applicantId) {
+      toast.error('No applicant linked to this notification.');
+      return;
+    }
+
+    setLoadingId(notification.id);
+    setLoadingAction('reject');
+
+    try {
+      console.log('[Reject] Calling telegram-notify-tenant for applicant:', applicantId);
+
+      const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
+        body: { applicantId, action: 'reject' },
+      });
+
+      console.log('[Reject] Response:', { data, error });
+
+      if (error) {
+        console.error('[Reject] Edge function error:', error);
+        toast.error('Failed to send rejection. Check console for details.');
+        return;
+      }
+
+      if (data?.error) {
+        console.error('[Reject] Function returned error:', data.error);
+        toast.error(`Error: ${data.error}`);
+        return;
+      }
+
+      await markRead(notification.id);
+
+      if (notification.related_booking_id) {
+        await supabase.from('viewing_bookings').update({ status: 'cancelled_landlord' } as any).eq('id', notification.related_booking_id);
+      }
+
+      toast.success('Tenant rejected. Notification sent via Telegram.');
+      loadNotifications();
+    } catch (err) {
+      console.error('[Reject] Unexpected error:', err);
+      toast.error('Something went wrong. Check the browser console.');
+    } finally {
+      setLoadingId(null);
+      setLoadingAction(null);
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -112,56 +178,76 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          <AnimatePresence>
-            {notifications.map((n, i) => {
-              const config = TYPE_CONFIG[n.type] || TYPE_CONFIG.info;
-              const Icon = config.icon;
-              const isBookingRequest = n.type === 'booking_request' && !n.read;
+          {notifications.map((n, i) => {
+            const config = TYPE_CONFIG[n.type] || TYPE_CONFIG.info;
+            const Icon = config.icon;
+            const isBookingRequest = n.type === 'booking_request' && !n.read;
+            const isLoading = loadingId === n.id;
+            const isApproveLoading = isLoading && loadingAction === 'approve';
+            const isRejectLoading = isLoading && loadingAction === 'reject';
 
-              return (
-                <motion.div
-                  key={n.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.02 }}
-                  className={`glass-card rounded-2xl p-4 space-y-2 transition-opacity ${n.read ? 'opacity-60' : ''}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${config.color}15` }}>
-                      <Icon className="w-4 h-4" style={{ color: config.color }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">{n.title}</p>
-                      {n.message && <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>}
-                      <p className="text-[10px] text-muted-foreground/60 mt-1">
-                        {new Date(n.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                    {!n.read && !isBookingRequest && (
-                      <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => markRead(n.id)}
-                        className="p-1.5 rounded-lg hover:bg-accent transition-colors"
-                      >
-                        <Check className="w-3.5 h-3.5 text-muted-foreground" />
-                      </motion.button>
-                    )}
+            return (
+              <motion.div
+                key={n.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.02 }}
+                className={`glass-card rounded-2xl p-4 space-y-2 transition-opacity ${n.read ? 'opacity-60' : ''}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${config.color}15` }}>
+                    <Icon className="w-4 h-4" style={{ color: config.color }} />
                   </div>
-
-                  {isBookingRequest && (
-                    <div className="flex gap-2 pt-1">
-                      <Button size="sm" onClick={() => handleApproveBooking(n)} className="flex-1 h-8 rounded-xl text-xs">
-                        <Check className="w-3.5 h-3.5 mr-1" /> {t('notifications.approve')}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleRejectBooking(n)} className="flex-1 h-8 rounded-xl text-xs">
-                        <X className="w-3.5 h-3.5 mr-1" /> {t('notifications.reject')}
-                      </Button>
-                    </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{n.title}</p>
+                    {n.message && <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>}
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">
+                      {new Date(n.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  {!n.read && !isBookingRequest && (
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => markRead(n.id)}
+                      className="p-1.5 rounded-lg hover:bg-accent transition-colors"
+                    >
+                      <Check className="w-3.5 h-3.5 text-muted-foreground" />
+                    </motion.button>
                   )}
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+                </div>
+
+                {isBookingRequest && (
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={() => handleApprove(n)}
+                      disabled={isLoading}
+                      className="flex-1 h-8 rounded-xl text-xs"
+                    >
+                      {isApproveLoading ? (
+                        <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Sending...</>
+                      ) : (
+                        <><Check className="w-3.5 h-3.5 mr-1" /> {t('notifications.approve')}</>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleReject(n)}
+                      disabled={isLoading}
+                      className="flex-1 h-8 rounded-xl text-xs"
+                    >
+                      {isRejectLoading ? (
+                        <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Sending...</>
+                      ) : (
+                        <><X className="w-3.5 h-3.5 mr-1" /> {t('notifications.reject')}</>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
         </div>
       )}
     </div>
