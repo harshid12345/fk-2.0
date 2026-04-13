@@ -79,9 +79,10 @@ export default function NotificationsPage() {
         return;
       }
 
-      if (data?.error) {
+      if (data?.ok === false || data?.error) {
         console.error('[Approve] Function returned error:', data.error);
-        toast.error(`Error: ${data.error}`);
+        toast.error(data.error || 'Applicant may have been deleted. Remove this notification.');
+        await markRead(notification.id);
         return;
       }
 
@@ -129,9 +130,10 @@ export default function NotificationsPage() {
         return;
       }
 
-      if (data?.error) {
+      if (data?.ok === false || data?.error) {
         console.error('[Reject] Function returned error:', data.error);
-        toast.error(`Error: ${data.error}`);
+        toast.error(data.error || 'Applicant may have been deleted.');
+        await markRead(notification.id);
         return;
       }
 
