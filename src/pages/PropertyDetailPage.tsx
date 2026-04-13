@@ -267,7 +267,7 @@ export default function PropertyDetailPage() {
                   const link = `https://t.me/fairkamer_screen_bot?start=${id}`;
                   const msg = `Hi! I use FairKamer to screen tenants for my property at ${property.address}.\n\nIt takes about 5 minutes and helps you stand out from other applicants. Click the link below to get started:\n\n👉 ${link}`;
                   navigator.clipboard.writeText(msg);
-                  toast.success('Message copied! Paste it to your applicants.');
+                  sonnerToast.success('Message copied! Paste it to your applicants.');
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-primary text-primary-foreground"
               >
