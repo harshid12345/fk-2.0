@@ -360,9 +360,10 @@ Deno.serve(async (req) => {
       const dt = new Date(slot_start);
       const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
       const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
       await sendMessage(BOT_TOKEN, chatId,
-        `It's official, ${firstName}! ✅\n\nYour viewing is confirmed:\n\n🗓 <b>${dateStr} at ${timeStr}</b>\n📍 <b>${address}</b>\n\nI'll send you a reminder a few days before so you don't forget. See you there! 🏠`
+        `It's official, ${firstName}! ✅\n\nYour viewing is confirmed:\n\n🗓 <b>${dateStr} at ${timeStr}</b>\n📍 <b>${address}</b>\n🗺 <a href="${mapsLink}">Open in Google Maps</a>\n\nI'll send you a reminder the day before. See you there! 🏠`
       );
       return new Response(JSON.stringify({ ok: true }));
     }
