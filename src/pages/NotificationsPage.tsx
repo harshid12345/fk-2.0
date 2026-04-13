@@ -85,8 +85,6 @@ export default function NotificationsPage() {
         await markRead(notification.id);
         return;
       }
-        return;
-      }
 
       // Mark notification as read
       await markRead(notification.id);
@@ -136,8 +134,6 @@ export default function NotificationsPage() {
         console.error('[Reject] Function returned error:', data.error);
         toast.error(data.error || 'Applicant may have been deleted.');
         await markRead(notification.id);
-        return;
-      }
         return;
       }
 
