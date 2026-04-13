@@ -317,6 +317,42 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          landlord_id: string
+          message: string | null
+          read: boolean
+          related_applicant_id: string | null
+          related_booking_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          landlord_id: string
+          message?: string | null
+          read?: boolean
+          related_applicant_id?: string | null
+          related_booking_id?: string | null
+          title: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          landlord_id?: string
+          message?: string | null
+          read?: boolean
+          related_applicant_id?: string | null
+          related_booking_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       tenant_issues: {
         Row: {
           ai_resolved: boolean | null
@@ -356,6 +392,78 @@ export type Database = {
           property_id?: string
           telegram_user_id?: string | null
           tenant_name?: string | null
+        }
+        Relationships: []
+      }
+      viewing_bookings: {
+        Row: {
+          applicant_id: string
+          cancelled_at: string | null
+          created_at: string
+          id: string
+          landlord_id: string
+          property_id: string
+          slot_end: string
+          slot_start: string
+          status: string
+          tenant_confirmed_1d: boolean | null
+          tenant_confirmed_3d: boolean | null
+        }
+        Insert: {
+          applicant_id: string
+          cancelled_at?: string | null
+          created_at?: string
+          id?: string
+          landlord_id: string
+          property_id: string
+          slot_end: string
+          slot_start: string
+          status?: string
+          tenant_confirmed_1d?: boolean | null
+          tenant_confirmed_3d?: boolean | null
+        }
+        Update: {
+          applicant_id?: string
+          cancelled_at?: string | null
+          created_at?: string
+          id?: string
+          landlord_id?: string
+          property_id?: string
+          slot_end?: string
+          slot_start?: string
+          status?: string
+          tenant_confirmed_1d?: boolean | null
+          tenant_confirmed_3d?: boolean | null
+        }
+        Relationships: []
+      }
+      viewing_schedule: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          enabled: boolean
+          end_time: string
+          id: string
+          landlord_id: string
+          start_time: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          enabled?: boolean
+          end_time?: string
+          id?: string
+          landlord_id: string
+          start_time?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          enabled?: boolean
+          end_time?: string
+          id?: string
+          landlord_id?: string
+          start_time?: string
         }
         Relationships: []
       }
