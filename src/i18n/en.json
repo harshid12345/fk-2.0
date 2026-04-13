@@ -1,6 +1,7 @@
 {
   "nav.properties": "Properties",
   "nav.issues": "Issues",
+  "nav.applicants": "Applicants",
   "nav.settings": "Settings",
   "properties.title": "Your properties",
   "properties.add": "Add property",
