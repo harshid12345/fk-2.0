@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Building2, ShieldCheck, Copy, Trash2, Home, Users, Calendar, Plus, X, Share2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast as sonnerToast } from 'sonner';
 import { getComplianceStatus } from '@/lib/wws';
 
 interface ViewingSlot {
