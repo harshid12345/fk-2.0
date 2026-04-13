@@ -42,12 +42,12 @@ Deno.serve(async (req) => {
 
     // Fetch applicant
     const { data: applicant, error: appErr } = await supabase
-      .from('applicants').select('*').eq('id', applicantId).single();
+      .from('applicants').select('*').eq('id', applicantId).maybeSingle();
 
     if (appErr || !applicant) {
       console.error('[notify] Applicant not found:', appErr?.message);
-      return new Response(JSON.stringify({ error: 'Applicant not found' }), {
-        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return new Response(JSON.stringify({ ok: false, error: 'Applicant not found or was deleted' }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
