@@ -343,7 +343,7 @@ Deno.serve(async (req) => {
       const address = propData?.address || 'the property';
 
       await sendMessage(BOT_TOKEN, chatId,
-        `Hi ${firstName},\n\nThanks so much for taking the time to apply for <b>${address}</b>. The landlord has decided to go in a different direction this time.\n\nI know it's not the news you were hoping for, but don't give up — the right place is out there! If new properties come up, I'll let you know. Good luck with your search 💪🏠`
+        `Hi ${firstName},\n\nThanks so much for taking the time to apply for <b>${address}</b>. The landlord has decided to go in a different direction this time.\n\nI know it's not the news you were hoping for, but don't give up — the right place is out there. If new properties come up, I'll let you know. Good luck with your search.`
       );
       return new Response(JSON.stringify({ ok: true }));
     }
@@ -363,7 +363,7 @@ Deno.serve(async (req) => {
       const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
       await sendMessage(BOT_TOKEN, chatId,
-        `It's official, ${firstName}! ✅\n\nYour viewing is confirmed:\n\n🗓 <b>${dateStr} at ${timeStr}</b>\n📍 <b>${address}</b>\n🗺 <a href="${mapsLink}">Open in Google Maps</a>\n\nI'll send you a reminder the day before. See you there! 🏠`
+        `It's official, ${firstName}!\n\nYour viewing is confirmed:\n\n<b>${dateStr} at ${timeStr}</b>\n<b>${address}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nI'll send you a reminder the day before. See you there!`
       );
       return new Response(JSON.stringify({ ok: true }));
     }
@@ -422,13 +422,13 @@ Deno.serve(async (req) => {
         const parts = text.split(' ');
         const propertyId = parts[1];
         if (!propertyId) {
-          await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! 👋 Looks like you found me directly — you'll need a screening link from your landlord to get started. Ask them for it!`);
+          await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! Looks like you found me directly — you'll need a screening link from your landlord to get started. Ask them for it.`);
           return new Response('OK');
         }
         const { data: property } = await supabase
           .from('landlord_properties').select('id, address, landlord_id').eq('id', propertyId).maybeSingle();
         if (!property) {
-          await sendMessage(BOT_TOKEN, chatId, `Hmm, that link doesn't seem to work ${firstName}. Could you double-check with your landlord? 🤔`);
+          await sendMessage(BOT_TOKEN, chatId, `Hmm, that link doesn't seem to work ${firstName}. Could you double-check with your landlord?`);
           return new Response('OK');
         }
         const { data: landlord } = await supabase
