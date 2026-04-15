@@ -974,107 +974,67 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
 }
 
 // ═══════════════════════════════════════════
-// REMINDERS
+// CASCADE TRIGGER (called from callback handler)
 // ═══════════════════════════════════════════
-async function handleReminders(supabase: any, token: string) {
-  const now = new Date();
-  const threeDaysFromNow = new Date(now);
-  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-  const oneDayFromNow = new Date(now);
-  oneDayFromNow.setDate(oneDayFromNow.getDate() + 1);
-
-  const { data: threeDayBookings } = await supabase.from('viewing_bookings')
-    .select('*, applicants!inner(telegram_chat_id, telegram_user_id, full_name)')
-    .eq('status', 'confirmed')
-    .eq('tenant_confirmed_3d', false)
-    .gte('slot_start', threeDaysFromNow.toISOString().split('T')[0])
-    .lt('slot_start', new Date(threeDaysFromNow.getTime() + 86400000).toISOString().split('T')[0]);
-
-  for (const booking of (threeDayBookings || [])) {
-    const { data: property } = await supabase.from('landlord_properties').select('address').eq('id', booking.property_id).single();
-    const addr = property?.address || 'The property';
-    const dt = new Date(booking.slot_start);
-    const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-    const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    const firstName = (booking.applicants?.full_name || 'there').split(' ')[0];
-    const chatId = booking.applicants?.telegram_chat_id || (booking.applicants?.telegram_user_id ? parseInt(booking.applicants.telegram_user_id) : null);
-    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
-
-    if (chatId) {
-      await sendMessage(token, chatId,
-        `Hey ${firstName}! Just a heads up — your viewing is coming up in 3 days.\n\n<b>${dateStr} at ${timeStr}</b>\n<b>${addr}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nStill good to go?`,
-        { reply_markup: { inline_keyboard: [
-          [{ text: "Yes, I'll be there!", callback_data: 'remind_yes' }],
-          [{ text: "I need to cancel", callback_data: 'remind_cancel' }],
-        ] } }
-      );
-      await supabase.from('viewing_bookings').update({ tenant_confirmed_3d: true }).eq('id', booking.id);
-    }
-  }
-
-  const { data: oneDayBookings } = await supabase.from('viewing_bookings')
-    .select('*, applicants!inner(telegram_chat_id, telegram_user_id, full_name)')
-    .eq('status', 'confirmed')
-    .eq('tenant_confirmed_1d', false)
-    .gte('slot_start', oneDayFromNow.toISOString().split('T')[0])
-    .lt('slot_start', new Date(oneDayFromNow.getTime() + 86400000).toISOString().split('T')[0]);
-
-  for (const booking of (oneDayBookings || [])) {
-    const { data: property } = await supabase.from('landlord_properties').select('address').eq('id', booking.property_id).single();
-    const addr = property?.address || 'The property';
-    const dt = new Date(booking.slot_start);
-    const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    const firstName = (booking.applicants?.full_name || 'there').split(' ')[0];
-    const chatId = booking.applicants?.telegram_chat_id || (booking.applicants?.telegram_user_id ? parseInt(booking.applicants.telegram_user_id) : null);
-    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
-
-    if (chatId) {
-      await sendMessage(token, chatId,
-        `Hey ${firstName}! Your viewing is <b>tomorrow at ${timeStr}</b>.\n\n<b>${addr}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nAre you still coming?`,
-        { reply_markup: { inline_keyboard: [
-          [{ text: "Yes, see you there!", callback_data: 'remind_yes' }],
-          [{ text: "I need to cancel", callback_data: 'remind_cancel' }],
-        ] } }
-      );
-      await supabase.from('viewing_bookings').update({ tenant_confirmed_1d: true }).eq('id', booking.id);
-    }
-  }
-}
-
-// ═══════════════════════════════════════════
-// CANCELLED SLOT REASSIGNMENT
-// ═══════════════════════════════════════════
-async function handleCancelledSlotReassignment(supabase: any, token: string, cancelledBookingId: string) {
-  const { data: cancelledBooking } = await supabase.from('viewing_bookings')
-    .select('*').eq('id', cancelledBookingId).single();
-  if (!cancelledBooking) return;
-
+async function triggerCascade(supabase: any, token: string, booking: any, timeoutMinutes: number) {
   const { data: candidates } = await supabase.from('applicants')
-    .select('*')
-    .eq('property_id', cancelledBooking.property_id)
-    .eq('stage', 'approved')
+    .select('id, telegram_chat_id, telegram_user_id, full_name, match_score')
+    .eq('property_id', booking.property_id)
+    .in('stage', ['approved', 'screening_complete'])
     .is('viewing_booked_at', null)
+    .eq('hard_disqualified', false)
+    .neq('id', booking.applicant_id)
     .order('match_score', { ascending: false })
-    .limit(1);
+    .limit(3);
 
-  if (candidates && candidates.length > 0) {
-    const next = candidates[0];
-    const chatId = next.telegram_chat_id || (next.telegram_user_id ? parseInt(next.telegram_user_id) : null);
-    if (chatId) {
-      const firstName = (next.full_name || 'there').split(' ')[0];
-      const dt = new Date(cancelledBooking.slot_start);
-      const label = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }) +
-        ' at ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-      await sendMessage(token, chatId,
-        `Hey ${firstName}! A viewing slot just opened up.\n\nWould <b>${label}</b> work for you?`,
-        { reply_markup: { inline_keyboard: [
-          [{ text: "Yes, book it!", callback_data: `vslot_reassign_${cancelledBookingId}` }],
-          [{ text: "No thanks", callback_data: 'vslot_skip' }],
-        ] } }
-      );
-    }
+  if (!candidates || candidates.length === 0) {
+    // No candidates — notify landlord directly
+    const { data: prop } = await supabase.from('landlord_properties').select('address').eq('id', booking.property_id).single();
+    const dt = new Date(booking.slot_start);
+    const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+    const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    await supabase.from('notifications').insert({
+      landlord_id: booking.landlord_id,
+      type: 'cancellation_no_replacement',
+      title: `Viewing cancelled — no replacement found`,
+      message: `Your viewing on ${dateStr} at ${timeStr} for ${prop?.address || 'the property'} was cancelled and no replacement was found from your current applicant list.`,
+      related_booking_id: booking.id,
+    });
+    await supabase.from('viewing_bookings').update({ cascade_state: 'landlord_notified' }).eq('id', booking.id);
+    return;
   }
+
+  const { data: prop } = await supabase.from('landlord_properties').select('address').eq('id', booking.property_id).single();
+  const addr = prop?.address || 'the property';
+  const dt = new Date(booking.slot_start);
+  const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+  const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  const cascadeCandidates: any[] = [];
+
+  for (const c of candidates) {
+    const chatId = c.telegram_chat_id || (c.telegram_user_id ? parseInt(c.telegram_user_id) : null);
+    if (!chatId) continue;
+    const firstName = (c.full_name || 'there').split(' ')[0];
+    await sendMessage(token, chatId,
+      `Hi ${firstName}, a viewing slot just opened up at ${addr} on ${dateStr} at ${timeStr}. Are you available? Reply YES to claim it or NO if not. First to confirm gets the slot.`,
+      { reply_markup: { inline_keyboard: [
+        [{ text: 'YES, I want it', callback_data: `cascade_yes_${booking.id}` }],
+        [{ text: 'NO, not available', callback_data: `cascade_no_${booking.id}` }],
+      ] } }
+    );
+    cascadeCandidates.push({ applicant_id: c.id, chat_id: chatId, full_name: c.full_name, response: null });
+  }
+
+  await supabase.from('viewing_bookings').update({
+    cascade_state: 'active',
+    cascade_data: {
+      started_at: new Date().toISOString(),
+      timeout_minutes: timeoutMinutes,
+      candidates: cascadeCandidates,
+      original_applicant_id: booking.applicant_id,
+    },
+  }).eq('id', booking.id);
 }
 
 // ═══════════════════════════════════════════
