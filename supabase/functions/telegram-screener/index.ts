@@ -619,7 +619,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
 
     const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address)}`;
     await sendMessage(token, chatId,
-      `Nice choice, ${firstName}! 🎉\n\nYou picked <b>${selectedSlot.label}</b> at <b>${property.address}</b>.\n\n📍 <a href="${mapsLink}">Open in Google Maps</a>\n\nI've sent this to the landlord for approval — you'll get a confirmation as soon as they say yes!\n\nHang tight ⏳`
+      `Nice choice, ${firstName}!\n\nYou picked <b>${selectedSlot.label}</b> at <b>${property.address}</b>.\n\n<a href="${mapsLink}">Open in Google Maps</a>\n\nI've sent this to the landlord for approval — you'll get a confirmation as soon as they say yes. Hang tight.`
     );
 
     await runMatchScoring(supabase, applicant.id);
@@ -628,7 +628,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
 
   // Reminder confirmation callbacks
   if (data === 'remind_yes') {
-    await sendMessage(token, chatId, `Awesome ${firstName}, see you there! 🏠✨`);
+    await sendMessage(token, chatId, `Awesome ${firstName}, see you there!`);
     return;
   }
   if (data === 'remind_cancel') {
@@ -653,7 +653,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
         related_applicant_id: applicant.id,
       });
 
-      await sendMessage(token, chatId, `No problem ${firstName}, your viewing has been cancelled. I hope you find a great place — good luck! 🍀🏠`);
+      await sendMessage(token, chatId, `No problem ${firstName}, your viewing has been cancelled. I hope you find a great place — good luck!`);
 
       await handleCancelledSlotReassignment(supabase, token, booking.id);
     }
