@@ -253,13 +253,12 @@ function generateAvailableSlots(schedule: any[], existingBookings: any[], weeksA
 // ═══════════════════════════════════════════
 function buildSlotMessage(name: string, address: string, slots: { start: string; end: string; label: string }[]): string {
   const firstName = name.split(' ')[0] || name;
-  // Suggest the best slot naturally, then offer alternatives
   if (slots.length === 1) {
-    return `Hey ${firstName}! Great news — the landlord would love to show you the place at <b>${address}</b> 🏠\n\nHow does <b>${slots[0].label}</b> work for you?`;
+    return `Hey ${firstName}! Great news — the landlord would love to show you the place at <b>${address}</b>.\n\nHow does <b>${slots[0].label}</b> work for you?`;
   }
   
   const best = slots[0];
-  return `Hey ${firstName}! Great news — the landlord would love to show you the place at <b>${address}</b> 🏠\n\nWould <b>${best.label}</b> work for you? If not, I've got a few other times below 👇`;
+  return `Hey ${firstName}! Great news — the landlord would love to show you the place at <b>${address}</b>.\n\nWould <b>${best.label}</b> work for you? If not, I've got a few other times below.`;
 }
 
 // ═══════════════════════════════════════════
@@ -301,7 +300,7 @@ Deno.serve(async (req) => {
       const { data: schedule } = await supabase.from('viewing_schedule').select('*').eq('landlord_id', landlord_id);
       if (!schedule || schedule.length === 0) {
         await sendMessage(BOT_TOKEN, chatId,
-          `Hey ${firstName}! The landlord loved your profile and wants to meet you 🎉 They're setting up viewing times right now — I'll send you the options as soon as they're ready!`
+          `Hey ${firstName}! The landlord loved your profile and wants to meet you. They're setting up viewing times right now — I'll send you the options as soon as they're ready.`
         );
         return new Response(JSON.stringify({ ok: true }));
       }
@@ -312,14 +311,14 @@ Deno.serve(async (req) => {
 
       if (slots.length === 0) {
         await sendMessage(BOT_TOKEN, chatId,
-          `Hey ${firstName}! The landlord loved your application 🎉 All viewing times are full right now, but I'll message you the moment a slot opens up!`
+          `Hey ${firstName}! The landlord loved your application. All viewing times are full right now, but I'll message you the moment a slot opens up.`
         );
         return new Response(JSON.stringify({ ok: true }));
       }
 
       // Show max 6 slots with conversational message
       const displaySlots = slots.slice(0, 6);
-      const buttons = displaySlots.map((slot, i) => [{ text: `📅 ${slot.label}`, callback_data: `vslot_${i}` }]);
+      const buttons = displaySlots.map((slot, i) => [{ text: slot.label, callback_data: `vslot_${i}` }]);
 
       // Store slots in the new column so callbacks can find them
       await supabase.from('applicants').update({ 
