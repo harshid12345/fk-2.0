@@ -1,0 +1,1 @@
+CREATE POLICY "Landlords can delete own notifications" ON public.notifications FOR DELETE TO public USING (auth.uid() = landlord_id);
