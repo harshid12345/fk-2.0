@@ -460,10 +460,7 @@ Deno.serve(async (req) => {
       await supabase.from('applicants').update({ telegram_chat_id: chatId }).eq('id', applicant.id);
     }
 
-    if (photo && applicant.stage === 'id_check') {
-      await handleIdUpload(supabase, BOT_TOKEN, chatId, applicant, photo);
-      return new Response('OK');
-    }
+    // ID check stage removed — photos during other stages are ignored
 
     await handleTextMessage(supabase, BOT_TOKEN, chatId, applicant, text);
     return new Response('OK');
@@ -535,9 +532,10 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
 
   // Skip social
   if (data === 'skip_social') {
-    await supabase.from('applicants').update({ stage: 'id_check' }).eq('id', applicant.id);
+    await supabase.from('applicants').update({ stage: 'screening_complete' }).eq('id', applicant.id);
+    await runMatchScoring(supabase, applicant.id);
     await sendMessage(token, chatId,
-      `No worries at all ${firstName}!\n\nOkay, last thing — could you snap a photo of your ID (passport or Dutch ID card)? It stays completely private and encrypted.`
+      `No worries at all ${firstName}!\n\nYou're all done! Your screening is complete and the landlord will review your profile. If they like what they see, I'll send you available viewing times right here.\n\nThanks for going through the process — fingers crossed!`
     );
     return;
   }
@@ -695,9 +693,10 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
 
   if (stage === 'socials') {
     const handle = text.replace('@', '').trim();
-    await supabase.from('applicants').update({ social_handle: handle, stage: 'id_check' }).eq('id', applicant.id);
+    await supabase.from('applicants').update({ social_handle: handle, stage: 'screening_complete' }).eq('id', applicant.id);
+    await runMatchScoring(supabase, applicant.id);
     await sendMessage(token, chatId,
-      `Got it, @${handle}!\n\nAlright ${firstName}, last step — could you snap a photo of your ID (passport or Dutch ID card)? It's kept completely private and secure.`
+      `Got it, @${handle}!\n\nYou're all done ${firstName}! Your screening is complete and the landlord will review your profile. If they like what they see, I'll send you available viewing times right here.\n\nThanks for going through the process — fingers crossed!`
     );
     return;
   }
