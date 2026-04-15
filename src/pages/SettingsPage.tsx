@@ -80,6 +80,8 @@ export default function SettingsPage() {
         });
       }
     });
+  }, [user]);
+
   const saveProfile = async () => {
     if (!user) return;
     setLoading(true);
