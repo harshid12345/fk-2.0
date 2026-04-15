@@ -1,0 +1,1 @@
+ALTER TABLE public.applicants ADD COLUMN preferred_language text DEFAULT 'en';
