@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { calculateMatchScore } from '@/lib/matchScore';
 import { Button } from '@/components/ui/button';
-import { Users, Check, X, Loader2, User, ChevronDown, Clock, Search, AlertTriangle } from 'lucide-react';
+import { Users, Check, X, Loader2, User, ChevronDown, Clock, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
