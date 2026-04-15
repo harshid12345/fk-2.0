@@ -7,12 +7,12 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Bell, Check, X, Calendar, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 
-const TYPE_CONFIG: Record<string, { icon: any; color: string }> = {
-  booking_request: { icon: Calendar, color: '#2EC4B6' },
-  booking_confirmed: { icon: CheckCircle2, color: '#4ADE80' },
-  cancellation: { icon: AlertTriangle, color: '#E55B5B' },
-  reminder: { icon: Bell, color: '#FBBF24' },
-  info: { icon: Bell, color: '#9BA8B7' },
+const TYPE_CONFIG: Record<string, { icon: any; borderColor: string }> = {
+  booking_request: { icon: Calendar, borderColor: 'border-l-primary' },
+  booking_confirmed: { icon: CheckCircle2, borderColor: 'border-l-success' },
+  cancellation: { icon: AlertTriangle, borderColor: 'border-l-destructive' },
+  reminder: { icon: Bell, borderColor: 'border-l-warning' },
+  info: { icon: Bell, borderColor: 'border-l-muted-foreground' },
 };
 
 export default function NotificationsPage() {
@@ -26,25 +26,16 @@ export default function NotificationsPage() {
   useEffect(() => {
     if (!user) return;
     loadNotifications();
-
     const channel = supabase
       .channel('notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `landlord_id=eq.${user.id}` },
-        () => loadNotifications()
-      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `landlord_id=eq.${user.id}` }, () => loadNotifications())
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const loadNotifications = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('landlord_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
+    const { data } = await supabase.from('notifications').select('*').eq('landlord_id', user.id).order('created_at', { ascending: false }).limit(50);
     setNotifications(data || []);
     setLoading(false);
   };
@@ -56,51 +47,21 @@ export default function NotificationsPage() {
 
   const handleApprove = async (notification: any) => {
     const applicantId = notification.related_applicant_id;
-    if (!applicantId) {
-      toast.error('No applicant linked to this notification.');
-      return;
-    }
-
+    if (!applicantId) { toast.error('No applicant linked to this notification.'); return; }
     setLoadingId(notification.id);
     setLoadingAction('approve');
-
     try {
-      // Extract slot info from the notification message (e.g. "Tuesday 14 Apr at 10:00")
       const slotMatch = notification.message?.match(/^(.+?) at (.+?)(?:\s*—|$)/);
       const slotLabel = slotMatch ? `${slotMatch[1]} at ${slotMatch[2]}`.trim() : undefined;
-
-      console.log('[Confirm] Confirming booking for applicant:', applicantId, 'slot:', slotLabel);
-
       const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
-        body: {
-          applicantId,
-          action: 'confirm_booking',
-          bookingId: notification.related_booking_id || undefined,
-          slotLabel,
-        },
+        body: { applicantId, action: 'confirm_booking', bookingId: notification.related_booking_id || undefined, slotLabel },
       });
-
-      console.log('[Confirm] Response:', { data, error });
-
-      if (error) {
-        console.error('[Confirm] Edge function error:', error);
-        toast.error('Failed to send confirmation. Check console.');
-        return;
-      }
-
-      if (data?.ok === false || data?.error) {
-        console.error('[Confirm] Function returned error:', data.error);
-        toast.error(data.error || 'Applicant may have been deleted.');
-        await markRead(notification.id);
-        return;
-      }
-
+      if (error) { toast.error('Failed to send confirmation. Check console.'); return; }
+      if (data?.ok === false || data?.error) { toast.error(data.error || 'Applicant may have been deleted.'); await markRead(notification.id); return; }
       await markRead(notification.id);
-
-      toast.success('Viewing confirmed! Tenant notified via Telegram 🎉');
+      toast.success('Viewing confirmed! Tenant notified via Telegram');
       loadNotifications();
     } catch (err) {
-      console.error('[Approve] Unexpected error:', err);
       toast.error('Something went wrong. Check the browser console.');
     } finally {
       setLoadingId(null);
@@ -110,47 +71,23 @@ export default function NotificationsPage() {
 
   const handleReject = async (notification: any) => {
     const applicantId = notification.related_applicant_id;
-    if (!applicantId) {
-      toast.error('No applicant linked to this notification.');
-      return;
-    }
-
+    if (!applicantId) { toast.error('No applicant linked to this notification.'); return; }
     setLoadingId(notification.id);
     setLoadingAction('reject');
-
     try {
-      console.log('[Reject] Calling telegram-notify-tenant for applicant:', applicantId);
-
       const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
         body: { applicantId, action: 'reject' },
       });
-
-      console.log('[Reject] Response:', { data, error });
-
-      if (error) {
-        console.error('[Reject] Edge function error:', error);
-        toast.error('Failed to send rejection. Check console for details.');
-        return;
-      }
-
-      if (data?.ok === false || data?.error) {
-        console.error('[Reject] Function returned error:', data.error);
-        toast.error(data.error || 'Applicant may have been deleted.');
-        await markRead(notification.id);
-        return;
-      }
-
+      if (error) { toast.error('Failed to send rejection.'); return; }
+      if (data?.ok === false || data?.error) { toast.error(data.error || 'Applicant may have been deleted.'); await markRead(notification.id); return; }
       await markRead(notification.id);
-
       if (notification.related_booking_id) {
         await supabase.from('viewing_bookings').update({ status: 'cancelled_landlord' } as any).eq('id', notification.related_booking_id);
       }
-
       toast.success('Tenant rejected. Notification sent via Telegram.');
       loadNotifications();
     } catch (err) {
-      console.error('[Reject] Unexpected error:', err);
-      toast.error('Something went wrong. Check the browser console.');
+      toast.error('Something went wrong.');
     } finally {
       setLoadingId(null);
       setLoadingAction(null);
@@ -170,9 +107,7 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-foreground">{t('notifications.title')}</h1>
         {unreadCount > 0 && (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground">
-            {unreadCount}
-          </span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground">{unreadCount}</span>
         )}
       </div>
 
@@ -197,11 +132,11 @@ export default function NotificationsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.02 }}
-                className={`glass-card rounded-2xl p-4 space-y-2 transition-opacity ${n.read ? 'opacity-60' : ''}`}
+                className={`glass-card rounded-2xl p-4 space-y-2 border-l-[3px] ${config.borderColor} transition-opacity ${n.read ? 'opacity-60' : ''}`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${config.color}15` }}>
-                    <Icon className="w-4 h-4" style={{ color: config.color }} />
+                  <div className="p-1.5 rounded-lg bg-primary/10">
+                    <Icon className="w-4 h-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">{n.title}</p>
@@ -211,11 +146,7 @@ export default function NotificationsPage() {
                     </p>
                   </div>
                   {!n.read && !isBookingRequest && (
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => markRead(n.id)}
-                      className="p-1.5 rounded-lg hover:bg-accent transition-colors"
-                    >
+                    <motion.button whileTap={{ scale: 0.9 }} onClick={() => markRead(n.id)} className="p-1.5 rounded-lg hover:bg-accent transition-colors">
                       <Check className="w-3.5 h-3.5 text-muted-foreground" />
                     </motion.button>
                   )}
@@ -223,30 +154,11 @@ export default function NotificationsPage() {
 
                 {isBookingRequest && (
                   <div className="flex gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      onClick={() => handleApprove(n)}
-                      disabled={isLoading}
-                      className="flex-1 h-8 rounded-xl text-xs"
-                    >
-                      {isApproveLoading ? (
-                        <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Sending...</>
-                      ) : (
-                        <><Check className="w-3.5 h-3.5 mr-1" /> {t('notifications.approve')}</>
-                      )}
+                    <Button size="sm" onClick={() => handleApprove(n)} disabled={isLoading} className="flex-1 h-8 rounded-xl text-xs bg-success hover:bg-success/90 text-primary-foreground">
+                      {isApproveLoading ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Sending...</> : <><Check className="w-3.5 h-3.5 mr-1" /> {t('notifications.approve')}</>}
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleReject(n)}
-                      disabled={isLoading}
-                      className="flex-1 h-8 rounded-xl text-xs"
-                    >
-                      {isRejectLoading ? (
-                        <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Sending...</>
-                      ) : (
-                        <><X className="w-3.5 h-3.5 mr-1" /> {t('notifications.reject')}</>
-                      )}
+                    <Button size="sm" variant="outline" onClick={() => handleReject(n)} disabled={isLoading} className="flex-1 h-8 rounded-xl text-xs border-destructive/30 text-destructive hover:bg-destructive/10">
+                      {isRejectLoading ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Sending...</> : <><X className="w-3.5 h-3.5 mr-1" /> {t('notifications.reject')}</>}
                     </Button>
                   </div>
                 )}

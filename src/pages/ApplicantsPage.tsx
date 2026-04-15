@@ -9,11 +9,11 @@ import { Users, Building2, Check, X, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const SCORE_COLORS = {
-  strong: '#4ADE80',
-  good: '#2EC4B6',
-  moderate: '#FBBF24',
-  weak: '#9BA8B7',
-  disqualified: '#E55B5B',
+  strong: 'hsl(var(--success))',
+  good: 'hsl(var(--primary))',
+  moderate: 'hsl(var(--warning))',
+  weak: 'hsl(var(--muted-foreground))',
+  disqualified: 'hsl(var(--destructive))',
 };
 
 function getScoreColor(score: number, disqualified: boolean) {
@@ -61,14 +61,12 @@ export default function ApplicantsPage() {
       const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
         body: { applicantId: applicant.id, action: 'approve' },
       });
-      console.log('[Approve] Response:', data, 'Error:', error);
       if (error) {
         toast({ title: 'Failed to notify tenant', description: String(error.message || error), variant: 'destructive' as any });
       } else {
         toast({ title: `${applicant.full_name || 'Applicant'} approved! Viewing invitation sent.` });
       }
     } catch (e: any) {
-      console.error('[Approve] Exception:', e);
       toast({ title: 'Error approving applicant', description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
@@ -81,14 +79,12 @@ export default function ApplicantsPage() {
       const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
         body: { applicantId: applicant.id, action: 'reject' },
       });
-      console.log('[Reject] Response:', data, 'Error:', error);
       if (error) {
         toast({ title: 'Failed to notify tenant', description: String(error.message || error), variant: 'destructive' as any });
       } else {
         toast({ title: `${applicant.full_name || 'Applicant'} rejected. Notification sent.` });
       }
     } catch (e: any) {
-      console.error('[Reject] Exception:', e);
       toast({ title: 'Error rejecting applicant', description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
@@ -99,7 +95,6 @@ export default function ApplicantsPage() {
     if (!user) return;
     const ids = properties.map(p => p.id);
     if (ids.length === 0) return;
-    // Delete bookings first, then applicants
     await supabase.from('viewing_bookings').delete().eq('landlord_id', user.id);
     await supabase.from('notifications').delete().eq('landlord_id', user.id);
     for (const pid of ids) {
@@ -109,12 +104,10 @@ export default function ApplicantsPage() {
     load();
   };
 
-  // Compute match results
   const enriched = applicants.map(a => {
     const prop = properties.find(p => p.id === a.property_id);
     const crit = criteria[a.property_id];
     const rent = prop?.rent_amount || 1000;
-
     let matchResult;
     if (crit) {
       matchResult = calculateMatchScore(
@@ -133,7 +126,6 @@ export default function ApplicantsPage() {
     } else {
       matchResult = null;
     }
-
     return { ...a, matchResult, propertyAddress: prop?.address || '—' };
   });
 
@@ -173,12 +165,7 @@ export default function ApplicantsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-foreground">{t('applicants.title')}</h1>
         {applicants.length > 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={clearAllApplicants}
-            className="h-7 px-2 text-[10px] rounded-lg border-destructive/30 text-destructive hover:bg-destructive/10"
-          >
+          <Button size="sm" variant="outline" onClick={clearAllApplicants} className="h-7 px-2 text-[10px] rounded-lg border-destructive/30 text-destructive hover:bg-destructive/10">
             <Trash2 className="w-3 h-3 mr-1" /> DEV: Clear All
           </Button>
         )}
@@ -186,14 +173,10 @@ export default function ApplicantsPage() {
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {filters.map(f => (
-          <motion.button
-            key={f.key}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setFilter(f.key)}
+          <motion.button key={f.key} whileTap={{ scale: 0.95 }} onClick={() => setFilter(f.key)}
             className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors whitespace-nowrap ${
               filter === f.key ? 'bg-primary text-primary-foreground' : 'bg-accent text-muted-foreground'
-            }`}
-          >
+            }`}>
             {f.label} ({f.count})
           </motion.button>
         ))}
@@ -225,11 +208,9 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject, actionLoading
   const score = mr?.score ?? 0;
   const isCriteriaFlagged = mr?.hardDisqualified || false;
   const displayLabel = isCriteriaFlagged ? 'Needs review' : (mr?.label || 'Unscored');
-  const visibleFlags = Array.isArray(mr?.flags)
-    ? mr.flags.filter((flag: string) => !flag.startsWith('Hard disqualifier'))
-    : [];
+  const visibleFlags = Array.isArray(mr?.flags) ? mr.flags.filter((flag: string) => !flag.startsWith('Hard disqualifier')) : [];
   const color = getScoreColor(score, isCriteriaFlagged);
-  const borderClass = !isCriteriaFlagged && score >= 8.5 ? 'border-l-2' : '';
+  const borderClass = !isCriteriaFlagged && score >= 8.5 ? 'border-l-2 border-l-success' : '';
   const isPending = !a.stage || a.stage === 'new' || a.stage === 'welcome' || a.stage === 'done' || a.stage === 'screening_complete';
   const isApproved = a.stage === 'approved' || a.stage === 'viewing_pending' || a.stage === 'viewing_booked';
   const isRejected = a.stage === 'rejected';
@@ -251,15 +232,14 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject, actionLoading
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03 }}
       className={`glass-card rounded-2xl p-4 space-y-3 ${borderClass}`}
-      style={!isCriteriaFlagged && score >= 8.5 ? { borderLeftColor: SCORE_COLORS.strong } : {}}
     >
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium text-foreground">{a.full_name || 'Unknown'}</p>
-            {isApproved && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#4ADE80]/15 text-[#4ADE80]">{stageLabel}</span>}
-            {isRejected && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#E55B5B]/15 text-[#E55B5B]">REJECTED</span>}
-            {!isApproved && !isRejected && isCriteriaFlagged && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-[#E55B5B]/15 text-[#E55B5B]">REVIEW</span>}
+            {isApproved && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-success/15 text-success">{stageLabel}</span>}
+            {isRejected && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-destructive/15 text-destructive">REJECTED</span>}
+            {!isApproved && !isRejected && isCriteriaFlagged && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-destructive/15 text-destructive">REVIEW</span>}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             {a.employment_type || a.occupation || '—'} · €{a.monthly_income || '—'}/mo
@@ -278,8 +258,8 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject, actionLoading
       </div>
 
       {isCriteriaFlagged && (
-        <div className="rounded-xl border border-[#E55B5B]/30 bg-[#E55B5B]/5 px-3 py-2">
-          <p className="text-[11px] font-medium" style={{ color: SCORE_COLORS.disqualified }}>
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2">
+          <p className="text-[11px] font-medium text-destructive">
             Criteria alert: {mr?.hardDisqualifyReason || 'This applicant conflicts with one of your current rules.'}
           </p>
         </div>
@@ -294,24 +274,22 @@ function ApplicantCard({ applicant: a, index, onApprove, onReject, actionLoading
       )}
 
       <div className="flex flex-wrap gap-1.5">
-        {a.num_occupants && <Badge text={`👤 ${a.num_occupants}`} variant="neutral" />}
-        {a.desired_move_in && <Badge text={`📅 ${a.desired_move_in}`} variant="neutral" />}
-        {a.desired_lease_length && <Badge text={`📋 ${a.desired_lease_length}`} variant="neutral" />}
-        {a.lifestyle_answers?.smoking === 'No' && <Badge text="✅ Non-smoker" variant="green" />}
-        {(!a.lifestyle_answers?.pets || a.lifestyle_answers?.pets === 'No pets') && <Badge text="✅ No pets" variant="green" />}
-        {a.id_verified && <Badge text="✅ ID verified" variant="green" />}
-        {a.consent_given && <Badge text="✅ GDPR consent" variant="green" />}
+        {a.num_occupants && <BadgePill text={`👤 ${a.num_occupants}`} variant="neutral" />}
+        {a.desired_move_in && <BadgePill text={`📅 ${a.desired_move_in}`} variant="neutral" />}
+        {a.desired_lease_length && <BadgePill text={`📋 ${a.desired_lease_length}`} variant="neutral" />}
+        {a.lifestyle_answers?.smoking === 'No' && <BadgePill text="✅ Non-smoker" variant="green" />}
+        {(!a.lifestyle_answers?.pets || a.lifestyle_answers?.pets === 'No pets') && <BadgePill text="✅ No pets" variant="green" />}
+        {a.id_verified && <BadgePill text="✅ ID verified" variant="green" />}
+        {a.consent_given && <BadgePill text="✅ GDPR consent" variant="green" />}
         {a.viewing_booked_at && (
-          <Badge text={`📅 Viewing: ${new Date(a.viewing_booked_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`} variant="primary" />
+          <BadgePill text={`📅 Viewing: ${new Date(a.viewing_booked_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`} variant="primary" />
         )}
       </div>
 
       {visibleFlags.length > 0 && (
         <div className="space-y-1">
           {visibleFlags.map((flag: string, fi: number) => (
-            <p key={fi} className="text-[11px] flex items-center gap-1" style={{ color: SCORE_COLORS.moderate }}>
-              ⚠️ {flag}
-            </p>
+            <p key={fi} className="text-[11px] flex items-center gap-1 text-warning">⚠️ {flag}</p>
           ))}
         </div>
       )}
@@ -337,7 +315,7 @@ function ScoreBar({ label, value, max, color }: { label: string; value: number; 
   return (
     <div className="flex items-center gap-2">
       <span className="text-[10px] text-muted-foreground w-[70px] shrink-0">{label}</span>
-      <div className="flex-1 h-1.5 rounded-full bg-accent overflow-hidden">
+      <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
@@ -351,9 +329,9 @@ function ScoreBar({ label, value, max, color }: { label: string; value: number; 
   );
 }
 
-function Badge({ text, variant }: { text: string; variant: 'green' | 'primary' | 'neutral' }) {
+function BadgePill({ text, variant }: { text: string; variant: 'green' | 'primary' | 'neutral' }) {
   const cls = variant === 'green'
-    ? 'bg-[#4ADE80]/10 text-[#4ADE80]'
+    ? 'bg-success/10 text-success'
     : variant === 'primary'
     ? 'bg-primary/10 text-primary'
     : 'bg-accent text-muted-foreground';
