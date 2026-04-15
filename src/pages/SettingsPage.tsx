@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import LandlordAvailabilityPro from '@/components/LandlordAvailabilityPro';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
@@ -30,8 +31,6 @@ const defaultCriteria: CriteriaState = {
   professionals_ok: true, min_income_multiplier: '3.0', notes: '',
 };
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const DAY_INDEX: Record<string, number> = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5, Sunday: 6 };
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -49,11 +48,6 @@ export default function SettingsPage() {
   const [criteriaCompleted, setCriteriaCompleted] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('profile');
 
-  const [availability, setAvailability] = useState<Record<string, { enabled: boolean; from: string; to: string }>>(() => {
-    const init: Record<string, { enabled: boolean; from: string; to: string }> = {};
-    DAYS.forEach(d => { init[d] = { enabled: d !== 'Sunday', from: '10:00', to: '18:00' }; });
-    return init;
-  });
 
   const CRITERIA_QUESTIONS = [
     { key: 'preferred_gender', question: t('criteria.q_gender'), type: 'select', options: [{ value: 'any', label: t('criteria.no_pref') }, { value: 'male', label: t('criteria.male') }, { value: 'female', label: t('criteria.female') }] },
@@ -84,23 +78,6 @@ export default function SettingsPage() {
           professionals_ok: first.professionals_ok ?? true, min_income_multiplier: first.min_income_multiplier?.toString() || '3.0',
           notes: first.notes || '',
         });
-      }
-    });
-    // Load viewing schedule from DB
-    supabase.from('viewing_schedule').select('*').eq('landlord_id', user.id).then(({ data }) => {
-      if (data && data.length > 0) {
-        const updated = { ...availability };
-        data.forEach((row: any) => {
-          const dayName = DAYS[row.day_of_week];
-          if (dayName) {
-            updated[dayName] = {
-              enabled: row.enabled,
-              from: row.start_time?.slice(0, 5) || '10:00',
-              to: row.end_time?.slice(0, 5) || '18:00',
-            };
-          }
-        });
-        setAvailability(updated);
       }
     });
   }, [user]);
@@ -138,23 +115,6 @@ export default function SettingsPage() {
     toast({ title: t('settings.criteria_saved') });
   };
 
-  const saveAvailability = async () => {
-    if (!user) return;
-    setLoading(true);
-    // Delete existing schedule
-    await supabase.from('viewing_schedule').delete().eq('landlord_id', user.id);
-    // Insert new schedule
-    const rows = DAYS.map(day => ({
-      landlord_id: user.id,
-      day_of_week: DAY_INDEX[day],
-      start_time: availability[day].from + ':00',
-      end_time: availability[day].to + ':00',
-      enabled: availability[day].enabled,
-    }));
-    await supabase.from('viewing_schedule').insert(rows as any);
-    setLoading(false);
-    toast({ title: t('settings.availability_saved') });
-  };
 
   const renderCriteriaQuestion = () => {
     const q = CRITERIA_QUESTIONS[criteriaStep];
@@ -272,28 +232,7 @@ export default function SettingsPage() {
         </Section>
 
         <Section id="availability" icon={Clock} title={t('settings.availability')}>
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground mb-1">{t('settings.availability_desc')}</p>
-            <p className="text-[10px] text-muted-foreground/70 mb-3">{t('settings.slot_info')}</p>
-            {DAYS.map(day => (
-              <div key={day} className="flex items-center gap-3 py-1.5">
-                <Switch checked={availability[day].enabled} onCheckedChange={v => setAvailability({ ...availability, [day]: { ...availability[day], enabled: v } })} />
-                <span className="text-sm text-foreground w-20">{day.slice(0, 3)}</span>
-                {availability[day].enabled ? (
-                  <div className="flex items-center gap-1.5 text-sm flex-1">
-                    <Input type="time" value={availability[day].from} onChange={e => setAvailability({ ...availability, [day]: { ...availability[day], from: e.target.value } })} className="h-8 text-xs bg-accent/50 border-border/50 flex-1" />
-                    <span className="text-muted-foreground text-xs">–</span>
-                    <Input type="time" value={availability[day].to} onChange={e => setAvailability({ ...availability, [day]: { ...availability[day], to: e.target.value } })} className="h-8 text-xs bg-accent/50 border-border/50 flex-1" />
-                  </div>
-                ) : <span className="text-xs text-muted-foreground">{t('settings.unavailable')}</span>}
-              </div>
-            ))}
-            <motion.div whileTap={{ scale: 0.97 }} className="pt-2">
-              <Button onClick={saveAvailability} disabled={loading} className="w-full h-10 rounded-xl">
-                {loading ? t('settings.saving') : t('settings.save_availability')}
-              </Button>
-            </motion.div>
-          </div>
+          <LandlordAvailabilityPro />
         </Section>
 
         <Section id="bots" icon={Bot} title={t('settings.telegram')}>
