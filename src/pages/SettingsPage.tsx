@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import LandlordAvailabilityPro from '@/components/LandlordAvailabilityPro';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
@@ -272,28 +273,7 @@ export default function SettingsPage() {
         </Section>
 
         <Section id="availability" icon={Clock} title={t('settings.availability')}>
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground mb-1">{t('settings.availability_desc')}</p>
-            <p className="text-[10px] text-muted-foreground/70 mb-3">{t('settings.slot_info')}</p>
-            {DAYS.map(day => (
-              <div key={day} className="flex items-center gap-3 py-1.5">
-                <Switch checked={availability[day].enabled} onCheckedChange={v => setAvailability({ ...availability, [day]: { ...availability[day], enabled: v } })} />
-                <span className="text-sm text-foreground w-20">{day.slice(0, 3)}</span>
-                {availability[day].enabled ? (
-                  <div className="flex items-center gap-1.5 text-sm flex-1">
-                    <Input type="time" value={availability[day].from} onChange={e => setAvailability({ ...availability, [day]: { ...availability[day], from: e.target.value } })} className="h-8 text-xs bg-accent/50 border-border/50 flex-1" />
-                    <span className="text-muted-foreground text-xs">–</span>
-                    <Input type="time" value={availability[day].to} onChange={e => setAvailability({ ...availability, [day]: { ...availability[day], to: e.target.value } })} className="h-8 text-xs bg-accent/50 border-border/50 flex-1" />
-                  </div>
-                ) : <span className="text-xs text-muted-foreground">{t('settings.unavailable')}</span>}
-              </div>
-            ))}
-            <motion.div whileTap={{ scale: 0.97 }} className="pt-2">
-              <Button onClick={saveAvailability} disabled={loading} className="w-full h-10 rounded-xl">
-                {loading ? t('settings.saving') : t('settings.save_availability')}
-              </Button>
-            </motion.div>
-          </div>
+          <LandlordAvailabilityPro />
         </Section>
 
         <Section id="bots" icon={Bot} title={t('settings.telegram')}>
