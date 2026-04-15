@@ -307,6 +307,7 @@ export type Database = {
       }
       landlords: {
         Row: {
+          apify_token: string | null
           created_at: string | null
           email: string | null
           full_name: string | null
@@ -315,6 +316,7 @@ export type Database = {
           portfolio_size: string | null
         }
         Insert: {
+          apify_token?: string | null
           created_at?: string | null
           email?: string | null
           full_name?: string | null
@@ -323,6 +325,7 @@ export type Database = {
           portfolio_size?: string | null
         }
         Update: {
+          apify_token?: string | null
           created_at?: string | null
           email?: string | null
           full_name?: string | null
