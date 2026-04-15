@@ -5,7 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { calculateMatchScore } from '@/lib/matchScore';
 import { Button } from '@/components/ui/button';
-import { Users, Check, X, Loader2, User, ChevronDown, Clock } from 'lucide-react';
+import { Users, Check, X, Loader2, User, ChevronDown, Clock, Search, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
 const SCORE_COLORS = {
@@ -28,6 +29,7 @@ export default function ApplicantsPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [applicants, setApplicants] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [criteria, setCriteria] = useState<Record<string, any>>({});
@@ -307,6 +309,9 @@ export default function ApplicantsPage() {
                             <ScoreBar label="Background" value={mr.breakdown.scrapedScore} max={2} color={color} />
                           </div>
                         )}
+
+                        {/* Background Check card */}
+                        <BackgroundCheckCard scrapeData={a.social_scrape_data} />
 
                         {/* Key info */}
                         <div className="grid grid-cols-2 gap-2 text-xs">
