@@ -616,6 +616,15 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
     await supabase.from('applicants').update({ stage: 'screening_complete' }).eq('id', applicant.id);
     await runMatchScoring(supabase, applicant.id);
     await sendMessage(token, chatId, tr(useLang, 'done_msg', firstName));
+
+    // Still trigger scrape (name-based search even without handle)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    fetch(`${supabaseUrl}/functions/v1/social-media-scrape`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+      body: JSON.stringify({ applicantId: applicant.id }),
+    }).catch(err => console.error('Background scrape failed:', err));
     return;
   }
 
@@ -915,6 +924,15 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
     await supabase.from('applicants').update({ social_handle: handle, stage: 'screening_complete' }).eq('id', applicant.id);
     await runMatchScoring(supabase, applicant.id);
     await sendMessage(token, chatId, tr(useLang, 'done_msg', firstName));
+
+    // Trigger social media scrape in background
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    fetch(`${supabaseUrl}/functions/v1/social-media-scrape`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+      body: JSON.stringify({ applicantId: applicant.id }),
+    }).catch(err => console.error('Background scrape failed:', err));
     return;
   }
 

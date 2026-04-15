@@ -23,3 +23,4 @@
 - [Landlord Settings](mem://features/landlord-settings) — Central hub for landlord configurations and preferences
 - [Multilingual Support](mem://features/multilingual-support) — EN/NL language toggling and translation system
 - [Landlord Invite System](mem://features/landlord-invite-system) — Tenant onboarding via deep-linked shareable invites
+- [Apify Social Scrape](mem://integrations/apify-social-scrape) — Automated tenant social media verification via Apify + AI analysis
