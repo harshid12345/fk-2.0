@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
     console.log('Running Social Media Finder for:', tenantName);
     const finderResults = await runApifyActor(
       'tri_angle~social-media-finder',
-      { names: [tenantName], platforms: ['instagram', 'facebook', 'linkedin', 'tiktok', 'twitter'] },
+      { profileNames: [tenantName], platforms: ['instagram', 'facebook', 'linkedin', 'tiktok', 'twitter'] },
       apifyToken
     );
     allScrapedData.socialMediaFinder = finderResults;
