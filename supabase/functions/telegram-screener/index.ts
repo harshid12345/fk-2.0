@@ -411,15 +411,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true }));
     }
 
-    if (body.action === 'send_reminders') {
-      await handleReminders(supabase, BOT_TOKEN);
-      return new Response(JSON.stringify({ ok: true }));
-    }
-
-    if (body.action === 'offer_cancelled_slot') {
-      await handleCancelledSlotReassignment(supabase, BOT_TOKEN, body.booking_id);
-      return new Response(JSON.stringify({ ok: true }));
-    }
+    // Reminders are now handled by the telegram-reminder edge function via cron
+    // Cascade slot offering is handled via triggerCascade in the callback handler
 
     // ═══════════════════════════════════════════
     // TELEGRAM WEBHOOK UPDATES
