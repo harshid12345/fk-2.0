@@ -482,13 +482,13 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
 
   if (data === 'start_yes') {
     await supabase.from('applicants').update({ stage: 'name' }).eq('id', applicant.id);
-    await sendMessage(token, chatId, "Awesome! Let's start with the basics — what's your full name? 😊");
+    await sendMessage(token, chatId, "Awesome! Let's start with the basics — what's your full name?");
     return;
   }
   if (data === 'start_info') {
     await sendMessage(token, chatId,
       `Good question! FairKamer helps landlords find their ideal tenant — fairly and transparently.\n\nI'll ask you a few things about yourself, and the landlord gets a compatibility score. No weird stuff, no hidden checks. Just honest matching.\n\nWant to give it a go?`,
-      { reply_markup: { inline_keyboard: [[ { text: "Alright, let's go! ✅", callback_data: 'start_yes' } ]] } }
+      { reply_markup: { inline_keyboard: [[ { text: "Alright, let's go!", callback_data: 'start_yes' } ]] } }
     );
     return;
   }
