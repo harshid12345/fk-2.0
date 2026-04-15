@@ -294,6 +294,55 @@ export default function SettingsPage() {
             ))}
           </div>
         </SettingsSection>
+
+        <SettingsSection id="developer" icon={Trash2} title="Developer Tools" expanded={expandedSection === 'developer'} onToggle={() => toggleSection('developer')}>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">Clear all data for testing purposes. This cannot be undone.</p>
+            <div className="space-y-2">
+              <motion.div whileTap={{ scale: 0.97 }}>
+                <Button
+                  variant="destructive"
+                  className="w-full h-10 rounded-xl text-sm"
+                  onClick={async () => {
+                    if (!user) return;
+                    const confirmed = window.confirm('Delete ALL notifications? This cannot be undone.');
+                    if (!confirmed) return;
+                    setLoading(true);
+                    await supabase.from('notifications').delete().eq('landlord_id', user.id);
+                    setLoading(false);
+                    toast({ title: 'All notifications cleared' });
+                  }}
+                  disabled={loading}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" /> Clear All Notifications
+                </Button>
+              </motion.div>
+              <motion.div whileTap={{ scale: 0.97 }}>
+                <Button
+                  variant="destructive"
+                  className="w-full h-10 rounded-xl text-sm"
+                  onClick={async () => {
+                    if (!user) return;
+                    const confirmed = window.confirm('Delete ALL applicants across all your properties? This cannot be undone.');
+                    if (!confirmed) return;
+                    setLoading(true);
+                    const { data: props } = await supabase.from('landlord_properties').select('id').eq('landlord_id', user.id);
+                    if (props && props.length > 0) {
+                      const propIds = props.map(p => p.id);
+                      await supabase.from('viewing_bookings').delete().in('property_id', propIds);
+                      await supabase.from('applicants').delete().in('property_id', propIds);
+                    }
+                    setLoading(false);
+                    toast({ title: 'All applicants and bookings cleared' });
+                  }}
+                  disabled={loading}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" /> Clear All Applicants
+                </Button>
+              </motion.div>
+            </div>
+          </div>
+        </SettingsSection>
       </div>
     </div>
   );
