@@ -700,11 +700,28 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
     return;
   }
 
-  // Reminder callbacks
+  // Reminder: tenant confirms
   if (data === 'remind_yes') {
-    await sendMessage(token, chatId, `Awesome ${firstName}, see you there!`);
+    // Mark 24h response
+    const { data: bk } = await supabase.from('viewing_bookings')
+      .select('id, slot_start, property_id')
+      .eq('applicant_id', applicant.id)
+      .eq('status', 'confirmed')
+      .order('slot_start', { ascending: true })
+      .limit(1).maybeSingle();
+    if (bk) {
+      await supabase.from('viewing_bookings').update({ reminder_24h_response: 'yes' }).eq('id', bk.id);
+      const { data: prop } = await supabase.from('landlord_properties').select('address').eq('id', bk.property_id).single();
+      const dt = new Date(bk.slot_start);
+      const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      await sendMessage(token, chatId, `Perfect, see you tomorrow at ${timeStr}. The address is ${prop?.address || 'the property'}. Good luck!`);
+    } else {
+      await sendMessage(token, chatId, `Great, see you there ${firstName}!`);
+    }
     return;
   }
+
+  // Reminder: tenant cancels — trigger cascade
   if (data === 'remind_cancel') {
     const { data: booking } = await supabase.from('viewing_bookings')
       .select('*').eq('applicant_id', applicant.id)
@@ -713,23 +730,155 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
       .limit(1).maybeSingle();
 
     if (booking) {
+      // Apply cancellation penalty
+      const cancCount = (applicant.cancellation_count || 0) + 1;
+      const newScore = Math.max(0, (applicant.match_score || 0) - 5);
+      const flags = applicant.match_flags || [];
+      const totalIssues = cancCount + (applicant.no_response_count || 0);
+      if (totalIssues >= 2 && !flags.includes('Reliability warning: multiple cancellations or no-shows')) {
+        flags.push('Reliability warning: multiple cancellations or no-shows');
+      }
+      await supabase.from('applicants').update({
+        cancellation_count: cancCount,
+        match_score: newScore,
+        match_flags: flags,
+      }).eq('id', applicant.id);
+
+      // Determine if this is a late cancel (2h) — use 5 min timeout, else 10 min
+      const hoursUntil = (new Date(booking.slot_start).getTime() - Date.now()) / 3600_000;
+      const timeoutMin = hoursUntil <= 3 ? 5 : 10;
+
       await supabase.from('viewing_bookings').update({
         status: 'cancelled_tenant',
-        cancelled_at: new Date().toISOString()
+        cancelled_at: new Date().toISOString(),
+        reminder_24h_response: 'no',
       }).eq('id', booking.id);
 
       await supabase.from('notifications').insert({
         landlord_id: booking.landlord_id,
         type: 'cancellation',
-        title: `${firstName} cancelled their viewing`,
-        message: `${applicant.full_name || firstName} cancelled their viewing. The slot has been freed up.`,
+        title: `${applicant.full_name || firstName} cancelled their viewing`,
+        message: `${applicant.full_name || firstName} cancelled their viewing. Looking for a replacement from the applicant list.`,
         related_booking_id: booking.id,
         related_applicant_id: applicant.id,
       });
 
-      await sendMessage(token, chatId, `No problem ${firstName}, your viewing has been cancelled. I hope you find a great place — good luck!`);
-      await handleCancelledSlotReassignment(supabase, token, booking.id);
+      await sendMessage(token, chatId, `No problem ${firstName}, your viewing has been cancelled. I hope you find a great place.`);
+
+      // Trigger cascade
+      await triggerCascade(supabase, token, booking, timeoutMin);
     }
+    return;
+  }
+
+  // Cascade: candidate claims slot
+  if (data.startsWith('cascade_yes_')) {
+    const bookingId = data.replace('cascade_yes_', '');
+    const { data: booking } = await supabase.from('viewing_bookings').select('*').eq('id', bookingId).single();
+    if (!booking || booking.cascade_state !== 'active') {
+      await sendMessage(token, chatId, `Sorry ${firstName}, that slot has already been taken.`);
+      return;
+    }
+
+    const cascadeData = booking.cascade_data || {};
+    const candidates = cascadeData.candidates || [];
+
+    // Check if someone already claimed it
+    const alreadyClaimed = candidates.some((c: any) => c.response === 'yes');
+    if (alreadyClaimed) {
+      await sendMessage(token, chatId, `Sorry ${firstName}, someone else just claimed that slot. We will keep you posted on future viewings.`);
+      return;
+    }
+
+    // Mark this candidate as winner
+    const updatedCandidates = candidates.map((c: any) =>
+      c.applicant_id === applicant.id ? { ...c, response: 'yes' } : c
+    );
+
+    // Create new booking for this applicant
+    await supabase.from('viewing_bookings').insert({
+      landlord_id: booking.landlord_id,
+      property_id: booking.property_id,
+      applicant_id: applicant.id,
+      slot_start: booking.slot_start,
+      slot_end: booking.slot_end,
+      status: 'confirmed',
+    });
+
+    await supabase.from('applicants').update({
+      viewing_booked_at: booking.slot_start,
+      stage: 'viewing_booked',
+    }).eq('id', applicant.id);
+
+    await supabase.from('viewing_bookings').update({
+      cascade_state: 'filled',
+      cascade_data: { ...cascadeData, candidates: updatedCandidates, winner_id: applicant.id },
+    }).eq('id', bookingId);
+
+    const { data: prop } = await supabase.from('landlord_properties').select('address').eq('id', booking.property_id).single();
+    const addr = prop?.address || 'the property';
+    const dt = new Date(booking.slot_start);
+    const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+    const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
+
+    await sendMessage(token, chatId,
+      `You got it ${firstName}! Your viewing is confirmed:\n\n<b>${dateStr} at ${timeStr}</b>\n<b>${addr}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nI will send you a reminder beforehand.`
+    );
+
+    // Notify other candidates
+    for (const c of updatedCandidates) {
+      if (c.applicant_id !== applicant.id && c.chat_id && c.response !== 'no') {
+        await sendMessage(token, c.chat_id,
+          `Thanks, the slot has just been filled. We will keep you posted on future viewings.`
+        );
+      }
+    }
+
+    // Notify landlord
+    await supabase.from('notifications').insert({
+      landlord_id: booking.landlord_id,
+      type: 'cascade_filled',
+      title: `Viewing slot filled by ${applicant.full_name || firstName}`,
+      message: `${applicant.full_name || firstName} claimed the cancelled viewing slot on ${dateStr} at ${timeStr} for ${addr}.`,
+      related_applicant_id: applicant.id,
+      related_booking_id: bookingId,
+    });
+    return;
+  }
+
+  // Cascade: candidate declines
+  if (data.startsWith('cascade_no_')) {
+    const bookingId = data.replace('cascade_no_', '');
+    const { data: booking } = await supabase.from('viewing_bookings').select('*').eq('id', bookingId).single();
+    if (booking && booking.cascade_state === 'active') {
+      const cascadeData = booking.cascade_data || {};
+      const updatedCandidates = (cascadeData.candidates || []).map((c: any) =>
+        c.applicant_id === applicant.id ? { ...c, response: 'no' } : c
+      );
+      await supabase.from('viewing_bookings').update({
+        cascade_data: { ...cascadeData, candidates: updatedCandidates },
+      }).eq('id', bookingId);
+
+      // Check if all have responded NO
+      const allDeclined = updatedCandidates.every((c: any) => c.response === 'no');
+      if (allDeclined) {
+        // Notify landlord immediately
+        await supabase.from('viewing_bookings').update({ cascade_state: 'landlord_notified' }).eq('id', bookingId);
+        const { data: prop } = await supabase.from('landlord_properties').select('address').eq('id', booking.property_id).single();
+        const dt = new Date(booking.slot_start);
+        const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+        const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        await supabase.from('notifications').insert({
+          landlord_id: booking.landlord_id,
+          type: 'cancellation_no_replacement',
+          title: `Viewing cancelled — no replacement found`,
+          message: `Your viewing on ${dateStr} at ${timeStr} for ${prop?.address || 'the property'} was cancelled and no replacement was found.`,
+          related_booking_id: bookingId,
+        });
+      }
+    }
+    await sendMessage(token, chatId, `No worries ${firstName}. We will let you know about future viewing opportunities.`);
     return;
   }
 }
