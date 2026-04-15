@@ -892,7 +892,7 @@ async function handleAIResponse(supabase: any, token: string, chatId: number, ap
 
   if (!LOVABLE_API_KEY) {
     console.error('[AI] LOVABLE_API_KEY not configured');
-    await sendMessage(token, chatId, `Hey ${firstName}! Your application is with the landlord — I'll message you as soon as there's an update. Hang tight! 😊`);
+    await sendMessage(token, chatId, `Hey ${firstName}! Your application is with the landlord — I'll message you as soon as there's an update. Hang tight.`);
     return;
   }
 
@@ -914,13 +914,13 @@ async function handleAIResponse(supabase: any, token: string, chatId: number, ap
         await sendMessage(token, chatId,
           `Got it ${firstName}, would you like me to cancel your viewing?`,
           { reply_markup: { inline_keyboard: [
-            [{ text: "Yes, cancel it ❌", callback_data: 'remind_cancel' }],
-            [{ text: "No, keep it ✅", callback_data: 'remind_yes' }],
+            [{ text: "Yes, cancel it", callback_data: 'remind_cancel' }],
+            [{ text: "No, keep it", callback_data: 'remind_yes' }],
           ] } }
         );
         return;
       } else {
-        await sendMessage(token, chatId, `Hey ${firstName}, I don't see any upcoming viewings to cancel. If you think this is wrong, just let me know! 😊`);
+        await sendMessage(token, chatId, `Hey ${firstName}, I don't see any upcoming viewings to cancel. If you think this is wrong, just let me know.`);
         return;
       }
     }
@@ -976,7 +976,7 @@ Your personality:
 - Warm, casual, helpful — like texting a friend who works in real estate
 - Use the tenant's first name (${firstName})
 - Keep responses SHORT (2-4 sentences max) — this is Telegram, not email
-- Use emojis sparingly but naturally
+- Do NOT use emojis at all. Keep it professional and clean.
 - Always be encouraging and supportive
 
 PROPERTY INFO:
@@ -1012,7 +1012,7 @@ RULES:
 
     if (!response.ok) {
       console.error('[AI] Gateway error:', response.status, await response.text());
-      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back from the landlord. Hang tight! 😊`);
+      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back from the landlord. Hang tight.`);
       return;
     }
 
@@ -1022,11 +1022,11 @@ RULES:
     if (aiReply && aiReply.trim()) {
       await sendMessage(token, chatId, aiReply.trim());
     } else {
-      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back. Sit tight! 😊`);
+      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back. Sit tight.`);
     }
   } catch (err) {
     console.error('[AI] Error:', err);
-    await sendMessage(token, chatId, `Hey ${firstName}! I'm here if you need anything. Your application is with the landlord — I'll let you know as soon as there's news! 😊`);
+    await sendMessage(token, chatId, `Hey ${firstName}! I'm here if you need anything. Your application is with the landlord — I'll let you know as soon as there's news.`);
   }
 }
 
