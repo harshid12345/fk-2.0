@@ -33,27 +33,20 @@ const defaultCriteria: CriteriaState = {
 
 function SettingsSection({ id, icon: Icon, title, expanded, onToggle, children }: { id: string; icon: any; title: string; expanded: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
-    <div className="glass-card rounded-2xl overflow-hidden">
+    <div className="glass-card rounded-2xl">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 tap-scale"
+        className="w-full flex items-center justify-between p-4"
       >
         <div className="flex items-center gap-3">
           <Icon className="w-5 h-5 text-primary" />
           <span className="font-medium text-foreground text-sm">{title}</span>
         </div>
-        <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </motion.div>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
       </button>
-      <motion.div
-        initial={false}
-        animate={{ height: expanded ? 'auto' : 0, opacity: expanded ? 1 : 0 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-        className="overflow-hidden"
-      >
+      {expanded && (
         <div className="px-4 pb-4">{children}</div>
-      </motion.div>
+      )}
     </div>
   );
 }
