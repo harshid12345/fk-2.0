@@ -40,6 +40,7 @@ export type Database = {
           occupation: string | null
           pending_viewing_slots: string | null
           phone: string | null
+          preferred_language: string | null
           property_id: string
           scrape_facebook: Json | null
           scrape_google: Json | null
@@ -77,6 +78,7 @@ export type Database = {
           occupation?: string | null
           pending_viewing_slots?: string | null
           phone?: string | null
+          preferred_language?: string | null
           property_id: string
           scrape_facebook?: Json | null
           scrape_google?: Json | null
@@ -114,6 +116,7 @@ export type Database = {
           occupation?: string | null
           pending_viewing_slots?: string | null
           phone?: string | null
+          preferred_language?: string | null
           property_id?: string
           scrape_facebook?: Json | null
           scrape_google?: Json | null

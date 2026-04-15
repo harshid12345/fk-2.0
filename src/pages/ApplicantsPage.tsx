@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { calculateMatchScore } from '@/lib/matchScore';
 import { Button } from '@/components/ui/button';
-import { Users, Building2, Check, X, Loader2, User, ChevronDown } from 'lucide-react';
+import { Users, Check, X, Loader2, User, ChevronDown, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const SCORE_COLORS = {
@@ -31,30 +31,35 @@ export default function ApplicantsPage() {
   const [applicants, setApplicants] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [criteria, setCriteria] = useState<Record<string, any>>({});
+  const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('all');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
     const { data: props } = await supabase.from('landlord_properties').select('id, address, rent_amount, landlord_id').eq('landlord_id', user.id);
     setProperties(props || []);
     if (props && props.length > 0) {
       const ids = props.map(p => p.id);
-      const { data: apps } = await supabase.from('applicants').select('*').in('property_id', ids).order('created_at', { ascending: false });
+      // Don't load rejected applicants
+      const { data: apps } = await supabase.from('applicants').select('*').in('property_id', ids).neq('stage', 'rejected').order('created_at', { ascending: false });
       setApplicants(apps || []);
       const { data: crits } = await supabase.from('landlord_criteria').select('*').in('property_id', ids);
       const critMap: Record<string, any> = {};
       (crits || []).forEach((c: any) => { critMap[c.property_id] = c; });
       setCriteria(critMap);
+      // Load pending bookings
+      const { data: bks } = await supabase.from('viewing_bookings').select('*').eq('landlord_id', user.id).in('status', ['pending_landlord']);
+      setBookings(bks || []);
     } else {
       setApplicants([]);
     }
     setLoading(false);
-  };
+  }, [user]);
 
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => { load(); }, [load]);
 
   const approveApplicant = async (applicant: any) => {
     setActionLoading(applicant.id);
@@ -65,7 +70,7 @@ export default function ApplicantsPage() {
       if (error) {
         toast({ title: 'Failed to notify tenant', description: String(error.message || error), variant: 'destructive' as any });
       } else {
-        toast({ title: `${applicant.full_name || 'Applicant'} approved! Viewing invitation sent.` });
+        toast({ title: `${applicant.full_name || 'Applicant'} approved. Viewing invitation sent.` });
       }
     } catch (e: any) {
       toast({ title: 'Error approving applicant', description: e.message, variant: 'destructive' as any });
@@ -83,10 +88,43 @@ export default function ApplicantsPage() {
       if (error) {
         toast({ title: 'Failed to notify tenant', description: String(error.message || error), variant: 'destructive' as any });
       } else {
-        toast({ title: `${applicant.full_name || 'Applicant'} rejected. Notification sent.` });
+        toast({ title: `${applicant.full_name || 'Applicant'} rejected.` });
       }
     } catch (e: any) {
       toast({ title: 'Error rejecting applicant', description: e.message, variant: 'destructive' as any });
+    }
+    setActionLoading(null);
+    load();
+  };
+
+  const confirmViewing = async (applicant: any, booking: any) => {
+    setActionLoading(applicant.id + '_confirm');
+    try {
+      const slotLabel = new Date(booking.slot_start).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }) +
+        ' at ' + new Date(booking.slot_start).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const { error } = await supabase.functions.invoke('telegram-notify-tenant', {
+        body: { applicantId: applicant.id, action: 'confirm_booking', bookingId: booking.id, slotLabel },
+      });
+      if (error) {
+        toast({ title: 'Failed to confirm viewing', variant: 'destructive' as any });
+      } else {
+        toast({ title: `Viewing confirmed for ${applicant.full_name || 'applicant'}.` });
+      }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' as any });
+    }
+    setActionLoading(null);
+    load();
+  };
+
+  const rejectViewing = async (applicant: any, booking: any) => {
+    setActionLoading(applicant.id + '_reject_viewing');
+    try {
+      await supabase.from('viewing_bookings').update({ status: 'cancelled_landlord' } as any).eq('id', booking.id);
+      await supabase.from('applicants').update({ stage: 'approved' } as any).eq('id', applicant.id);
+      toast({ title: `Viewing slot rejected. ${applicant.full_name || 'Applicant'} can pick a new time.` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
     load();
@@ -96,6 +134,7 @@ export default function ApplicantsPage() {
     const prop = properties.find(p => p.id === a.property_id);
     const crit = criteria[a.property_id];
     const rent = prop?.rent_amount || 1000;
+    const pendingBooking = bookings.find(b => b.applicant_id === a.id && b.status === 'pending_landlord');
     let matchResult;
     if (crit) {
       matchResult = calculateMatchScore(
@@ -114,10 +153,13 @@ export default function ApplicantsPage() {
     } else {
       matchResult = null;
     }
-    return { ...a, matchResult, propertyAddress: prop?.address || '—' };
+    return { ...a, matchResult, propertyAddress: prop?.address || '—', pendingBooking };
   });
 
   const reviewable = [...enriched].sort((a, b) => {
+    // Pending bookings first
+    if (a.pendingBooking && !b.pendingBooking) return -1;
+    if (!a.pendingBooking && b.pendingBooking) return 1;
     const aFlagged = a.matchResult?.hardDisqualified ? 1 : 0;
     const bFlagged = b.matchResult?.hardDisqualified ? 1 : 0;
     if (aFlagged !== bFlagged) return aFlagged - bFlagged;
@@ -125,21 +167,20 @@ export default function ApplicantsPage() {
   });
 
   const isPendingStage = (stage: string | null | undefined) => !stage || stage === 'new' || stage === 'welcome' || stage === 'done' || stage === 'screening_complete';
+  const needsAction = (a: any) => isPendingStage(a.stage) || a.pendingBooking;
 
   const filtered = reviewable.filter(a => {
-    if (filter === 'pending') return isPendingStage(a.stage);
+    if (filter === 'pending') return needsAction(a);
     if (filter === 'approved') return a.stage === 'approved' || a.stage === 'viewing_pending' || a.stage === 'viewing_booked';
-    if (filter === 'rejected') return a.stage === 'rejected';
     return true;
   });
 
-  const pendingCount = reviewable.filter(a => isPendingStage(a.stage)).length;
+  const pendingCount = reviewable.filter(a => needsAction(a)).length;
 
   const filters = [
     { key: 'all' as const, label: t('applicants.filter_all'), count: reviewable.length },
     { key: 'pending' as const, label: t('applicants.filter_pending'), count: pendingCount },
     { key: 'approved' as const, label: t('applicants.filter_approved'), count: reviewable.filter(a => a.stage === 'approved' || a.stage === 'viewing_pending' || a.stage === 'viewing_booked').length },
-    { key: 'rejected' as const, label: t('applicants.filter_rejected'), count: reviewable.filter(a => a.stage === 'rejected').length },
   ];
 
   if (loading) return (
@@ -178,8 +219,22 @@ export default function ApplicantsPage() {
             const isExpanded = expandedId === a.id;
             const isPending = isPendingStage(a.stage);
             const isApproved = a.stage === 'approved' || a.stage === 'viewing_pending' || a.stage === 'viewing_booked';
-            const isRejected = a.stage === 'rejected';
-            const isLoading = actionLoading === a.id;
+            const hasBookingAction = !!a.pendingBooking;
+            const isLoading = actionLoading?.startsWith(a.id);
+
+            // Status label
+            let statusLabel = '';
+            let statusClass = '';
+            if (hasBookingAction) {
+              statusLabel = 'Viewing request';
+              statusClass = 'bg-warning/15 text-warning';
+            } else if (isApproved) {
+              statusLabel = 'Approved';
+              statusClass = 'bg-success/15 text-success';
+            } else if (isFlagged && isPending) {
+              statusLabel = 'Review';
+              statusClass = 'bg-destructive/15 text-destructive';
+            }
 
             return (
               <motion.div
@@ -188,7 +243,6 @@ export default function ApplicantsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.02 }}
               >
-                {/* Compact card */}
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : a.id)}
                   className="w-full glass-card rounded-2xl p-3.5 flex items-center gap-3 text-left transition-all"
@@ -199,9 +253,7 @@ export default function ApplicantsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-foreground truncate">{a.full_name || 'Unknown'}</p>
-                      {isApproved && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-success/15 text-success uppercase">Approved</span>}
-                      {isRejected && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-destructive/15 text-destructive uppercase">Rejected</span>}
-                      {isFlagged && isPending && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-destructive/15 text-destructive uppercase">Review</span>}
+                      {statusLabel && <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${statusClass}`}>{statusLabel}</span>}
                     </div>
                     <p className="text-[11px] text-muted-foreground truncate mt-0.5">{a.propertyAddress}</p>
                   </div>
@@ -214,7 +266,6 @@ export default function ApplicantsPage() {
                   <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* Expanded detail */}
                 <AnimatePresence>
                   {isExpanded && (
                     <motion.div
@@ -225,6 +276,28 @@ export default function ApplicantsPage() {
                       className="overflow-hidden"
                     >
                       <div className="glass-card rounded-2xl mt-1 p-4 space-y-3">
+                        {/* Pending booking action */}
+                        {hasBookingAction && (
+                          <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-warning" />
+                              <p className="text-xs font-medium text-foreground">
+                                Viewing request: {new Date(a.pendingBooking.slot_start).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} at {new Date(a.pendingBooking.slot_start).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => confirmViewing(a, a.pendingBooking)} disabled={isLoading} className="flex-1 h-8 rounded-xl text-xs">
+                                {actionLoading === a.id + '_confirm' ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
+                                Confirm
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => rejectViewing(a, a.pendingBooking)} disabled={isLoading} className="flex-1 h-8 rounded-xl text-xs border-destructive/30 text-destructive hover:bg-destructive/10">
+                                {actionLoading === a.id + '_reject_viewing' ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <X className="w-3.5 h-3.5 mr-1" />}
+                                Decline
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Score breakdown */}
                         {mr && mr.breakdown && (
                           <div className="space-y-2">
@@ -253,14 +326,6 @@ export default function ApplicantsPage() {
                             <p className="text-muted-foreground">Move-in</p>
                             <p className="text-foreground font-medium mt-0.5">{a.desired_move_in || '—'}</p>
                           </div>
-                          <div className="bg-accent rounded-xl p-2.5">
-                            <p className="text-muted-foreground">Lease</p>
-                            <p className="text-foreground font-medium mt-0.5">{a.desired_lease_length || '—'}</p>
-                          </div>
-                          <div className="bg-accent rounded-xl p-2.5">
-                            <p className="text-muted-foreground">Smoking</p>
-                            <p className="text-foreground font-medium mt-0.5">{a.lifestyle_answers?.smoking || '—'}</p>
-                          </div>
                         </div>
 
                         {/* Flags */}
@@ -270,23 +335,15 @@ export default function ApplicantsPage() {
                           </div>
                         )}
 
-                        {Array.isArray(mr?.flags) && mr.flags.filter((f: string) => !f.startsWith('Hard')).length > 0 && (
-                          <div className="space-y-1">
-                            {mr.flags.filter((f: string) => !f.startsWith('Hard')).map((flag: string, fi: number) => (
-                              <p key={fi} className="text-[11px] text-warning">- {flag}</p>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Actions */}
-                        {isPending && (
+                        {/* Approve/Reject for new applicants */}
+                        {isPending && !hasBookingAction && (
                           <div className="flex gap-2 pt-1">
                             <Button size="sm" onClick={() => approveApplicant(a)} disabled={isLoading} className="flex-1 h-9 rounded-xl text-xs">
-                              {isLoading && actionLoading === a.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
+                              {actionLoading === a.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
                               Approve
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => rejectApplicant(a)} disabled={isLoading} className="flex-1 h-9 rounded-xl text-xs border-destructive/30 text-destructive hover:bg-destructive/10">
-                              {isLoading && actionLoading === a.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <X className="w-3.5 h-3.5 mr-1" />}
+                              {actionLoading === a.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <X className="w-3.5 h-3.5 mr-1" />}
                               Reject
                             </Button>
                           </div>
