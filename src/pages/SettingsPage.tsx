@@ -31,8 +31,6 @@ const defaultCriteria: CriteriaState = {
   professionals_ok: true, min_income_multiplier: '3.0', notes: '',
 };
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const DAY_INDEX: Record<string, number> = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5, Sunday: 6 };
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -50,11 +48,6 @@ export default function SettingsPage() {
   const [criteriaCompleted, setCriteriaCompleted] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('profile');
 
-  const [availability, setAvailability] = useState<Record<string, { enabled: boolean; from: string; to: string }>>(() => {
-    const init: Record<string, { enabled: boolean; from: string; to: string }> = {};
-    DAYS.forEach(d => { init[d] = { enabled: d !== 'Sunday', from: '10:00', to: '18:00' }; });
-    return init;
-  });
 
   const CRITERIA_QUESTIONS = [
     { key: 'preferred_gender', question: t('criteria.q_gender'), type: 'select', options: [{ value: 'any', label: t('criteria.no_pref') }, { value: 'male', label: t('criteria.male') }, { value: 'female', label: t('criteria.female') }] },
