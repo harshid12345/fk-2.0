@@ -89,8 +89,8 @@ Deno.serve(async (req) => {
 
       if (!landlordId) {
         console.log('[notify] No landlord ID, sending basic approval');
-        await sendTg(BOT_TOKEN, chatId,
-          `Hey ${firstName}! Great news — the landlord loved your application for <b>${address}</b> 🎉\n\n📍 <a href="${mapsLink}">View on Google Maps</a>\n\nThey'll be in touch about a viewing soon!`
+      await sendTg(BOT_TOKEN, chatId,
+          `Hey ${firstName}! Great news — the landlord loved your application for <b>${address}</b>.\n\n<a href="${mapsLink}">View on Google Maps</a>\n\nThey'll be in touch about a viewing soon!`
         );
         return ok(corsHeaders);
       }
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
 
       if (!schedule || schedule.length === 0) {
         await sendTg(BOT_TOKEN, chatId,
-          `Hey ${firstName}! The landlord really liked your profile for <b>${address}</b> 🎉\n\n📍 <a href="${mapsLink}">View on Google Maps</a>\n\nThey're setting up viewing times — I'll send you options as soon as they're ready!`
+          `Hey ${firstName}! The landlord really liked your profile for <b>${address}</b>.\n\n<a href="${mapsLink}">View on Google Maps</a>\n\nThey're setting up viewing times — I'll send you options as soon as they're ready!`
         );
         return ok(corsHeaders);
       }
@@ -115,14 +115,14 @@ Deno.serve(async (req) => {
 
       if (slots.length === 0) {
         await sendTg(BOT_TOKEN, chatId,
-          `Hey ${firstName}! Your application for <b>${address}</b> was approved 🎉\n\n📍 <a href="${mapsLink}">View on Google Maps</a>\n\nAll viewing slots are taken right now, but I'll message you the moment one opens up!`
+          `Hey ${firstName}! Your application for <b>${address}</b> was approved.\n\n<a href="${mapsLink}">View on Google Maps</a>\n\nAll viewing slots are taken right now, but I'll message you the moment one opens up!`
         );
         return ok(corsHeaders);
       }
 
       // Show up to 6 slots
       const displaySlots = slots.slice(0, 6);
-      const buttons = displaySlots.map((slot, i) => [{ text: `📅 ${slot.label}`, callback_data: `vslot_${i}` }]);
+      const buttons = displaySlots.map((slot, i) => [{ text: slot.label, callback_data: `vslot_${i}` }]);
 
       // IMPORTANT: Persist the slots so the screener webhook can look them up when tenant taps a button
       const { error: slotErr } = await supabase.from('applicants').update({
@@ -134,9 +134,9 @@ Deno.serve(async (req) => {
       // Build conversational message
       let msg: string;
       if (displaySlots.length === 1) {
-        msg = `Hey ${firstName}! Great news — the landlord would love to show you <b>${address}</b> 🏠\n\n📍 <a href="${mapsLink}">View on Google Maps</a>\n\nHow does <b>${displaySlots[0].label}</b> work for you?`;
+        msg = `Hey ${firstName}! Great news — the landlord would love to show you <b>${address}</b>.\n\n<a href="${mapsLink}">View on Google Maps</a>\n\nHow does <b>${displaySlots[0].label}</b> work for you?`;
       } else {
-        msg = `Hey ${firstName}! Great news — the landlord would love to show you <b>${address}</b> 🏠\n\n📍 <a href="${mapsLink}">View on Google Maps</a>\n\nWould <b>${displaySlots[0].label}</b> work for you? If not, I've got a few other times below 👇`;
+        msg = `Hey ${firstName}! Great news — the landlord would love to show you <b>${address}</b>.\n\n<a href="${mapsLink}">View on Google Maps</a>\n\nWould <b>${displaySlots[0].label}</b> work for you? If not, I've got a few other times below.`;
       }
 
       await sendTg(BOT_TOKEN, chatId, msg, { reply_markup: { inline_keyboard: buttons } });
@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
       const slotDisplay = slotLabel || (slotStart ? new Date(slotStart).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'your scheduled time');
 
       await sendTg(BOT_TOKEN, chatId,
-        `Hey ${firstName}! 🎉 You're all set!\n\nYour viewing at <b>${address}</b> is confirmed for <b>${slotDisplay}</b>.\n\n📍 <a href="${mapsLink}">Get directions on Google Maps</a>\n\nJust show up a couple minutes early — the landlord is looking forward to meeting you! See you there 🏠✨`
+        `Hey ${firstName}! You're all set!\n\nYour viewing at <b>${address}</b> is confirmed for <b>${slotDisplay}</b>.\n\n<a href="${mapsLink}">Get directions on Google Maps</a>\n\nJust show up a couple minutes early — the landlord is looking forward to meeting you. See you there!`
       );
       return ok(corsHeaders);
     }
@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
       if (updateErr) console.error('[notify] Stage update error:', updateErr.message);
 
       await sendTg(BOT_TOKEN, chatId,
-        `Hi ${firstName},\n\nThanks so much for taking the time to apply for <b>${address}</b>. The landlord has decided to go in a different direction this time.\n\nI know it's not the news you were hoping for, but the right place is out there! Good luck with your search 💪🏠`
+        `Hi ${firstName},\n\nThanks so much for taking the time to apply for <b>${address}</b>. The landlord has decided to go in a different direction this time.\n\nI know it's not the news you were hoping for, but the right place is out there. Good luck with your search!`
       );
       return ok(corsHeaders);
     }
