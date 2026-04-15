@@ -1,9 +1,10 @@
 import { ReactNode, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Building2, Users, AlertCircle, Bell, Menu, X, Settings, LogOut, Globe } from 'lucide-react';
+import { Building2, Users, AlertCircle, Bell, Menu, X, Settings, LogOut, Globe, Moon, Sun } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useTheme } from '@/hooks/useTheme';
 
 const TABS = [
   { path: '/properties', icon: Building2, key: 'nav.properties' },
@@ -18,6 +19,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { lang, setLang, t } = useLanguage();
+  const { isDark, toggle: toggleTheme } = useTheme();
 
   const activeIndex = TABS.findIndex(tab => location.pathname.startsWith(tab.path));
 
@@ -45,7 +47,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40"
               onClick={() => setDrawerOpen(false)}
             />
             <motion.div
@@ -53,21 +55,21 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed left-0 top-0 bottom-0 w-72 z-50 glass-card border-r border-border p-6 flex flex-col"
+              className="fixed left-0 top-0 bottom-0 w-72 z-50 bg-sidebar border-r border-sidebar-border p-6 flex flex-col"
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
                     <Building2 className="w-4 h-4 text-primary-foreground" />
                   </div>
-                  <span className="font-semibold text-foreground">FairKamer</span>
+                  <span className="font-semibold text-sidebar-foreground">FairKamer</span>
                 </div>
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setDrawerOpen(false)}
-                  className="p-2 rounded-xl hover:bg-accent transition-colors"
+                  className="p-2 rounded-xl hover:bg-sidebar-accent transition-colors"
                 >
-                  <X className="w-5 h-5 text-muted-foreground" />
+                  <X className="w-5 h-5 text-sidebar-foreground/60" />
                 </motion.button>
               </div>
 
@@ -81,28 +83,35 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
                       onClick={() => { navigate(tab.path); setDrawerOpen(false); }}
                       className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm transition-all ${
                         isActive
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                          ? 'bg-sidebar-accent text-primary font-medium border-l-[3px] border-l-primary'
+                          : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent'
                       }`}
                     >
-                      <tab.icon className="w-5 h-5" />
+                      <tab.icon className={`w-5 h-5 ${isActive ? 'text-primary' : ''}`} />
                       {t(tab.key)}
                     </motion.button>
                   );
                 })}
               </nav>
 
-              <div className="space-y-1 pt-4 border-t border-border">
+              <div className="space-y-1 pt-4 border-t border-sidebar-border">
+                <button
+                  onClick={toggleTheme}
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                >
+                  {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  {isDark ? 'Light mode' : 'Dark mode'}
+                </button>
                 <button
                   onClick={() => setLang(lang === 'en' ? 'nl' : 'en')}
-                  className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
                 >
                   <Globe className="w-5 h-5" />
                   {lang === 'en' ? 'English' : 'Nederlands'}
                 </button>
                 <button
                   onClick={() => { signOut(); setDrawerOpen(false); }}
-                  className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm text-sidebar-foreground/60 hover:text-destructive hover:bg-sidebar-accent transition-colors"
                 >
                   <LogOut className="w-5 h-5" />
                   {t('settings.sign_out')}
@@ -113,7 +122,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Main content with scale effect when drawer is open */}
+      {/* Main content */}
       <motion.div
         animate={{
           scale: drawerOpen ? 0.95 : 1,
@@ -124,7 +133,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
       >
         {/* Top bar */}
         {!isDetailPage && (
-          <div className="sticky top-0 z-30 glass-surface border-b border-border/50">
+          <div className="sticky top-0 z-30 glass-surface border-b border-border">
             <div className="flex items-center justify-between px-4 py-3">
               <motion.button
                 whileTap={{ scale: 0.9 }}
@@ -133,13 +142,18 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
               >
                 <Menu className="w-5 h-5 text-foreground" />
               </motion.button>
-              <span className="font-semibold text-foreground text-sm">FairKamer</span>
-              <div className="w-9" /> {/* spacer */}
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
+                  <Building2 className="w-3 h-3 text-primary-foreground" />
+                </div>
+                <span className="font-semibold text-foreground text-sm">FairKamer</span>
+              </div>
+              <div className="w-9" />
             </div>
 
             {/* Tab bar */}
             <div className="flex px-4 gap-1 pb-2">
-              {TABS.map((tab, index) => {
+              {TABS.map((tab) => {
                 const isActive = location.pathname.startsWith(tab.path);
                 return (
                   <motion.button

@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Plus, Building2, MapPin, Home, Users, TrendingUp, ArrowUpRight } from 'lucide-react';
 import AddPropertyDialog from '@/components/AddPropertyDialog';
 import { getComplianceStatus } from '@/lib/wws';
@@ -50,31 +49,20 @@ export default function PropertiesPage() {
   const getComplianceBadge = (p: Property) => {
     if (!p.rent_amount || !p.wws_max_rent) return null;
     const status = getComplianceStatus(p.rent_amount, p.wws_max_rent);
-    if (status === 'compliant') return <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-[hsl(152,60%,52%)]/15 text-[hsl(152,60%,52%)]">{t('properties.compliant')}</span>;
-    if (status === 'at_risk') return <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-[hsl(38,92%,50%)]/15 text-[hsl(38,92%,50%)]">{t('properties.at_risk')}</span>;
+    if (status === 'compliant') return <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-success/15 text-success">{t('properties.compliant')}</span>;
+    if (status === 'at_risk') return <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-warning/15 text-warning">{t('properties.at_risk')}</span>;
     return <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-destructive/15 text-destructive">{t('properties.over_limit')}</span>;
   };
 
   return (
     <div className="pb-24">
-      {/* Dynamic header with stats */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="px-5 pt-4 pb-2"
-      >
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="px-5 pt-4 pb-2">
         <h1 className="text-2xl font-semibold text-foreground mb-1">{t('properties.title')}</h1>
         <p className="text-sm text-muted-foreground">{properties.length} {t('properties.count')}</p>
       </motion.div>
 
-      {/* Quick stats */}
       {!loading && properties.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="px-5 pb-4 flex gap-3"
-        >
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="px-5 pb-4 flex gap-3">
           <div className="flex-1 glass-card rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-4 h-4 text-primary" />
@@ -92,18 +80,11 @@ export default function PropertiesPage() {
         </motion.div>
       )}
 
-      {/* Property cards */}
       <div className="px-5 space-y-3">
         {loading ? (
-          [...Array(3)].map((_, i) => (
-            <div key={i} className="shimmer rounded-2xl h-36" />
-          ))
-        ) : properties.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center justify-center py-20 glass-card rounded-2xl"
-          >
+          [...Array(3)].map((_, i) => <div key={i} className="shimmer rounded-2xl h-36" />))
+        : properties.length === 0 ? (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-20 glass-card rounded-2xl">
             <Building2 className="w-10 h-10 text-muted-foreground mb-3" />
             <h3 className="text-base font-medium text-foreground mb-1">{t('properties.empty_title')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('properties.empty_desc')}</p>
@@ -138,9 +119,7 @@ export default function PropertiesPage() {
                 <div className="flex items-center gap-2 mb-3">
                   {getComplianceBadge(p)}
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium ${
-                    p.status === 'rented' 
-                      ? 'bg-[hsl(152,60%,52%)]/10 text-[hsl(152,60%,52%)]' 
-                      : 'bg-primary/10 text-primary'
+                    p.status === 'rented' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
                   }`}>
                     {p.status === 'rented' ? <Home className="w-3 h-3" /> : <Users className="w-3 h-3" />}
                     {p.status === 'rented' ? t('properties.rented') : t('properties.seeking')}
@@ -169,7 +148,6 @@ export default function PropertiesPage() {
         )}
       </div>
 
-      {/* Floating Action Button */}
       <motion.button
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
