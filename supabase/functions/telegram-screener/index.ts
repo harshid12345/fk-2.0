@@ -30,8 +30,8 @@ const TRANSLATIONS: Record<string, Record<string, any>> = {
     smoke_no: "Nope", smoke_outside: "Only outside", smoke_yes: "Yes",
     pets_q: "Any pets coming along?",
     pets_none: "No pets", pets_cat: "Cat", pets_dog: "Dog", pets_other: "Other",
-    bkr_q: "Last question — any BKR registrations or past rent arrears?",
-    bkr_clean: "Nope, all clean", bkr_yes: "Yes, happy to explain",
+    bkr_q: "Last question — do you have any unpaid debts or past issues paying rent on time?",
+    bkr_clean: "No, all good", bkr_yes: "Yes, I can explain",
     consent_msg: (name: string) => `Alright ${name}, almost done! By continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nJust type <b>"I agree"</b> and we'll wrap up.`,
     consent_remind: (name: string) => `Just type <b>"I agree"</b> to continue, ${name}.`,
     social_ask: (name: string) => `Thanks ${name}!\n\nOne more optional thing — if you share your Instagram handle, it helps the landlord get a better sense of who you are.\n\nDrop your handle (like @yourname) or skip it.`,
@@ -64,8 +64,8 @@ const TRANSLATIONS: Record<string, Record<string, any>> = {
     smoke_no: "Nee", smoke_outside: "Alleen buiten", smoke_yes: "Ja",
     pets_q: "Neem je huisdieren mee?",
     pets_none: "Geen huisdieren", pets_cat: "Kat", pets_dog: "Hond", pets_other: "Anders",
-    bkr_q: "Laatste vraag — heb je BKR-registraties of huurachterstanden?",
-    bkr_clean: "Nee, alles schoon", bkr_yes: "Ja, ik kan het uitleggen",
+    bkr_q: "Laatste vraag — heb je openstaande schulden of eerder problemen gehad met huur betalen?",
+    bkr_clean: "Nee, alles goed", bkr_yes: "Ja, ik kan het uitleggen",
     consent_msg: (name: string) => `Bijna klaar ${name}! Door verder te gaan, ga je ermee akkoord dat je gegevens mogen worden gebruikt om je aanvraag te verifiëren onder de AVG/GDPR.\n\nTyp <b>"Ik ga akkoord"</b> om af te ronden.`,
     consent_remind: (name: string) => `Typ <b>"Ik ga akkoord"</b> om verder te gaan, ${name}.`,
     social_ask: (name: string) => `Bedankt ${name}!\n\nNog een optioneel ding — als je je Instagram-handle deelt, helpt dat de verhuurder om een beter beeld van je te krijgen.\n\nStuur je handle (bijv. @jouwNaam) of sla het over.`,
@@ -524,7 +524,7 @@ Deno.serve(async (req) => {
 // CALLBACK HANDLER
 // ═══════════════════════════════════════════
 async function handleCallback(supabase: any, token: string, chatId: number, telegramUserId: string, applicant: any, data: string) {
-  const firstName = (applicant.full_name || applicant.telegram_user_id || 'there').split(' ')[0];
+  const firstName = (applicant.full_name || 'there').split(' ')[0];
   const lang = applicant.preferred_language || 'en';
   const useLang = (lang === 'en' || lang === 'nl') ? lang : 'en';
 
