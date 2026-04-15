@@ -105,11 +105,9 @@ export default function PropertyDetailPage() {
   const isRented = property.status === 'rented';
   const viewingSlots: ViewingSlot[] = (property.viewing_slots as ViewingSlot[]) || [];
 
-  const tabs = [
-    { label: 'Overview' },
-    { label: isRented ? 'Tenant' : 'Applicants' },
-    { label: t('detail.viewing_slots') },
-  ];
+  const tabs = isRented
+    ? [{ label: 'Overview' }, { label: 'Tenant' }]
+    : [{ label: 'Overview' }, { label: 'Applicants' }, { label: t('detail.viewing_slots') }];
 
   return (
     <div className="pb-8">

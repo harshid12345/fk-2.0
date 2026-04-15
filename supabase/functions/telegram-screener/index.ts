@@ -11,7 +11,7 @@ const SCREENING_QUESTIONS = [
     id: 'occupants', stage: 'q_occupants',
     question: (name: string) => `So ${name}, will you be living there on your own or with others?`,
     options: [
-      { text: "Just me 🙋", callback: 'occ_1' },
+      { text: "Just me", callback: 'occ_1' },
       { text: "2 of us", callback: 'occ_2' },
       { text: "3 people", callback: 'occ_3' },
       { text: "4+", callback: 'occ_4' },
@@ -23,7 +23,7 @@ const SCREENING_QUESTIONS = [
   },
   {
     id: 'move_in_date', stage: 'q_move_in',
-    question: (_: string) => "When are you hoping to move in? No pressure, just a rough idea 😊",
+    question: (_: string) => "When are you hoping to move in? No pressure, just a rough idea.",
     options: [
       { text: "ASAP / this month", callback: 'move_this' },
       { text: "Next month", callback: 'move_next' },
@@ -37,37 +37,37 @@ const SCREENING_QUESTIONS = [
   },
   {
     id: 'employment', stage: 'q_employment',
-    question: (_: string) => "What do you do for work? Just so we can get an idea of your situation 💼",
+    question: (_: string) => "What do you do for work? Just so we can get an idea of your situation.",
     options: [
-      { text: "💼 Employed (loondienst)", callback: 'emp_loon' },
-      { text: "🏢 Self-employed (ZZP)", callback: 'emp_zzp' },
-      { text: "🎓 Student", callback: 'emp_student' },
+      { text: "Employed (loondienst)", callback: 'emp_loon' },
+      { text: "Self-employed (ZZP)", callback: 'emp_zzp' },
+      { text: "Student", callback: 'emp_student' },
       { text: "Uitkering (benefits)", callback: 'emp_uitkering' },
     ],
     dbField: 'employment_type',
     valueMap: { emp_loon: 'Loondienst (employed)', emp_zzp: 'ZZP (self-employed)', emp_student: 'Student', emp_uitkering: 'Uitkering (benefits)' },
     nextStage: 'q_income',
-    followUp: { emp_loon: "Steady job, nice!", emp_zzp: "Entrepreneurial spirit, love it!", emp_student: "Student life! 📚", emp_uitkering: "Noted, no worries." },
+    followUp: { emp_loon: "Steady job, nice!", emp_zzp: "Entrepreneurial spirit!", emp_student: "Student life!", emp_uitkering: "Noted, no worries." },
   },
   {
     id: 'income', stage: 'q_income',
-    question: (_: string) => "Roughly what's your gross monthly income? This stays private, just helps with the matching 🤫",
+    question: (_: string) => "Roughly what's your gross monthly income? This stays private, just helps with the matching.",
     options: [
-      { text: "Under €1,500", callback: 'inc_1' },
-      { text: "€1,500 – €2,500", callback: 'inc_2' },
-      { text: "€2,500 – €3,500", callback: 'inc_3' },
-      { text: "€3,500 – €5,000", callback: 'inc_4' },
-      { text: "€5,000+", callback: 'inc_5' },
+      { text: "Under \u20AC1,500", callback: 'inc_1' },
+      { text: "\u20AC1,500 \u2013 \u20AC2,500", callback: 'inc_2' },
+      { text: "\u20AC2,500 \u2013 \u20AC3,500", callback: 'inc_3' },
+      { text: "\u20AC3,500 \u2013 \u20AC5,000", callback: 'inc_4' },
+      { text: "\u20AC5,000+", callback: 'inc_5' },
     ],
     dbField: 'monthly_income',
     valueMap: { inc_1: 1250, inc_2: 2000, inc_3: 3000, inc_4: 4250, inc_5: 5500 },
-    incomeRange: { inc_1: 'Under €1,500', inc_2: '€1,500 - €2,500', inc_3: '€2,500 - €3,500', inc_4: '€3,500 - €5,000', inc_5: '€5,000+' },
+    incomeRange: { inc_1: 'Under \u20AC1,500', inc_2: '\u20AC1,500 - \u20AC2,500', inc_3: '\u20AC2,500 - \u20AC3,500', inc_4: '\u20AC3,500 - \u20AC5,000', inc_5: '\u20AC5,000+' },
     nextStage: 'q_lease',
     followUp: { inc_1: "Thanks for sharing that.", inc_2: "Got it!", inc_3: "Solid, thanks!", inc_4: "Great, thanks!", inc_5: "Awesome, noted!" },
   },
   {
     id: 'lease_length', stage: 'q_lease',
-    question: (_: string) => "How long are you looking to stay? Landlords always love long-term tenants 😄",
+    question: (_: string) => "How long are you looking to stay? Landlords always love long-term tenants.",
     options: [
       { text: "~6 months", callback: 'lease_6' },
       { text: "About a year", callback: 'lease_12' },
@@ -81,9 +81,9 @@ const SCREENING_QUESTIONS = [
   },
   {
     id: 'smoking', stage: 'q_smoking',
-    question: (_: string) => "Quick one — do you smoke? 🚬",
+    question: (_: string) => "Quick one — do you smoke?",
     options: [
-      { text: "Nope 🚭", callback: 'smoke_no' },
+      { text: "Nope", callback: 'smoke_no' },
       { text: "Only outside", callback: 'smoke_outside' },
       { text: "Yes", callback: 'smoke_yes' },
     ],
@@ -94,29 +94,29 @@ const SCREENING_QUESTIONS = [
   },
   {
     id: 'pets', stage: 'q_pets',
-    question: (_: string) => "Any furry (or scaly) friends coming along? 🐾",
+    question: (_: string) => "Any furry (or scaly) friends coming along?",
     options: [
       { text: "No pets", callback: 'pets_none' },
-      { text: "🐱 Cat", callback: 'pets_cat' },
-      { text: "🐶 Dog", callback: 'pets_dog' },
+      { text: "Cat", callback: 'pets_cat' },
+      { text: "Dog", callback: 'pets_dog' },
       { text: "Other", callback: 'pets_other' },
     ],
     dbField: 'lifestyle_answers', lifestyleKey: 'pets',
     valueMap: { pets_none: 'No pets', pets_cat: 'Cat', pets_dog: 'Dog', pets_other: 'Other' },
     nextStage: 'q_bkr',
-    followUp: { pets_none: "Pet-free zone, noted!", pets_cat: "Cats are the best roommates 🐱", pets_dog: "Who doesn't love a good dog! 🐕", pets_other: "Interesting! Noted 😄" },
+    followUp: { pets_none: "Pet-free zone, noted!", pets_cat: "Cats are great roommates.", pets_dog: "Who doesn't love a good dog!", pets_other: "Interesting, noted!" },
   },
   {
     id: 'bkr', stage: 'q_bkr',
     question: (_: string) => "Last lifestyle question — any BKR registrations or past rent arrears we should know about?",
     options: [
-      { text: "Nope, all clean ✅", callback: 'bkr_clean' },
+      { text: "Nope, all clean", callback: 'bkr_clean' },
       { text: "Yes, happy to explain", callback: 'bkr_yes' },
     ],
     dbField: 'bkr_status',
     valueMap: { bkr_clean: 'No, clean record', bkr_yes: 'Yes, I can explain' },
     nextStage: 'consent',
-    followUp: { bkr_clean: "Clean slate, perfect! ✨", bkr_yes: "Transparency is appreciated, thanks for being upfront." },
+    followUp: { bkr_clean: "Clean slate, perfect!", bkr_yes: "Transparency is appreciated, thanks for being upfront." },
   },
 ];
 
@@ -253,13 +253,12 @@ function generateAvailableSlots(schedule: any[], existingBookings: any[], weeksA
 // ═══════════════════════════════════════════
 function buildSlotMessage(name: string, address: string, slots: { start: string; end: string; label: string }[]): string {
   const firstName = name.split(' ')[0] || name;
-  // Suggest the best slot naturally, then offer alternatives
   if (slots.length === 1) {
-    return `Hey ${firstName}! Great news — the landlord would love to show you the place at <b>${address}</b> 🏠\n\nHow does <b>${slots[0].label}</b> work for you?`;
+    return `Hey ${firstName}! Great news — the landlord would love to show you the place at <b>${address}</b>.\n\nHow does <b>${slots[0].label}</b> work for you?`;
   }
   
   const best = slots[0];
-  return `Hey ${firstName}! Great news — the landlord would love to show you the place at <b>${address}</b> 🏠\n\nWould <b>${best.label}</b> work for you? If not, I've got a few other times below 👇`;
+  return `Hey ${firstName}! Great news — the landlord would love to show you the place at <b>${address}</b>.\n\nWould <b>${best.label}</b> work for you? If not, I've got a few other times below.`;
 }
 
 // ═══════════════════════════════════════════
@@ -301,7 +300,7 @@ Deno.serve(async (req) => {
       const { data: schedule } = await supabase.from('viewing_schedule').select('*').eq('landlord_id', landlord_id);
       if (!schedule || schedule.length === 0) {
         await sendMessage(BOT_TOKEN, chatId,
-          `Hey ${firstName}! The landlord loved your profile and wants to meet you 🎉 They're setting up viewing times right now — I'll send you the options as soon as they're ready!`
+          `Hey ${firstName}! The landlord loved your profile and wants to meet you. They're setting up viewing times right now — I'll send you the options as soon as they're ready.`
         );
         return new Response(JSON.stringify({ ok: true }));
       }
@@ -312,14 +311,14 @@ Deno.serve(async (req) => {
 
       if (slots.length === 0) {
         await sendMessage(BOT_TOKEN, chatId,
-          `Hey ${firstName}! The landlord loved your application 🎉 All viewing times are full right now, but I'll message you the moment a slot opens up!`
+          `Hey ${firstName}! The landlord loved your application. All viewing times are full right now, but I'll message you the moment a slot opens up.`
         );
         return new Response(JSON.stringify({ ok: true }));
       }
 
       // Show max 6 slots with conversational message
       const displaySlots = slots.slice(0, 6);
-      const buttons = displaySlots.map((slot, i) => [{ text: `📅 ${slot.label}`, callback_data: `vslot_${i}` }]);
+      const buttons = displaySlots.map((slot, i) => [{ text: slot.label, callback_data: `vslot_${i}` }]);
 
       // Store slots in the new column so callbacks can find them
       await supabase.from('applicants').update({ 
@@ -344,7 +343,7 @@ Deno.serve(async (req) => {
       const address = propData?.address || 'the property';
 
       await sendMessage(BOT_TOKEN, chatId,
-        `Hi ${firstName},\n\nThanks so much for taking the time to apply for <b>${address}</b>. The landlord has decided to go in a different direction this time.\n\nI know it's not the news you were hoping for, but don't give up — the right place is out there! If new properties come up, I'll let you know. Good luck with your search 💪🏠`
+        `Hi ${firstName},\n\nThanks so much for taking the time to apply for <b>${address}</b>. The landlord has decided to go in a different direction this time.\n\nI know it's not the news you were hoping for, but don't give up — the right place is out there. If new properties come up, I'll let you know. Good luck with your search.`
       );
       return new Response(JSON.stringify({ ok: true }));
     }
@@ -364,7 +363,7 @@ Deno.serve(async (req) => {
       const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
       await sendMessage(BOT_TOKEN, chatId,
-        `It's official, ${firstName}! ✅\n\nYour viewing is confirmed:\n\n🗓 <b>${dateStr} at ${timeStr}</b>\n📍 <b>${address}</b>\n🗺 <a href="${mapsLink}">Open in Google Maps</a>\n\nI'll send you a reminder the day before. See you there! 🏠`
+        `It's official, ${firstName}!\n\nYour viewing is confirmed:\n\n<b>${dateStr} at ${timeStr}</b>\n<b>${address}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nI'll send you a reminder the day before. See you there!`
       );
       return new Response(JSON.stringify({ ok: true }));
     }
@@ -423,13 +422,13 @@ Deno.serve(async (req) => {
         const parts = text.split(' ');
         const propertyId = parts[1];
         if (!propertyId) {
-          await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! 👋 Looks like you found me directly — you'll need a screening link from your landlord to get started. Ask them for it!`);
+          await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! Looks like you found me directly — you'll need a screening link from your landlord to get started. Ask them for it.`);
           return new Response('OK');
         }
         const { data: property } = await supabase
           .from('landlord_properties').select('id, address, landlord_id').eq('id', propertyId).maybeSingle();
         if (!property) {
-          await sendMessage(BOT_TOKEN, chatId, `Hmm, that link doesn't seem to work ${firstName}. Could you double-check with your landlord? 🤔`);
+          await sendMessage(BOT_TOKEN, chatId, `Hmm, that link doesn't seem to work ${firstName}. Could you double-check with your landlord?`);
           return new Response('OK');
         }
         const { data: landlord } = await supabase
@@ -444,14 +443,14 @@ Deno.serve(async (req) => {
 
         const landlordName = landlord?.full_name?.split(' ')[0] || 'your landlord';
         await sendMessage(BOT_TOKEN, chatId,
-          `Hey ${firstName}! 👋\n\nI'm helping ${landlordName} find the right tenant for their place at <b>${property.address}</b>.\n\nI'll ask you a few quick questions — takes about 5 minutes — and it really helps you stand out from other applicants. Ready to go?`,
+          `Hey ${firstName}!\n\nI'm helping ${landlordName} find the right tenant for their place at <b>${property.address}</b>.\n\nI'll ask you a few quick questions — takes about 5 minutes — and it really helps you stand out from other applicants. Ready to go?`,
           { reply_markup: { inline_keyboard: [[
-            { text: "Yeah, let's do it! ✅", callback_data: 'start_yes' },
-            { text: "Wait, what is this? 🤔", callback_data: 'start_info' },
+            { text: "Yeah, let's do it!", callback_data: 'start_yes' },
+            { text: "Wait, what is this?", callback_data: 'start_info' },
           ]] } }
         );
       } else {
-        await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! 👋 I'd love to help but I need a screening link from your landlord first. Ask them to share it with you!`);
+        await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! I'd love to help but I need a screening link from your landlord first. Ask them to share it with you.`);
       }
       return new Response('OK');
     }
@@ -483,13 +482,13 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
 
   if (data === 'start_yes') {
     await supabase.from('applicants').update({ stage: 'name' }).eq('id', applicant.id);
-    await sendMessage(token, chatId, "Awesome! Let's start with the basics — what's your full name? 😊");
+    await sendMessage(token, chatId, "Awesome! Let's start with the basics — what's your full name?");
     return;
   }
   if (data === 'start_info') {
     await sendMessage(token, chatId,
       `Good question! FairKamer helps landlords find their ideal tenant — fairly and transparently.\n\nI'll ask you a few things about yourself, and the landlord gets a compatibility score. No weird stuff, no hidden checks. Just honest matching.\n\nWant to give it a go?`,
-      { reply_markup: { inline_keyboard: [[ { text: "Alright, let's go! ✅", callback_data: 'start_yes' } ]] } }
+      { reply_markup: { inline_keyboard: [[ { text: "Alright, let's go!", callback_data: 'start_yes' } ]] } }
     );
     return;
   }
@@ -526,8 +525,8 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
         });
       } else if (q.nextStage === 'consent') {
         const msg = followUp 
-          ? `${followUp}\n\nAlright ${firstName}, we're almost done! One quick legal thing — by continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nJust type <b>"I agree"</b> and we'll wrap up 🙏`
-          : `Almost there ${firstName}! By continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nType <b>"I agree"</b> to continue 🙏`;
+          ? `${followUp}\n\nAlright ${firstName}, we're almost done! One quick legal thing — by continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nJust type <b>"I agree"</b> and we'll wrap up.`
+          : `Almost there ${firstName}! By continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nType <b>"I agree"</b> to continue.`;
         await sendMessage(token, chatId, msg);
       }
       return;
@@ -538,7 +537,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
   if (data === 'skip_social') {
     await supabase.from('applicants').update({ stage: 'id_check' }).eq('id', applicant.id);
     await sendMessage(token, chatId,
-      `No worries at all ${firstName}!\n\nOkay, last thing — could you snap a photo of your ID (passport or Dutch ID card)? It stays completely private and encrypted 🔒`
+      `No worries at all ${firstName}!\n\nOkay, last thing — could you snap a photo of your ID (passport or Dutch ID card)? It stays completely private and encrypted.`
     );
     return;
   }
@@ -553,7 +552,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
     
     const selectedSlot = availableSlots[slotIndex];
     if (!selectedSlot) {
-      await sendMessage(token, chatId, `Hmm, that time doesn't seem available anymore ${firstName}. The landlord will send you fresh options soon! 🙏`);
+      await sendMessage(token, chatId, `Hmm, that time doesn't seem available anymore ${firstName}. The landlord will send you fresh options soon.`);
       return;
     }
 
@@ -570,7 +569,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
       .maybeSingle();
 
     if (existingBooking) {
-      await sendMessage(token, chatId, `Oh no, someone just grabbed that slot! 😅 Let me check what else is available...`);
+      await sendMessage(token, chatId, `Oh no, someone just grabbed that slot. Let me check what else is available...`);
       // Regenerate and resend slots
       const { data: schedule } = await supabase.from('viewing_schedule').select('*').eq('landlord_id', property.landlord_id);
       const { data: bookings } = await supabase.from('viewing_bookings').select('*').eq('landlord_id', property.landlord_id);
@@ -578,10 +577,10 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
       if (freshSlots.length > 0) {
         const display = freshSlots.slice(0, 6);
         await supabase.from('applicants').update({ pending_viewing_slots: JSON.stringify(display) }).eq('id', applicant.id);
-        const buttons = display.map((s, i) => [{ text: `📅 ${s.label}`, callback_data: `vslot_${i}` }]);
+        const buttons = display.map((s, i) => [{ text: s.label, callback_data: `vslot_${i}` }]);
         await sendMessage(token, chatId, `Here are the available times — pick one that works for you:`, { reply_markup: { inline_keyboard: buttons } });
       } else {
-        await sendMessage(token, chatId, `All slots are taken right now. I'll message you when new ones open up!`);
+        await sendMessage(token, chatId, `All slots are taken right now. I'll message you when new ones open up.`);
       }
       return;
     }
@@ -620,7 +619,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
 
     const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address)}`;
     await sendMessage(token, chatId,
-      `Nice choice, ${firstName}! 🎉\n\nYou picked <b>${selectedSlot.label}</b> at <b>${property.address}</b>.\n\n📍 <a href="${mapsLink}">Open in Google Maps</a>\n\nI've sent this to the landlord for approval — you'll get a confirmation as soon as they say yes!\n\nHang tight ⏳`
+      `Nice choice, ${firstName}!\n\nYou picked <b>${selectedSlot.label}</b> at <b>${property.address}</b>.\n\n<a href="${mapsLink}">Open in Google Maps</a>\n\nI've sent this to the landlord for approval — you'll get a confirmation as soon as they say yes. Hang tight.`
     );
 
     await runMatchScoring(supabase, applicant.id);
@@ -629,7 +628,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
 
   // Reminder confirmation callbacks
   if (data === 'remind_yes') {
-    await sendMessage(token, chatId, `Awesome ${firstName}, see you there! 🏠✨`);
+    await sendMessage(token, chatId, `Awesome ${firstName}, see you there!`);
     return;
   }
   if (data === 'remind_cancel') {
@@ -654,7 +653,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
         related_applicant_id: applicant.id,
       });
 
-      await sendMessage(token, chatId, `No problem ${firstName}, your viewing has been cancelled. I hope you find a great place — good luck! 🍀🏠`);
+      await sendMessage(token, chatId, `No problem ${firstName}, your viewing has been cancelled. I hope you find a great place — good luck!`);
 
       await handleCancelledSlotReassignment(supabase, token, booking.id);
     }
@@ -675,7 +674,7 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
     await supabase.from('applicants').update({ full_name: name, stage: 'q_occupants' }).eq('id', applicant.id);
     const firstQ = SCREENING_QUESTIONS[0];
     const question = typeof firstQ.question === 'function' ? firstQ.question(first) : firstQ.question;
-    await sendMessage(token, chatId, `Nice to meet you, ${first}! 😊\n\n${question}`, {
+    await sendMessage(token, chatId, `Nice to meet you, ${first}!\n\n${question}`, {
       reply_markup: { inline_keyboard: firstQ.options.map(o => [{ text: o.text, callback_data: o.callback }]) }
     });
     return;
@@ -685,11 +684,11 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
     if (text.toLowerCase().includes('agree')) {
       await supabase.from('applicants').update({ consent_given: true, stage: 'socials' }).eq('id', applicant.id);
       await sendMessage(token, chatId,
-        `Thanks ${firstName}! 🙏\n\nOne more optional thing — if you share your Instagram handle, it helps the landlord get a better sense of who you are. Totally up to you!\n\nDrop your handle (like @yourname) or skip it 👇`,
-        { reply_markup: { inline_keyboard: [[ { text: "Skip this ⏭️", callback_data: 'skip_social' } ]] } }
+        `Thanks ${firstName}!\n\nOne more optional thing — if you share your Instagram handle, it helps the landlord get a better sense of who you are. Totally up to you.\n\nDrop your handle (like @yourname) or skip it.`,
+        { reply_markup: { inline_keyboard: [[ { text: "Skip this", callback_data: 'skip_social' } ]] } }
       );
     } else {
-      await sendMessage(token, chatId, `Just type <b>"I agree"</b> to continue, ${firstName}! 😊`);
+      await sendMessage(token, chatId, `Just type <b>"I agree"</b> to continue, ${firstName}.`);
     }
     return;
   }
@@ -698,7 +697,7 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
     const handle = text.replace('@', '').trim();
     await supabase.from('applicants').update({ social_handle: handle, stage: 'id_check' }).eq('id', applicant.id);
     await sendMessage(token, chatId,
-      `Got it, @${handle}! 📸\n\nAlright ${firstName}, last step — could you snap a photo of your ID (passport or Dutch ID card)? It's kept completely private and secure 🔒`
+      `Got it, @${handle}!\n\nAlright ${firstName}, last step — could you snap a photo of your ID (passport or Dutch ID card)? It's kept completely private and secure.`
     );
     return;
   }
@@ -711,7 +710,7 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
 
   // During screening, if they type free text instead of using buttons, still try AI
   if (stage?.startsWith('q_')) {
-    await sendMessage(token, chatId, `Hey ${firstName}, could you use the buttons above to answer? It helps me keep track 😊\n\nBut if you have a question, just ask!`);
+    await sendMessage(token, chatId, `Hey ${firstName}, could you use the buttons above to answer? It helps me keep track.\n\nBut if you have a question, just ask.`);
     return;
   }
 
@@ -736,7 +735,7 @@ async function handleIdUpload(supabase: any, token: string, chatId: number, appl
   const { error: uploadError } = await supabase.storage.from('id-documents').upload(storagePath, fileBytes, { contentType: 'image/jpeg' });
 
   if (uploadError) {
-    await sendMessage(token, chatId, `Hmm, something went wrong uploading your ID ${firstName}. Could you try sending it again? 🙏`);
+    await sendMessage(token, chatId, `Hmm, something went wrong uploading your ID ${firstName}. Could you try sending it again?`);
     return;
   }
 
@@ -749,7 +748,7 @@ async function handleIdUpload(supabase: any, token: string, chatId: number, appl
   await runMatchScoring(supabase, applicant.id);
 
   await sendMessage(token, chatId,
-    `You're all done, ${firstName}! 🎉🎊\n\nYour screening is complete and the landlord will review your profile. If they like what they see, I'll send you available viewing times right here.\n\nThanks for going through the process — fingers crossed! 🤞🏠`
+    `You're all done, ${firstName}!\n\nYour screening is complete and the landlord will review your profile. If they like what they see, I'll send you available viewing times right here.\n\nThanks for going through the process — fingers crossed!`
   );
 }
 
@@ -782,10 +781,10 @@ async function handleReminders(supabase: any, token: string) {
 
     if (chatId) {
       await sendMessage(token, chatId,
-        `Hey ${firstName}! Just a heads up — your viewing is coming up in 3 days 📅\n\n🗓 <b>${dateStr} at ${timeStr}</b>\n📍 <b>${addr}</b>\n🗺 <a href="${mapsLink}">Open in Google Maps</a>\n\nStill good to go?`,
+        `Hey ${firstName}! Just a heads up — your viewing is coming up in 3 days.\n\n<b>${dateStr} at ${timeStr}</b>\n<b>${addr}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nStill good to go?`,
         { reply_markup: { inline_keyboard: [
-          [{ text: "Yep, I'll be there! ✅", callback_data: 'remind_yes' }],
-          [{ text: "I need to cancel ❌", callback_data: 'remind_cancel' }],
+          [{ text: "Yep, I'll be there!", callback_data: 'remind_yes' }],
+          [{ text: "I need to cancel", callback_data: 'remind_cancel' }],
         ] } }
       );
       await supabase.from('viewing_bookings').update({ tenant_confirmed_3d: true }).eq('id', booking.id);
@@ -810,10 +809,10 @@ async function handleReminders(supabase: any, token: string) {
 
     if (chatId) {
       await sendMessage(token, chatId,
-        `Hey ${firstName}! Your viewing is <b>tomorrow at ${timeStr}</b> 🏠\n\n📍 <b>${addr}</b>\n🗺 <a href="${mapsLink}">Open in Google Maps</a>\n\nAre you still coming?`,
+        `Hey ${firstName}! Your viewing is <b>tomorrow at ${timeStr}</b>.\n\n<b>${addr}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nAre you still coming?`,
         { reply_markup: { inline_keyboard: [
-          [{ text: "Yes, see you there! ✅", callback_data: 'remind_yes' }],
-          [{ text: "I need to cancel ❌", callback_data: 'remind_cancel' }],
+          [{ text: "Yes, see you there!", callback_data: 'remind_yes' }],
+          [{ text: "I need to cancel", callback_data: 'remind_cancel' }],
         ] } }
       );
       await supabase.from('viewing_bookings').update({ tenant_confirmed_1d: true }).eq('id', booking.id);
@@ -847,9 +846,9 @@ async function handleCancelledSlotReassignment(supabase: any, token: string, can
         ' at ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
       await sendMessage(token, chatId,
-        `Hey ${firstName}! A viewing slot just opened up 🎉\n\nWould <b>${label}</b> work for you?`,
+        `Hey ${firstName}! A viewing slot just opened up.\n\nWould <b>${label}</b> work for you?`,
         { reply_markup: { inline_keyboard: [
-          [{ text: `Yes, book it! ✅`, callback_data: `vslot_reassign_${cancelledBookingId}` }],
+          [{ text: "Yes, book it!", callback_data: `vslot_reassign_${cancelledBookingId}` }],
           [{ text: "No thanks", callback_data: 'vslot_skip' }],
         ] } }
       );
@@ -893,7 +892,7 @@ async function handleAIResponse(supabase: any, token: string, chatId: number, ap
 
   if (!LOVABLE_API_KEY) {
     console.error('[AI] LOVABLE_API_KEY not configured');
-    await sendMessage(token, chatId, `Hey ${firstName}! Your application is with the landlord — I'll message you as soon as there's an update. Hang tight! 😊`);
+    await sendMessage(token, chatId, `Hey ${firstName}! Your application is with the landlord — I'll message you as soon as there's an update. Hang tight.`);
     return;
   }
 
@@ -915,13 +914,13 @@ async function handleAIResponse(supabase: any, token: string, chatId: number, ap
         await sendMessage(token, chatId,
           `Got it ${firstName}, would you like me to cancel your viewing?`,
           { reply_markup: { inline_keyboard: [
-            [{ text: "Yes, cancel it ❌", callback_data: 'remind_cancel' }],
-            [{ text: "No, keep it ✅", callback_data: 'remind_yes' }],
+            [{ text: "Yes, cancel it", callback_data: 'remind_cancel' }],
+            [{ text: "No, keep it", callback_data: 'remind_yes' }],
           ] } }
         );
         return;
       } else {
-        await sendMessage(token, chatId, `Hey ${firstName}, I don't see any upcoming viewings to cancel. If you think this is wrong, just let me know! 😊`);
+        await sendMessage(token, chatId, `Hey ${firstName}, I don't see any upcoming viewings to cancel. If you think this is wrong, just let me know.`);
         return;
       }
     }
@@ -977,7 +976,7 @@ Your personality:
 - Warm, casual, helpful — like texting a friend who works in real estate
 - Use the tenant's first name (${firstName})
 - Keep responses SHORT (2-4 sentences max) — this is Telegram, not email
-- Use emojis sparingly but naturally
+- Do NOT use emojis at all. Keep it professional and clean.
 - Always be encouraging and supportive
 
 PROPERTY INFO:
@@ -1013,7 +1012,7 @@ RULES:
 
     if (!response.ok) {
       console.error('[AI] Gateway error:', response.status, await response.text());
-      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back from the landlord. Hang tight! 😊`);
+      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back from the landlord. Hang tight.`);
       return;
     }
 
@@ -1023,11 +1022,11 @@ RULES:
     if (aiReply && aiReply.trim()) {
       await sendMessage(token, chatId, aiReply.trim());
     } else {
-      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back. Sit tight! 😊`);
+      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back. Sit tight.`);
     }
   } catch (err) {
     console.error('[AI] Error:', err);
-    await sendMessage(token, chatId, `Hey ${firstName}! I'm here if you need anything. Your application is with the landlord — I'll let you know as soon as there's news! 😊`);
+    await sendMessage(token, chatId, `Hey ${firstName}! I'm here if you need anything. Your application is with the landlord — I'll let you know as soon as there's news.`);
   }
 }
 
