@@ -111,11 +111,11 @@ export default function AuthPage() {
           <p className="text-sm text-muted-foreground">{t('auth.sign_in_to')}</p>
         </div>
         <div className="space-y-3">
-          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
-          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Password</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
+          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="h-11 rounded-xl" /></div>
+          <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Password</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl" /></div>
           <motion.div whileTap={{ scale: 0.97 }}><Button className="w-full h-11 rounded-xl text-sm font-medium" onClick={handleSignIn} disabled={loading}>{loading ? t('auth.signing_in') : t('auth.sign_in')}</Button></motion.div>
         </div>
-        <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/50" /></div><div className="relative flex justify-center text-xs"><span className="bg-background px-3 text-muted-foreground">{t('auth.or')}</span></div></div>
+        <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div><div className="relative flex justify-center text-xs"><span className="bg-background px-3 text-muted-foreground">{t('auth.or')}</span></div></div>
         <motion.div whileTap={{ scale: 0.97 }}>
           <Button variant="outline" className="w-full h-11 rounded-xl text-sm border-dashed border-primary/30 text-primary" onClick={handleDevLogin} disabled={devLoading}>
             <Zap className="w-4 h-4 mr-1.5" /> {devLoading ? t('auth.setting_up') : t('auth.dev_skip')}
@@ -140,26 +140,26 @@ export default function AuthPage() {
         <h1 className="text-xl font-semibold text-foreground">{t('auth.create_account')}</h1>
         <div className="flex gap-2 justify-center">
           {[1, 2, 3].map(s => (
-            <motion.div key={s} animate={{ scale: s === step ? 1.2 : 1, backgroundColor: s <= step ? 'hsl(174 64% 47%)' : 'hsl(220 12% 18%)' }}
-              className="w-2 h-2 rounded-full" transition={{ type: 'spring', damping: 15 }} />
+            <motion.div key={s} animate={{ scale: s === step ? 1.2 : 1 }}
+              className={`w-2 h-2 rounded-full ${s <= step ? 'bg-primary' : 'bg-border'}`} transition={{ type: 'spring', damping: 15 }} />
           ))}
         </div>
       </div>
       <motion.div key={step} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ type: 'spring', damping: 25 }} className="space-y-3">
         {step === 1 && (
           <>
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.full_name')}</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Doe" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Password</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.full_name')}</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Doe" className="h-11 rounded-xl" /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="h-11 rounded-xl" /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Password</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl" /></div>
           </>
         )}
         {step === 2 && (
           <>
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.phone')}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+31 6 1234 5678" className="h-11 rounded-xl bg-accent/50 border-border/50" /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.phone')}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+31 6 1234 5678" className="h-11 rounded-xl" /></div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Portfolio size</Label>
               <Select value={portfolioSize} onValueChange={setPortfolioSize}>
-                <SelectTrigger className="h-11 rounded-xl bg-accent/50 border-border/50"><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Select..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1">1 property</SelectItem>
                   <SelectItem value="2-5">2-5 properties</SelectItem>
@@ -190,7 +190,7 @@ export default function AuthPage() {
           </motion.div>
         </div>
       </motion.div>
-      <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/50" /></div><div className="relative flex justify-center text-xs"><span className="bg-background px-3 text-muted-foreground">{t('auth.or')}</span></div></div>
+      <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div><div className="relative flex justify-center text-xs"><span className="bg-background px-3 text-muted-foreground">{t('auth.or')}</span></div></div>
       <motion.div whileTap={{ scale: 0.97 }}>
         <Button variant="outline" className="w-full h-11 rounded-xl text-sm border-dashed border-primary/30 text-primary" onClick={handleDevLogin} disabled={devLoading}>
           <Zap className="w-4 h-4 mr-1.5" /> {devLoading ? t('auth.setting_up') : t('auth.dev_skip')}

@@ -139,15 +139,15 @@ export default function PropertyDetailPage() {
         </div>
         <div className="flex gap-2">
           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium ${
-            isRented ? 'bg-[hsl(152,60%,52%)]/10 text-[hsl(152,60%,52%)]' : 'bg-primary/10 text-primary'
+            isRented ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
           }`}>
             {isRented ? <Home className="w-3 h-3" /> : <Users className="w-3 h-3" />}
             {isRented ? t('properties.rented') : t('properties.seeking')}
           </span>
           {complianceStatus && (
             <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-medium ${
-              complianceStatus === 'compliant' ? 'bg-[hsl(152,60%,52%)]/10 text-[hsl(152,60%,52%)]' :
-              complianceStatus === 'at_risk' ? 'bg-[hsl(38,92%,50%)]/10 text-[hsl(38,92%,50%)]' :
+              complianceStatus === 'compliant' ? 'bg-success/10 text-success' :
+              complianceStatus === 'at_risk' ? 'bg-warning/10 text-warning' :
               'bg-destructive/10 text-destructive'
             }`}>
               {complianceStatus === 'compliant' ? t('properties.compliant') :
@@ -202,7 +202,7 @@ export default function PropertyDetailPage() {
                 ))}
               </div>
               {property.bag_verified && (
-                <div className="flex items-center gap-1.5 text-xs text-[hsl(152,60%,52%)]">
+                <div className="flex items-center gap-1.5 text-xs text-success">
                   <ShieldCheck className="w-3.5 h-3.5" /> {t('detail.verified')}
                 </div>
               )}
@@ -314,7 +314,7 @@ export default function PropertyDetailPage() {
 
                   <div className="flex flex-wrap gap-1.5">
                     {a.id_verified && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-[hsl(152,60%,52%)]/10 text-[hsl(152,60%,52%)]">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-success/10 text-success">
                         ✅ ID Verified
                       </span>
                     )}
@@ -336,9 +336,9 @@ export default function PropertyDetailPage() {
                   {a.match_flags && Array.isArray(a.match_flags) && a.match_flags.length > 0 && (
                     <div className="space-y-1">
                       {(a.match_flags as string[]).map((flag, fi) => (
-                        <p key={fi} className="text-[11px] text-[hsl(38,92%,50%)] flex items-center gap-1">
-                          ⚠️ {flag}
-                        </p>
+                         <p key={fi} className="text-[11px] text-warning flex items-center gap-1">
+                           ⚠️ {flag}
+                         </p>
                       ))}
                     </div>
                   )}
@@ -359,7 +359,7 @@ export default function PropertyDetailPage() {
               ) : (
                 <div className="space-y-2">
                   {viewingSlots.map((slot, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-accent/50">
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-accent">
                       <div>
                         <p className="text-sm font-medium text-foreground">{slot.label}</p>
                         <p className="text-xs text-muted-foreground">{new Date(slot.datetime).toLocaleString('nl-NL')}</p>

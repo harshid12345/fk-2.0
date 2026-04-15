@@ -31,6 +31,32 @@ const defaultCriteria: CriteriaState = {
   professionals_ok: true, min_income_multiplier: '3.0', notes: '',
 };
 
+function SettingsSection({ id, icon: Icon, title, expanded, onToggle, children }: { id: string; icon: any; title: string; expanded: boolean; onToggle: () => void; children: React.ReactNode }) {
+  return (
+    <div className="glass-card rounded-2xl overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-4 tap-scale"
+      >
+        <div className="flex items-center gap-3">
+          <Icon className="w-5 h-5 text-primary" />
+          <span className="font-medium text-foreground text-sm">{title}</span>
+        </div>
+        <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        </motion.div>
+      </button>
+      <motion.div
+        initial={false}
+        animate={{ height: expanded ? 'auto' : 0, opacity: expanded ? 1 : 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+        className="overflow-hidden"
+      >
+        <div className="px-4 pb-4">{children}</div>
+      </motion.div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -47,7 +73,6 @@ export default function SettingsPage() {
   const [selectedPropertyForCriteria, setSelectedPropertyForCriteria] = useState<string | null>(null);
   const [criteriaCompleted, setCriteriaCompleted] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('profile');
-
 
   const CRITERIA_QUESTIONS = [
     { key: 'preferred_gender', question: t('criteria.q_gender'), type: 'select', options: [{ value: 'any', label: t('criteria.no_pref') }, { value: 'male', label: t('criteria.male') }, { value: 'female', label: t('criteria.female') }] },
@@ -115,7 +140,6 @@ export default function SettingsPage() {
     toast({ title: t('settings.criteria_saved') });
   };
 
-
   const renderCriteriaQuestion = () => {
     const q = CRITERIA_QUESTIONS[criteriaStep];
     if (!q) return null;
@@ -125,18 +149,18 @@ export default function SettingsPage() {
         <p className="text-sm font-medium text-foreground">{q.question}</p>
         {q.type === 'select' && (
           <Select value={criteria[key] as string} onValueChange={v => setCriteria({ ...criteria, [key]: v })}>
-            <SelectTrigger className="bg-accent/50 border-border/50"><SelectValue /></SelectTrigger>
+            <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>{q.options!.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
         )}
-        {q.type === 'number' && <Input type="number" value={criteria[key] as string} onChange={e => setCriteria({ ...criteria, [key]: e.target.value })} placeholder={q.placeholder} className="bg-accent/50 border-border/50" />}
+        {q.type === 'number' && <Input type="number" value={criteria[key] as string} onChange={e => setCriteria({ ...criteria, [key]: e.target.value })} placeholder={q.placeholder} />}
         {q.type === 'toggle' && (
           <div className="flex items-center gap-3">
             <Switch checked={criteria[key] as boolean} onCheckedChange={v => setCriteria({ ...criteria, [key]: v })} />
             <span className="text-sm text-muted-foreground">{(criteria[key] as boolean) ? t('criteria.yes') : t('criteria.no')}</span>
           </div>
         )}
-        {q.type === 'textarea' && <Textarea value={criteria[key] as string} onChange={e => setCriteria({ ...criteria, [key]: e.target.value })} placeholder={q.placeholder} rows={3} className="bg-accent/50 border-border/50" />}
+        {q.type === 'textarea' && <Textarea value={criteria[key] as string} onChange={e => setCriteria({ ...criteria, [key]: e.target.value })} placeholder={q.placeholder} rows={3} />}
         <div className="flex gap-2">
           {criteriaStep > 0 && <motion.div whileTap={{ scale: 0.97 }} className="flex-1"><Button variant="outline" onClick={() => setCriteriaStep(criteriaStep - 1)} className="w-full h-10 rounded-xl">{t('settings.back')}</Button></motion.div>}
           <motion.div whileTap={{ scale: 0.97 }} className="flex-1">
@@ -151,31 +175,7 @@ export default function SettingsPage() {
     );
   };
 
-  const Section = ({ id, icon: Icon, title, children }: { id: string; icon: any; title: string; children: React.ReactNode }) => (
-    <div className="glass-card rounded-2xl overflow-hidden">
-      <motion.button
-        whileTap={{ scale: 0.99 }}
-        onClick={() => setExpandedSection(expandedSection === id ? null : id)}
-        className="w-full flex items-center justify-between p-4"
-      >
-        <div className="flex items-center gap-3">
-          <Icon className="w-5 h-5 text-primary" />
-          <span className="font-medium text-foreground text-sm">{title}</span>
-        </div>
-        <motion.div animate={{ rotate: expandedSection === id ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </motion.div>
-      </motion.button>
-      <motion.div
-        initial={false}
-        animate={{ height: expandedSection === id ? 'auto' : 0, opacity: expandedSection === id ? 1 : 0 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-        className="overflow-hidden"
-      >
-        <div className="px-4 pb-4">{children}</div>
-      </motion.div>
-    </div>
-  );
+  const toggleSection = (id: string) => setExpandedSection(expandedSection === id ? null : id);
 
   return (
     <div className="pb-8">
@@ -184,16 +184,16 @@ export default function SettingsPage() {
       </motion.div>
 
       <div className="px-5 space-y-3">
-        <Section id="profile" icon={User} title={t('settings.profile')}>
+        <SettingsSection id="profile" icon={User} title={t('settings.profile')} expanded={expandedSection === 'profile'} onToggle={() => toggleSection('profile')}>
           <div className="space-y-3">
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.full_name')}</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} className="bg-accent/50 border-border/50" /></div>
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input value={email} onChange={e => setEmail(e.target.value)} className="bg-accent/50 border-border/50" /></div>
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.phone')}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} className="bg-accent/50 border-border/50" /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.full_name')}</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input value={email} onChange={e => setEmail(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.phone')}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
             <motion.div whileTap={{ scale: 0.97 }}><Button onClick={saveProfile} disabled={loading} className="w-full h-10 rounded-xl">{loading ? t('settings.saving') : t('settings.save')}</Button></motion.div>
           </div>
-        </Section>
+        </SettingsSection>
 
-        <Section id="criteria" icon={Building2} title={t('settings.criteria')}>
+        <SettingsSection id="criteria" icon={Building2} title={t('settings.criteria')} expanded={expandedSection === 'criteria'} onToggle={() => toggleSection('criteria')}>
           {criteriaStep === -1 ? (
             criteriaCompleted ? (
               <div className="space-y-3">
@@ -203,13 +203,13 @@ export default function SettingsPage() {
                   <div><p className="text-[11px] text-muted-foreground">{t('settings.smoking')}</p><p className="text-foreground mt-0.5">{criteria.smoking_allowed}</p></div>
                   <div><p className="text-[11px] text-muted-foreground">{t('settings.pets')}</p><p className="text-foreground mt-0.5">{criteria.pets_allowed}</p></div>
                 </div>
-                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                <div className="flex items-center justify-between pt-2 border-t border-border">
                   <Label className="text-xs">{t('settings.same_for_all')}</Label>
                   <Switch checked={sameCriteriaForAll} onCheckedChange={setSameCriteriaForAll} />
                 </div>
                 {!sameCriteriaForAll && properties.map(p => (
                   <motion.button key={p.id} whileTap={{ scale: 0.98 }} onClick={() => { setSelectedPropertyForCriteria(p.id); setCriteriaStep(0); }}
-                    className="flex items-center gap-2 w-full p-3 rounded-xl text-left text-sm bg-accent/50 hover:bg-accent transition-colors">
+                    className="flex items-center gap-2 w-full p-3 rounded-xl text-left text-sm bg-accent hover:bg-accent/80 transition-colors">
                     <Building2 className="w-4 h-4 text-primary" /><span className="text-foreground">{p.address}</span>
                   </motion.button>
                 ))}
@@ -229,20 +229,20 @@ export default function SettingsPage() {
               {renderCriteriaQuestion()}
             </div>
           )}
-        </Section>
+        </SettingsSection>
 
-        <Section id="availability" icon={Clock} title={t('settings.availability')}>
+        <SettingsSection id="availability" icon={Clock} title={t('settings.availability')} expanded={expandedSection === 'availability'} onToggle={() => toggleSection('availability')}>
           <LandlordAvailabilityPro />
-        </Section>
+        </SettingsSection>
 
-        <Section id="bots" icon={Bot} title={t('settings.telegram')}>
+        <SettingsSection id="bots" icon={Bot} title={t('settings.telegram')} expanded={expandedSection === 'bots'} onToggle={() => toggleSection('bots')}>
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground mb-2">{t('settings.telegram_desc')}</p>
             {[
               { icon: Bot, name: t('settings.screening_bot'), desc: t('settings.screening_desc'), link: 'https://t.me/FairKamerBot' },
               { icon: MessageCircle, name: t('settings.concierge_bot'), desc: t('settings.concierge_desc'), link: 'https://t.me/FairKamerConcierge' },
             ].map((bot) => (
-              <motion.div key={bot.name} whileTap={{ scale: 0.98 }} className="flex items-center justify-between p-3 rounded-xl bg-accent/30">
+              <motion.div key={bot.name} whileTap={{ scale: 0.98 }} className="flex items-center justify-between p-3 rounded-xl bg-accent">
                 <div className="flex items-center gap-3">
                   <bot.icon className="w-5 h-5 text-primary" />
                   <div>
@@ -256,7 +256,7 @@ export default function SettingsPage() {
               </motion.div>
             ))}
           </div>
-        </Section>
+        </SettingsSection>
       </div>
     </div>
   );
