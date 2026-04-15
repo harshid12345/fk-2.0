@@ -52,9 +52,13 @@ Analyze ONLY these signals. Return ONLY valid JSON, no other text.
 Rules:
 - Party photos are NORMAL for people in their 20s. Do NOT flag them.
 - Private profiles are FINE. Score them neutral.
-- Only flag things directly related to tenancy risk: fraud signals, property damage history, eviction mentions, identity inconsistencies.
+- Multiple profiles on the same platform (e.g. two LinkedIn accounts) is COMPLETELY NORMAL. Many people have old accounts, student accounts, or professional vs personal accounts. Do NOT flag this as inconsistent or suspicious.
+- Having profiles with different cities, schools, or jobs is NORMAL — people move, change careers, and study abroad. Only flag if the name itself is clearly a different person entirely.
+- socialConsistent should be TRUE unless there is strong evidence of deliberate identity fraud (fake name, stolen photos, etc). Normal life changes are NOT inconsistencies.
+- Only flag things directly related to tenancy risk: active fraud, property damage history, eviction court records, or criminal convictions.
 - NEVER assess based on race, religion, nationality, gender, or political views.
-- If very little data was found, say so honestly. Do not invent findings.`;
+- If very little data was found, say so honestly. Do not invent findings.
+- When in doubt, score POSITIVELY. The absence of red flags is a good sign.`;
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
