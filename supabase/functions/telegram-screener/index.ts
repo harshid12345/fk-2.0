@@ -735,7 +735,7 @@ async function handleIdUpload(supabase: any, token: string, chatId: number, appl
   const { error: uploadError } = await supabase.storage.from('id-documents').upload(storagePath, fileBytes, { contentType: 'image/jpeg' });
 
   if (uploadError) {
-    await sendMessage(token, chatId, `Hmm, something went wrong uploading your ID ${firstName}. Could you try sending it again? 🙏`);
+    await sendMessage(token, chatId, `Hmm, something went wrong uploading your ID ${firstName}. Could you try sending it again?`);
     return;
   }
 
@@ -748,7 +748,7 @@ async function handleIdUpload(supabase: any, token: string, chatId: number, appl
   await runMatchScoring(supabase, applicant.id);
 
   await sendMessage(token, chatId,
-    `You're all done, ${firstName}! 🎉🎊\n\nYour screening is complete and the landlord will review your profile. If they like what they see, I'll send you available viewing times right here.\n\nThanks for going through the process — fingers crossed! 🤞🏠`
+    `You're all done, ${firstName}!\n\nYour screening is complete and the landlord will review your profile. If they like what they see, I'll send you available viewing times right here.\n\nThanks for going through the process — fingers crossed!`
   );
 }
 
@@ -781,10 +781,10 @@ async function handleReminders(supabase: any, token: string) {
 
     if (chatId) {
       await sendMessage(token, chatId,
-        `Hey ${firstName}! Just a heads up — your viewing is coming up in 3 days 📅\n\n🗓 <b>${dateStr} at ${timeStr}</b>\n📍 <b>${addr}</b>\n🗺 <a href="${mapsLink}">Open in Google Maps</a>\n\nStill good to go?`,
+        `Hey ${firstName}! Just a heads up — your viewing is coming up in 3 days.\n\n<b>${dateStr} at ${timeStr}</b>\n<b>${addr}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nStill good to go?`,
         { reply_markup: { inline_keyboard: [
-          [{ text: "Yep, I'll be there! ✅", callback_data: 'remind_yes' }],
-          [{ text: "I need to cancel ❌", callback_data: 'remind_cancel' }],
+          [{ text: "Yep, I'll be there!", callback_data: 'remind_yes' }],
+          [{ text: "I need to cancel", callback_data: 'remind_cancel' }],
         ] } }
       );
       await supabase.from('viewing_bookings').update({ tenant_confirmed_3d: true }).eq('id', booking.id);
@@ -809,10 +809,10 @@ async function handleReminders(supabase: any, token: string) {
 
     if (chatId) {
       await sendMessage(token, chatId,
-        `Hey ${firstName}! Your viewing is <b>tomorrow at ${timeStr}</b> 🏠\n\n📍 <b>${addr}</b>\n🗺 <a href="${mapsLink}">Open in Google Maps</a>\n\nAre you still coming?`,
+        `Hey ${firstName}! Your viewing is <b>tomorrow at ${timeStr}</b>.\n\n<b>${addr}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nAre you still coming?`,
         { reply_markup: { inline_keyboard: [
-          [{ text: "Yes, see you there! ✅", callback_data: 'remind_yes' }],
-          [{ text: "I need to cancel ❌", callback_data: 'remind_cancel' }],
+          [{ text: "Yes, see you there!", callback_data: 'remind_yes' }],
+          [{ text: "I need to cancel", callback_data: 'remind_cancel' }],
         ] } }
       );
       await supabase.from('viewing_bookings').update({ tenant_confirmed_1d: true }).eq('id', booking.id);
@@ -846,9 +846,9 @@ async function handleCancelledSlotReassignment(supabase: any, token: string, can
         ' at ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
       await sendMessage(token, chatId,
-        `Hey ${firstName}! A viewing slot just opened up 🎉\n\nWould <b>${label}</b> work for you?`,
+        `Hey ${firstName}! A viewing slot just opened up.\n\nWould <b>${label}</b> work for you?`,
         { reply_markup: { inline_keyboard: [
-          [{ text: `Yes, book it! ✅`, callback_data: `vslot_reassign_${cancelledBookingId}` }],
+          [{ text: "Yes, book it!", callback_data: `vslot_reassign_${cancelledBookingId}` }],
           [{ text: "No thanks", callback_data: 'vslot_skip' }],
         ] } }
       );
