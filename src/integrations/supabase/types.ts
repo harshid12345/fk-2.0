@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           age: number | null
           bkr_status: string | null
+          cancellation_count: number | null
           consent_given: boolean | null
           created_at: string | null
           desired_lease_length: string | null
@@ -36,6 +37,7 @@ export type Database = {
           match_label: string | null
           match_score: number | null
           monthly_income: number | null
+          no_response_count: number | null
           num_occupants: string | null
           occupation: string | null
           pending_viewing_slots: string | null
@@ -56,6 +58,7 @@ export type Database = {
         Insert: {
           age?: number | null
           bkr_status?: string | null
+          cancellation_count?: number | null
           consent_given?: boolean | null
           created_at?: string | null
           desired_lease_length?: string | null
@@ -74,6 +77,7 @@ export type Database = {
           match_label?: string | null
           match_score?: number | null
           monthly_income?: number | null
+          no_response_count?: number | null
           num_occupants?: string | null
           occupation?: string | null
           pending_viewing_slots?: string | null
@@ -94,6 +98,7 @@ export type Database = {
         Update: {
           age?: number | null
           bkr_status?: string | null
+          cancellation_count?: number | null
           consent_given?: boolean | null
           created_at?: string | null
           desired_lease_length?: string | null
@@ -112,6 +117,7 @@ export type Database = {
           match_label?: string | null
           match_score?: number | null
           monthly_income?: number | null
+          no_response_count?: number | null
           num_occupants?: string | null
           occupation?: string | null
           pending_viewing_slots?: string | null
@@ -408,10 +414,16 @@ export type Database = {
         Row: {
           applicant_id: string
           cancelled_at: string | null
+          cascade_data: Json | null
+          cascade_state: string | null
           created_at: string
           id: string
           landlord_id: string
           property_id: string
+          reminder_24h_response: string | null
+          reminder_24h_sent_at: string | null
+          reminder_2h_response: string | null
+          reminder_2h_sent_at: string | null
           slot_end: string
           slot_start: string
           status: string
@@ -421,10 +433,16 @@ export type Database = {
         Insert: {
           applicant_id: string
           cancelled_at?: string | null
+          cascade_data?: Json | null
+          cascade_state?: string | null
           created_at?: string
           id?: string
           landlord_id: string
           property_id: string
+          reminder_24h_response?: string | null
+          reminder_24h_sent_at?: string | null
+          reminder_2h_response?: string | null
+          reminder_2h_sent_at?: string | null
           slot_end: string
           slot_start: string
           status?: string
@@ -434,10 +452,16 @@ export type Database = {
         Update: {
           applicant_id?: string
           cancelled_at?: string | null
+          cascade_data?: Json | null
+          cascade_state?: string | null
           created_at?: string
           id?: string
           landlord_id?: string
           property_id?: string
+          reminder_24h_response?: string | null
+          reminder_24h_sent_at?: string | null
+          reminder_2h_response?: string | null
+          reminder_2h_sent_at?: string | null
           slot_end?: string
           slot_start?: string
           status?: string
