@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { calculateMatchScore } from '@/lib/matchScore';
 import { Button } from '@/components/ui/button';
-import { Users, Building2, Check, X, Trash2, Loader2 } from 'lucide-react';
+import { Users, Building2, Check, X, Loader2, User, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const SCORE_COLORS = {
@@ -33,6 +33,7 @@ export default function ApplicantsPage() {
   const [criteria, setCriteria] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   const load = async () => {
@@ -58,7 +59,7 @@ export default function ApplicantsPage() {
   const approveApplicant = async (applicant: any) => {
     setActionLoading(applicant.id);
     try {
-      const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
+      const { error } = await supabase.functions.invoke('telegram-notify-tenant', {
         body: { applicantId: applicant.id, action: 'approve' },
       });
       if (error) {
@@ -76,7 +77,7 @@ export default function ApplicantsPage() {
   const rejectApplicant = async (applicant: any) => {
     setActionLoading(applicant.id);
     try {
-      const { data, error } = await supabase.functions.invoke('telegram-notify-tenant', {
+      const { error } = await supabase.functions.invoke('telegram-notify-tenant', {
         body: { applicantId: applicant.id, action: 'reject' },
       });
       if (error) {
@@ -88,19 +89,6 @@ export default function ApplicantsPage() {
       toast({ title: 'Error rejecting applicant', description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
-    load();
-  };
-
-  const clearAllApplicants = async () => {
-    if (!user) return;
-    const ids = properties.map(p => p.id);
-    if (ids.length === 0) return;
-    await supabase.from('viewing_bookings').delete().eq('landlord_id', user.id);
-    await supabase.from('notifications').delete().eq('landlord_id', user.id);
-    for (const pid of ids) {
-      await supabase.from('applicants').delete().in('property_id', ids);
-    }
-    toast({ title: 'All applicants cleared (dev mode)' });
     load();
   };
 
@@ -162,14 +150,7 @@ export default function ApplicantsPage() {
 
   return (
     <div className="px-5 py-5 pb-8 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground">{t('applicants.title')}</h1>
-        {applicants.length > 0 && (
-          <Button size="sm" variant="outline" onClick={clearAllApplicants} className="h-7 px-2 text-[10px] rounded-lg border-destructive/30 text-destructive hover:bg-destructive/10">
-            <Trash2 className="w-3 h-3 mr-1" /> DEV: Clear All
-          </Button>
-        )}
-      </div>
+      <h1 className="text-lg font-semibold text-foreground">{t('applicants.title')}</h1>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {filters.map(f => (
@@ -188,10 +169,135 @@ export default function ApplicantsPage() {
           <p className="text-sm text-muted-foreground max-w-xs mx-auto">{t('applicants.empty')}</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((a, i) => (
-            <ApplicantCard key={a.id} applicant={a} index={i} onApprove={approveApplicant} onReject={rejectApplicant} actionLoading={actionLoading} />
-          ))}
+        <div className="space-y-2">
+          {filtered.map((a, i) => {
+            const mr = a.matchResult;
+            const score = mr?.score ?? 0;
+            const isFlagged = mr?.hardDisqualified || false;
+            const color = getScoreColor(score, isFlagged);
+            const isExpanded = expandedId === a.id;
+            const isPending = isPendingStage(a.stage);
+            const isApproved = a.stage === 'approved' || a.stage === 'viewing_pending' || a.stage === 'viewing_booked';
+            const isRejected = a.stage === 'rejected';
+            const isLoading = actionLoading === a.id;
+
+            return (
+              <motion.div
+                key={a.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.02 }}
+              >
+                {/* Compact card */}
+                <button
+                  onClick={() => setExpandedId(isExpanded ? null : a.id)}
+                  className="w-full glass-card rounded-2xl p-3.5 flex items-center gap-3 text-left transition-all"
+                >
+                  <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center shrink-0">
+                    <User className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-foreground truncate">{a.full_name || 'Unknown'}</p>
+                      {isApproved && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-success/15 text-success uppercase">Approved</span>}
+                      {isRejected && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-destructive/15 text-destructive uppercase">Rejected</span>}
+                      {isFlagged && isPending && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-destructive/15 text-destructive uppercase">Review</span>}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">{a.propertyAddress}</p>
+                  </div>
+                  {mr && (
+                    <div className="text-right shrink-0 mr-1">
+                      <p className="text-lg font-bold leading-none" style={{ color }}>{score.toFixed(1)}</p>
+                      <p className="text-[9px] font-medium mt-0.5" style={{ color }}>{isFlagged ? 'Review' : mr.label}</p>
+                    </div>
+                  )}
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Expanded detail */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="glass-card rounded-2xl mt-1 p-4 space-y-3">
+                        {/* Score breakdown */}
+                        {mr && mr.breakdown && (
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-foreground">Score breakdown</p>
+                            <ScoreBar label="Preference" value={mr.breakdown.preferenceScore} max={4} color={color} />
+                            <ScoreBar label="Financial" value={mr.breakdown.financialScore} max={4} color={color} />
+                            <ScoreBar label="Background" value={mr.breakdown.scrapedScore} max={2} color={color} />
+                          </div>
+                        )}
+
+                        {/* Key info */}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-accent rounded-xl p-2.5">
+                            <p className="text-muted-foreground">Employment</p>
+                            <p className="text-foreground font-medium mt-0.5">{a.employment_type || '—'}</p>
+                          </div>
+                          <div className="bg-accent rounded-xl p-2.5">
+                            <p className="text-muted-foreground">Income</p>
+                            <p className="text-foreground font-medium mt-0.5">{a.monthly_income ? `€${a.monthly_income}` : '—'}</p>
+                          </div>
+                          <div className="bg-accent rounded-xl p-2.5">
+                            <p className="text-muted-foreground">Occupants</p>
+                            <p className="text-foreground font-medium mt-0.5">{a.num_occupants || '—'}</p>
+                          </div>
+                          <div className="bg-accent rounded-xl p-2.5">
+                            <p className="text-muted-foreground">Move-in</p>
+                            <p className="text-foreground font-medium mt-0.5">{a.desired_move_in || '—'}</p>
+                          </div>
+                          <div className="bg-accent rounded-xl p-2.5">
+                            <p className="text-muted-foreground">Lease</p>
+                            <p className="text-foreground font-medium mt-0.5">{a.desired_lease_length || '—'}</p>
+                          </div>
+                          <div className="bg-accent rounded-xl p-2.5">
+                            <p className="text-muted-foreground">Smoking</p>
+                            <p className="text-foreground font-medium mt-0.5">{a.lifestyle_answers?.smoking || '—'}</p>
+                          </div>
+                        </div>
+
+                        {/* Flags */}
+                        {isFlagged && mr?.hardDisqualifyReason && (
+                          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2">
+                            <p className="text-[11px] font-medium text-destructive">{mr.hardDisqualifyReason}</p>
+                          </div>
+                        )}
+
+                        {Array.isArray(mr?.flags) && mr.flags.filter((f: string) => !f.startsWith('Hard')).length > 0 && (
+                          <div className="space-y-1">
+                            {mr.flags.filter((f: string) => !f.startsWith('Hard')).map((flag: string, fi: number) => (
+                              <p key={fi} className="text-[11px] text-warning">- {flag}</p>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        {isPending && (
+                          <div className="flex gap-2 pt-1">
+                            <Button size="sm" onClick={() => approveApplicant(a)} disabled={isLoading} className="flex-1 h-9 rounded-xl text-xs">
+                              {isLoading && actionLoading === a.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
+                              Approve
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => rejectApplicant(a)} disabled={isLoading} className="flex-1 h-9 rounded-xl text-xs border-destructive/30 text-destructive hover:bg-destructive/10">
+                              {isLoading && actionLoading === a.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <X className="w-3.5 h-3.5 mr-1" />}
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
@@ -200,113 +306,6 @@ export default function ApplicantsPage() {
         no scoring is applied based on nationality, religion, gender, or other protected characteristics.
       </p>
     </div>
-  );
-}
-
-function ApplicantCard({ applicant: a, index, onApprove, onReject, actionLoading }: { applicant: any; index: number; onApprove: (a: any) => void; onReject: (a: any) => void; actionLoading: string | null }) {
-  const mr = a.matchResult;
-  const score = mr?.score ?? 0;
-  const isCriteriaFlagged = mr?.hardDisqualified || false;
-  const displayLabel = isCriteriaFlagged ? 'Needs review' : (mr?.label || 'Unscored');
-  const visibleFlags = Array.isArray(mr?.flags) ? mr.flags.filter((flag: string) => !flag.startsWith('Hard disqualifier')) : [];
-  const color = getScoreColor(score, isCriteriaFlagged);
-  const borderClass = !isCriteriaFlagged && score >= 8.5 ? 'border-l-2 border-l-success' : '';
-  const isPending = !a.stage || a.stage === 'new' || a.stage === 'welcome' || a.stage === 'done' || a.stage === 'screening_complete';
-  const isApproved = a.stage === 'approved' || a.stage === 'viewing_pending' || a.stage === 'viewing_booked';
-  const isRejected = a.stage === 'rejected';
-  const isLoading = actionLoading === a.id;
-
-  const stageLabel = (() => {
-    switch (a.stage) {
-      case 'approved': return 'APPROVED';
-      case 'viewing_pending': return 'VIEWING PENDING';
-      case 'viewing_booked': return 'VIEWING BOOKED';
-      case 'rejected': return 'REJECTED';
-      default: return null;
-    }
-  })();
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03 }}
-      className={`glass-card rounded-2xl p-4 space-y-3 ${borderClass}`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-foreground">{a.full_name || 'Unknown'}</p>
-            {isApproved && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-success/15 text-success">{stageLabel}</span>}
-            {isRejected && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-destructive/15 text-destructive">REJECTED</span>}
-            {!isApproved && !isRejected && isCriteriaFlagged && <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-destructive/15 text-destructive">REVIEW</span>}
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {a.employment_type || a.occupation || '—'} · €{a.monthly_income || '—'}/mo
-            {a.lifestyle_answers?.smoking === 'No' ? ' · Non-smoker' : ''}
-          </p>
-          <p className="text-[10px] text-muted-foreground/70 mt-1 flex items-center gap-1">
-            <Building2 className="w-3 h-3" /> {a.propertyAddress}
-          </p>
-        </div>
-        {mr && (
-          <div className="text-right flex-shrink-0 ml-3">
-            <p className="text-2xl font-bold" style={{ color }}>{score.toFixed(1)}</p>
-            <p className="text-[10px] font-medium" style={{ color }}>{displayLabel}</p>
-          </div>
-        )}
-      </div>
-
-      {isCriteriaFlagged && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2">
-          <p className="text-[11px] font-medium text-destructive">
-            Criteria alert: {mr?.hardDisqualifyReason || 'This applicant conflicts with one of your current rules.'}
-          </p>
-        </div>
-      )}
-
-      {mr && mr.breakdown && (
-        <div className="space-y-2">
-          <ScoreBar label="Preference" value={mr.breakdown.preferenceScore} max={4} color={color} />
-          <ScoreBar label="Financial" value={mr.breakdown.financialScore} max={4} color={color} />
-          <ScoreBar label="Background" value={mr.breakdown.scrapedScore} max={2} color={color} />
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-1.5">
-        {a.num_occupants && <BadgePill text={`👤 ${a.num_occupants}`} variant="neutral" />}
-        {a.desired_move_in && <BadgePill text={`📅 ${a.desired_move_in}`} variant="neutral" />}
-        {a.desired_lease_length && <BadgePill text={`📋 ${a.desired_lease_length}`} variant="neutral" />}
-        {a.lifestyle_answers?.smoking === 'No' && <BadgePill text="✅ Non-smoker" variant="green" />}
-        {(!a.lifestyle_answers?.pets || a.lifestyle_answers?.pets === 'No pets') && <BadgePill text="✅ No pets" variant="green" />}
-        {a.id_verified && <BadgePill text="✅ ID verified" variant="green" />}
-        {a.consent_given && <BadgePill text="✅ GDPR consent" variant="green" />}
-        {a.viewing_booked_at && (
-          <BadgePill text={`📅 Viewing: ${new Date(a.viewing_booked_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`} variant="primary" />
-        )}
-      </div>
-
-      {visibleFlags.length > 0 && (
-        <div className="space-y-1">
-          {visibleFlags.map((flag: string, fi: number) => (
-            <p key={fi} className="text-[11px] flex items-center gap-1 text-warning">⚠️ {flag}</p>
-          ))}
-        </div>
-      )}
-
-      {isPending && (
-        <div className="flex gap-2 pt-1">
-          <Button size="sm" onClick={() => onApprove(a)} disabled={isLoading} className="flex-1 h-9 rounded-xl text-xs">
-            {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
-            {isLoading ? 'Sending...' : 'Approve & Send Slots'}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => onReject(a)} disabled={isLoading} className="flex-1 h-9 rounded-xl text-xs">
-            {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <X className="w-3.5 h-3.5 mr-1" />}
-            Reject
-          </Button>
-        </div>
-      )}
-    </motion.div>
   );
 }
 
@@ -326,18 +325,5 @@ function ScoreBar({ label, value, max, color }: { label: string; value: number; 
       </div>
       <span className="text-[10px] text-muted-foreground w-[35px] text-right">{value.toFixed(1)}/{max}</span>
     </div>
-  );
-}
-
-function BadgePill({ text, variant }: { text: string; variant: 'green' | 'primary' | 'neutral' }) {
-  const cls = variant === 'green'
-    ? 'bg-success/10 text-success'
-    : variant === 'primary'
-    ? 'bg-primary/10 text-primary'
-    : 'bg-accent text-muted-foreground';
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium ${cls}`}>
-      {text}
-    </span>
   );
 }

@@ -8,9 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Building2, ShieldCheck, Copy, Trash2, Home, Users, Calendar, Plus, X, Share2 } from 'lucide-react';
+import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Plus, X, Share2 } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
-import { getComplianceStatus } from '@/lib/wws';
 
 interface ViewingSlot {
   label: string;
@@ -33,7 +32,6 @@ export default function PropertyDetailPage() {
   const [tenantDeposit, setTenantDeposit] = useState('');
   const [applicants, setApplicants] = useState<any[]>([]);
 
-  // Viewing slots
   const [newSlotLabel, setNewSlotLabel] = useState('');
   const [newSlotDatetime, setNewSlotDatetime] = useState('');
 
@@ -100,8 +98,6 @@ export default function PropertyDetailPage() {
   );
   if (!property) return <div className="flex items-center justify-center py-20 text-muted-foreground">Property not found</div>;
 
-  const complianceStatus = property.rent_amount && property.wws_max_rent
-    ? getComplianceStatus(property.rent_amount, property.wws_max_rent) : null;
   const isRented = property.status === 'rented';
   const viewingSlots: ViewingSlot[] = (property.viewing_slots as ViewingSlot[]) || [];
 
@@ -111,7 +107,6 @@ export default function PropertyDetailPage() {
 
   return (
     <div className="pb-8">
-      {/* Sticky header */}
       <div className="sticky top-0 z-20 glass-surface border-b border-border/50">
         <div className="flex items-center justify-between px-4 py-3">
           <motion.button whileTap={{ scale: 0.9 }} onClick={() => navigate('/properties')} className="p-2 -ml-2 rounded-xl">
@@ -124,7 +119,6 @@ export default function PropertyDetailPage() {
         </div>
       </div>
 
-      {/* Property hero */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-5 pt-5 pb-3">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -142,20 +136,9 @@ export default function PropertyDetailPage() {
             {isRented ? <Home className="w-3 h-3" /> : <Users className="w-3 h-3" />}
             {isRented ? t('properties.rented') : t('properties.seeking')}
           </span>
-          {complianceStatus && (
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-medium ${
-              complianceStatus === 'compliant' ? 'bg-success/10 text-success' :
-              complianceStatus === 'at_risk' ? 'bg-warning/10 text-warning' :
-              'bg-destructive/10 text-destructive'
-            }`}>
-              {complianceStatus === 'compliant' ? t('properties.compliant') :
-               complianceStatus === 'at_risk' ? t('properties.at_risk') : t('properties.over_limit')}
-            </span>
-          )}
         </div>
       </motion.div>
 
-      {/* Tab switcher */}
       <div className="px-5 mb-4">
         <div className="flex gap-1 p-1 glass-card rounded-xl">
           {tabs.map((tab, i) => (
@@ -180,7 +163,6 @@ export default function PropertyDetailPage() {
         </div>
       </div>
 
-      {/* Tab content */}
       <div className="px-5 space-y-3">
         {activeTab === 0 && (
           <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
@@ -207,21 +189,8 @@ export default function PropertyDetailPage() {
             </div>
 
             <div className="glass-card rounded-2xl p-5 space-y-4">
-              <h3 className="font-medium text-foreground text-sm">{t('detail.wws_assessment')}</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-[11px] text-muted-foreground">{t('detail.current_rent')}</p>
-                  <p className="text-xl font-semibold text-foreground mt-0.5">€{property.rent_amount?.toFixed(0) || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">{t('detail.max_rent')}</p>
-                  <p className="text-xl font-semibold text-foreground mt-0.5">€{property.wws_max_rent?.toFixed(0) || '—'}</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{t('properties.wws_points')}</span>
-                <span className="text-foreground font-medium">{property.wws_points || '—'}</span>
-              </div>
+              <h3 className="font-medium text-foreground text-sm">{t('detail.current_rent')}</h3>
+              <p className="text-2xl font-semibold text-foreground">€{property.rent_amount?.toFixed(0) || '—'}<span className="text-sm text-muted-foreground font-normal">/mo</span></p>
             </div>
           </motion.div>
         )}
@@ -263,13 +232,13 @@ export default function PropertyDetailPage() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   const link = `https://t.me/fairkamer_screen_bot?start=${id}`;
-                  const msg = `Hi! I use FairKamer to screen tenants for my property at ${property.address}.\n\nIt takes about 5 minutes and helps you stand out from other applicants. Click the link below to get started:\n\n👉 ${link}`;
+                  const msg = `Hi! I use FairKamer to screen tenants for my property at ${property.address}.\n\nIt takes about 5 minutes and helps you stand out from other applicants. Click the link below to get started:\n\n${link}`;
                   navigator.clipboard.writeText(msg);
                   sonnerToast.success('Message copied! Paste it to your applicants.');
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-primary text-primary-foreground"
               >
-                <Share2 className="w-3.5 h-3.5" /> Share with applicants
+                <Share2 className="w-3.5 h-3.5" /> Share
               </motion.button>
             </div>
 
@@ -285,73 +254,37 @@ export default function PropertyDetailPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  className="glass-card rounded-2xl p-4 space-y-3"
+                  className="glass-card rounded-2xl p-4 space-y-2"
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-foreground">{a.full_name || 'Unknown'}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {a.occupation || '—'} · €{a.monthly_income || '—'}/mo
-                        {a.age ? ` · Age ${a.age}` : ''}
                       </p>
                     </div>
                     {a.match_score != null && (
-                      <div className="relative w-11 h-11">
-                        <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
-                          <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3" className="stroke-accent" />
-                          <circle cx="18" cy="18" r="15" fill="none" strokeWidth="3"
-                            stroke={a.match_score > 70 ? 'hsl(152, 60%, 52%)' : a.match_score > 40 ? 'hsl(38, 92%, 50%)' : 'hsl(0, 60%, 55%)'}
-                            strokeDasharray={`${(a.match_score / 100) * 94.2} 94.2`}
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-foreground">{a.match_score}</span>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-primary">{a.match_score <= 10 ? a.match_score.toFixed(1) : (a.match_score / 10).toFixed(1)}</p>
+                        <p className="text-[9px] text-muted-foreground">{a.match_label || ''}</p>
                       </div>
                     )}
                   </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {a.id_verified && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-success/10 text-success">
-                        ✅ ID Verified
-                      </span>
-                    )}
-                    {a.viewing_booked_at && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-primary/10 text-primary">
-                        📅 {new Date(a.viewing_booked_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
-                    {a.social_handle && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-medium bg-accent text-muted-foreground">
-                        📸 @{a.social_handle}
-                      </span>
-                    )}
+                  <div className="flex items-center gap-1.5">
                     <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-medium bg-accent text-muted-foreground capitalize">
                       {a.stage || 'new'}
                     </span>
                   </div>
-
-                  {a.match_flags && Array.isArray(a.match_flags) && a.match_flags.length > 0 && (
-                    <div className="space-y-1">
-                      {(a.match_flags as string[]).map((flag, fi) => (
-                         <p key={fi} className="text-[11px] text-warning flex items-center gap-1">
-                           ⚠️ {flag}
-                         </p>
-                      ))}
-                    </div>
-                  )}
                 </motion.div>
               ))
             )}
           </motion.div>
         )}
 
-        {/* Viewing Slots Tab */}
         {activeTab === 2 && (
           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
             <div className="glass-card rounded-2xl p-5 space-y-4">
               <h3 className="font-medium text-foreground text-sm">{t('detail.viewing_slots')}</h3>
-
               {viewingSlots.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t('detail.no_slots')}</p>
               ) : (
@@ -373,32 +306,17 @@ export default function PropertyDetailPage() {
                   ))}
                 </div>
               )}
-
               <div className="border-t border-border/50 pt-4 space-y-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">{t('detail.label')}</Label>
-                  <Input
-                    value={newSlotLabel}
-                    onChange={e => setNewSlotLabel(e.target.value)}
-                    placeholder="e.g. Tue 15 Apr, 14:00"
-                    className="bg-accent/50 border-border/50"
-                  />
+                  <Input value={newSlotLabel} onChange={e => setNewSlotLabel(e.target.value)} placeholder="e.g. Tue 15 Apr, 14:00" className="bg-accent/50 border-border/50" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">{t('detail.date_time')}</Label>
-                  <Input
-                    type="datetime-local"
-                    value={newSlotDatetime}
-                    onChange={e => setNewSlotDatetime(e.target.value)}
-                    className="bg-accent/50 border-border/50"
-                  />
+                  <Input type="datetime-local" value={newSlotDatetime} onChange={e => setNewSlotDatetime(e.target.value)} className="bg-accent/50 border-border/50" />
                 </div>
                 <motion.div whileTap={{ scale: 0.97 }}>
-                  <Button
-                    onClick={addViewingSlot}
-                    disabled={!newSlotLabel || !newSlotDatetime}
-                    className="w-full h-10 rounded-xl text-sm font-medium"
-                  >
+                  <Button onClick={addViewingSlot} disabled={!newSlotLabel || !newSlotDatetime} className="w-full h-10 rounded-xl text-sm font-medium">
                     <Plus className="w-4 h-4 mr-1.5" /> {t('detail.add_slot')}
                   </Button>
                 </motion.div>

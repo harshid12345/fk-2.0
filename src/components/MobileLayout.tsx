@@ -1,27 +1,47 @@
-import { ReactNode, useState, useCallback } from 'react';
+import { ReactNode, useState, useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Building2, Users, AlertCircle, Bell, Menu, X, Settings, LogOut, Globe, Moon, Sun } from 'lucide-react';
+import { Building2, Users, Settings, Menu, X, LogOut, Globe, Moon, Sun, Bell } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTheme } from '@/hooks/useTheme';
+import { supabase } from '@/integrations/supabase/client';
 
 const TABS = [
   { path: '/properties', icon: Building2, key: 'nav.properties' },
   { path: '/applicants', icon: Users, key: 'nav.applicants' },
-  { path: '/notifications', icon: Bell, key: 'nav.notifications' },
   { path: '/settings', icon: Settings, key: 'nav.settings' },
 ];
 
 export default function MobileLayout({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { lang, setLang, t } = useLanguage();
   const { isDark, toggle: toggleTheme } = useTheme();
 
   const activeIndex = TABS.findIndex(tab => location.pathname.startsWith(tab.path));
+
+  // Fetch unread notification count
+  useEffect(() => {
+    if (!user) return;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('landlord_id', user.id)
+        .eq('read', false);
+      setUnreadCount(count || 0);
+    };
+    fetchCount();
+    const channel = supabase
+      .channel('notif-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `landlord_id=eq.${user.id}` }, () => fetchCount())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const handleSwipe = useCallback((_: any, info: PanInfo) => {
     const threshold = 50;
@@ -35,6 +55,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
   }, [activeIndex, navigate]);
 
   const isDetailPage = location.pathname.match(/\/properties\/.+/);
+  const isNotificationsPage = location.pathname === '/notifications';
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -148,7 +169,18 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
                 </div>
                 <span className="font-semibold text-foreground text-sm">FairKamer</span>
               </div>
-              <div className="w-9" />
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => navigate('/notifications')}
+                className="relative p-2 -mr-2 rounded-xl"
+              >
+                <Bell className={`w-5 h-5 ${isNotificationsPage ? 'text-primary' : 'text-foreground'}`} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </motion.button>
             </div>
 
             {/* Tab bar */}
