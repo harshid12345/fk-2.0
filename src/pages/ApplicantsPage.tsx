@@ -404,97 +404,56 @@ function BackgroundCheckCard({ scrapeData }: { scrapeData: any }) {
 
   if (!scrapeData) {
     return (
-      <div className="rounded-xl border border-border bg-accent/50 p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <Search className="w-4 h-4 text-muted-foreground" />
-          <p className="text-xs font-medium text-foreground">Background check</p>
+      <div className="rounded-xl border border-border bg-accent/50 p-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4 text-muted-foreground" />
+            <p className="text-xs font-medium text-foreground">Background check</p>
+          </div>
+          <span className="text-[10px] text-muted-foreground">1.0 / 2.0</span>
         </div>
-        <p className="text-[11px] text-muted-foreground">Not configured. Add your Apify API token in Settings to enable social media verification.</p>
-        <p className="text-[11px] text-muted-foreground">Background score: 1.0 / 2.0 (neutral)</p>
-        <button onClick={() => navigate('/settings')} className="text-[11px] text-primary underline">Go to Settings</button>
+        <p className="text-[11px] text-muted-foreground mt-1">Not configured. <button onClick={() => navigate('/settings')} className="text-primary underline">Add Apify token</button></p>
       </div>
     );
   }
 
   if (scrapeData.skipped) {
     return (
-      <div className="rounded-xl border border-border bg-accent/50 p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <Search className="w-4 h-4 text-muted-foreground" />
-          <p className="text-xs font-medium text-foreground">Background check</p>
+      <div className="rounded-xl border border-border bg-accent/50 p-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4 text-muted-foreground" />
+            <p className="text-xs font-medium text-foreground">Background check</p>
+          </div>
+          <span className="text-[10px] text-muted-foreground">1.0 / 2.0</span>
         </div>
-        <p className="text-[11px] text-muted-foreground">Not configured. Add your Apify API token in Settings.</p>
-        <p className="text-[11px] text-muted-foreground">Background score: 1.0 / 2.0 (neutral)</p>
-        <button onClick={() => navigate('/settings')} className="text-[11px] text-primary underline">Go to Settings</button>
+        <p className="text-[11px] text-muted-foreground mt-1">Not configured. <button onClick={() => navigate('/settings')} className="text-primary underline">Add Apify token</button></p>
       </div>
     );
   }
 
   const analysis = scrapeData.analysis;
   const score = scrapeData.scrapedScore ?? 1.0;
-  const profiles = analysis?.profilesFound || [];
   const pct = Math.round((score / 2) * 100);
+  const hasIssues = analysis?.noNegativeResults === false;
 
   return (
-    <div className="rounded-xl border border-border bg-accent/50 p-3 space-y-2.5">
-      <div className="flex items-center gap-2">
-        <Search className="w-4 h-4 text-primary" />
-        <p className="text-xs font-medium text-foreground">Background check</p>
-      </div>
-
-      {profiles.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Profiles found:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {profiles.map((p: string) => (
-              <span key={p} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium capitalize">{p}</span>
-            ))}
-          </div>
+    <div className="rounded-xl border border-border bg-accent/50 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Search className="w-4 h-4 text-primary" />
+          <p className="text-xs font-medium text-foreground">Background check</p>
         </div>
-      )}
-
-      {analysis?.socialConsistent !== null && analysis?.socialConsistent !== undefined && (
-        <p className="text-[11px] text-muted-foreground">
-          Consistency: {analysis.socialConsistent ? 'Name and info match across platforms' : 'Inconsistencies detected'}
-        </p>
-      )}
-
-      {analysis?.confirmsEmployer === true && (
-        <p className="text-[11px] text-muted-foreground">Employment: Confirmed via online profile</p>
-      )}
-
-      {analysis?.noNegativeResults === true && (
-        <p className="text-[11px] text-muted-foreground">Search results: No negative mentions found</p>
-      )}
-      {analysis?.noNegativeResults === false && (
-        <p className="text-[11px] text-destructive">Search results: Potential concerns found</p>
-      )}
-
-      {analysis?.flaggedConcerns && analysis.flaggedConcerns.length > 0 && (
-        <div className="rounded-lg border border-warning/30 bg-warning/5 px-2.5 py-1.5">
-          {analysis.flaggedConcerns.map((c: string, i: number) => (
-            <p key={i} className="text-[11px] text-warning flex items-start gap-1">
-              <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />{c}
-            </p>
-          ))}
-        </div>
-      )}
-
-      <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">Background score</span>
-          <span className="text-[10px] text-muted-foreground">{score.toFixed(1)} / 2.0</span>
-        </div>
-        <div className="h-1.5 rounded-full bg-border overflow-hidden">
-          <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.6 }} className="h-full rounded-full bg-primary" />
-        </div>
+        <span className="text-[10px] text-muted-foreground">{score.toFixed(1)} / 2.0</span>
       </div>
 
       {analysis?.summary && (
-        <p className="text-[11px] text-muted-foreground italic">"{analysis.summary}"</p>
+        <p className={`text-[11px] ${hasIssues ? 'text-destructive' : 'text-muted-foreground'}`}>{analysis.summary}</p>
       )}
 
-      <p className="text-[9px] text-muted-foreground/60">Uses only publicly available data with tenant consent. GDPR compliant.</p>
+      <div className="h-1.5 rounded-full bg-border overflow-hidden">
+        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.6 }} className="h-full rounded-full bg-primary" />
+      </div>
     </div>
   );
 }
