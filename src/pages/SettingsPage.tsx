@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Bot, MessageCircle, ArrowRight, Check, RotateCcw, Clock, Building2, User, ChevronDown } from 'lucide-react';
+import { Copy, Bot, MessageCircle, ArrowRight, Check, RotateCcw, Clock, Building2, User, ChevronDown, Link2 } from 'lucide-react';
 
 interface CriteriaState {
   preferred_gender: string;
@@ -66,6 +66,9 @@ export default function SettingsPage() {
   const [selectedPropertyForCriteria, setSelectedPropertyForCriteria] = useState<string | null>(null);
   const [criteriaCompleted, setCriteriaCompleted] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('profile');
+  const [apifyToken, setApifyToken] = useState('');
+  const [apifyLoading, setApifyLoading] = useState(false);
+  const [apifyConfigured, setApifyConfigured] = useState(false);
 
   const CRITERIA_QUESTIONS = [
     { key: 'preferred_gender', question: t('criteria.q_gender'), type: 'select', options: [{ value: 'any', label: t('criteria.no_pref') }, { value: 'male', label: t('criteria.male') }, { value: 'female', label: t('criteria.female') }] },
@@ -81,8 +84,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('landlords').select('*').eq('id', user.id).single().then(({ data }) => {
-      if (data) { setFullName(data.full_name || ''); setPhone(data.phone || ''); setEmail(data.email || ''); }
+    supabase.from('landlords').select('*').eq('id', user.id).single().then(({ data }: any) => {
+      if (data) {
+        setFullName(data.full_name || ''); setPhone(data.phone || ''); setEmail(data.email || '');
+        if (data.apify_token) { setApifyToken(data.apify_token); setApifyConfigured(true); }
+      }
     });
     supabase.from('landlord_properties').select('id, address, city').then(({ data }) => { setProperties(data || []); });
     supabase.from('landlord_criteria').select('*').then(({ data }) => {
@@ -226,6 +232,44 @@ export default function SettingsPage() {
 
         <SettingsSection id="availability" icon={Clock} title={t('settings.availability')} expanded={expandedSection === 'availability'} onToggle={() => toggleSection('availability')}>
           <LandlordAvailabilityPro />
+        </SettingsSection>
+
+        <SettingsSection id="integrations" icon={Link2} title="Integrations" expanded={expandedSection === 'integrations'} onToggle={() => toggleSection('integrations')}>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Apify API Token</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={apifyToken}
+                  onChange={e => setApifyToken(e.target.value)}
+                  placeholder="apify_api_..."
+                />
+                <motion.div whileTap={{ scale: 0.97 }}>
+                  <Button
+                    onClick={async () => {
+                      if (!user || !apifyToken.trim()) return;
+                      setApifyLoading(true);
+                      await supabase.from('landlords').update({ apify_token: apifyToken.trim() } as any).eq('id', user.id);
+                      setApifyConfigured(true);
+                      setApifyLoading(false);
+                      toast({ title: 'Apify token saved' });
+                    }}
+                    disabled={apifyLoading || !apifyToken.trim()}
+                    size="sm"
+                    className="h-10 rounded-xl"
+                  >
+                    {apifyLoading ? 'Saving...' : 'Save'}
+                  </Button>
+                </motion.div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Used for tenant social media verification. Get your token at <a href="https://apify.com/account" target="_blank" rel="noopener noreferrer" className="text-primary underline">apify.com/account</a></p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <div className={`w-2 h-2 rounded-full ${apifyConfigured ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
+                <span className="text-[11px] text-muted-foreground">{apifyConfigured ? 'Connected' : 'Not configured'}</span>
+              </div>
+            </div>
+          </div>
         </SettingsSection>
 
         <SettingsSection id="bots" icon={Bot} title={t('settings.telegram')} expanded={expandedSection === 'bots'} onToggle={() => toggleSection('bots')}>
