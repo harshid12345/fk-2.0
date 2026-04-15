@@ -443,14 +443,14 @@ Deno.serve(async (req) => {
 
         const landlordName = landlord?.full_name?.split(' ')[0] || 'your landlord';
         await sendMessage(BOT_TOKEN, chatId,
-          `Hey ${firstName}! 👋\n\nI'm helping ${landlordName} find the right tenant for their place at <b>${property.address}</b>.\n\nI'll ask you a few quick questions — takes about 5 minutes — and it really helps you stand out from other applicants. Ready to go?`,
+          `Hey ${firstName}!\n\nI'm helping ${landlordName} find the right tenant for their place at <b>${property.address}</b>.\n\nI'll ask you a few quick questions — takes about 5 minutes — and it really helps you stand out from other applicants. Ready to go?`,
           { reply_markup: { inline_keyboard: [[
-            { text: "Yeah, let's do it! ✅", callback_data: 'start_yes' },
-            { text: "Wait, what is this? 🤔", callback_data: 'start_info' },
+            { text: "Yeah, let's do it!", callback_data: 'start_yes' },
+            { text: "Wait, what is this?", callback_data: 'start_info' },
           ]] } }
         );
       } else {
-        await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! 👋 I'd love to help but I need a screening link from your landlord first. Ask them to share it with you!`);
+        await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! I'd love to help but I need a screening link from your landlord first. Ask them to share it with you.`);
       }
       return new Response('OK');
     }
