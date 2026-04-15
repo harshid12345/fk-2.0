@@ -674,7 +674,7 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
     await supabase.from('applicants').update({ full_name: name, stage: 'q_occupants' }).eq('id', applicant.id);
     const firstQ = SCREENING_QUESTIONS[0];
     const question = typeof firstQ.question === 'function' ? firstQ.question(first) : firstQ.question;
-    await sendMessage(token, chatId, `Nice to meet you, ${first}! 😊\n\n${question}`, {
+    await sendMessage(token, chatId, `Nice to meet you, ${first}!\n\n${question}`, {
       reply_markup: { inline_keyboard: firstQ.options.map(o => [{ text: o.text, callback_data: o.callback }]) }
     });
     return;
@@ -684,11 +684,11 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
     if (text.toLowerCase().includes('agree')) {
       await supabase.from('applicants').update({ consent_given: true, stage: 'socials' }).eq('id', applicant.id);
       await sendMessage(token, chatId,
-        `Thanks ${firstName}! 🙏\n\nOne more optional thing — if you share your Instagram handle, it helps the landlord get a better sense of who you are. Totally up to you!\n\nDrop your handle (like @yourname) or skip it 👇`,
-        { reply_markup: { inline_keyboard: [[ { text: "Skip this ⏭️", callback_data: 'skip_social' } ]] } }
+        `Thanks ${firstName}!\n\nOne more optional thing — if you share your Instagram handle, it helps the landlord get a better sense of who you are. Totally up to you.\n\nDrop your handle (like @yourname) or skip it.`,
+        { reply_markup: { inline_keyboard: [[ { text: "Skip this", callback_data: 'skip_social' } ]] } }
       );
     } else {
-      await sendMessage(token, chatId, `Just type <b>"I agree"</b> to continue, ${firstName}! 😊`);
+      await sendMessage(token, chatId, `Just type <b>"I agree"</b> to continue, ${firstName}.`);
     }
     return;
   }
@@ -697,7 +697,7 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
     const handle = text.replace('@', '').trim();
     await supabase.from('applicants').update({ social_handle: handle, stage: 'id_check' }).eq('id', applicant.id);
     await sendMessage(token, chatId,
-      `Got it, @${handle}! 📸\n\nAlright ${firstName}, last step — could you snap a photo of your ID (passport or Dutch ID card)? It's kept completely private and secure 🔒`
+      `Got it, @${handle}!\n\nAlright ${firstName}, last step — could you snap a photo of your ID (passport or Dutch ID card)? It's kept completely private and secure.`
     );
     return;
   }
@@ -710,7 +710,7 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
 
   // During screening, if they type free text instead of using buttons, still try AI
   if (stage?.startsWith('q_')) {
-    await sendMessage(token, chatId, `Hey ${firstName}, could you use the buttons above to answer? It helps me keep track 😊\n\nBut if you have a question, just ask!`);
+    await sendMessage(token, chatId, `Hey ${firstName}, could you use the buttons above to answer? It helps me keep track.\n\nBut if you have a question, just ask.`);
     return;
   }
 
