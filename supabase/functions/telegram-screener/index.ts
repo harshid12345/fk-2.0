@@ -926,6 +926,41 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
   }
 
   if (stage === 'done' || stage === 'screening_complete' || stage === 'viewing_pending' || stage === 'approved' || stage === 'viewing_booked') {
+    // Check for YES/NO replies to reminders
+    const lower = text.toLowerCase().trim();
+    if (lower === 'yes' || lower === 'ja') {
+      const { data: bk } = await supabase.from('viewing_bookings')
+        .select('id, slot_start, property_id')
+        .eq('applicant_id', applicant.id).eq('status', 'confirmed')
+        .not('reminder_24h_sent_at', 'is', null).is('reminder_24h_response', null)
+        .order('slot_start', { ascending: true }).limit(1).maybeSingle();
+      if (bk) {
+        await supabase.from('viewing_bookings').update({ reminder_24h_response: 'yes' }).eq('id', bk.id);
+        const { data: prop } = await supabase.from('landlord_properties').select('address').eq('id', bk.property_id).single();
+        const dt = new Date(bk.slot_start);
+        const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        await sendMessage(token, chatId, `Perfect, see you tomorrow at ${timeStr}. The address is ${prop?.address || 'the property'}. Good luck!`);
+        return;
+      }
+    }
+    if (lower === 'no' || lower === 'nee') {
+      const { data: bk } = await supabase.from('viewing_bookings')
+        .select('*').eq('applicant_id', applicant.id).eq('status', 'confirmed')
+        .not('reminder_24h_sent_at', 'is', null).is('reminder_24h_response', null)
+        .order('slot_start', { ascending: true }).limit(1).maybeSingle();
+      if (bk) {
+        // Treat as cancellation via remind_cancel flow
+        await sendMessage(token, chatId,
+          `Got it ${firstName}, would you like me to cancel your viewing?`,
+          { reply_markup: { inline_keyboard: [
+            [{ text: "Yes, cancel it", callback_data: 'remind_cancel' }],
+            [{ text: "No, keep it", callback_data: 'remind_yes' }],
+          ] } }
+        );
+        return;
+      }
+    }
+
     await handleAIResponse(supabase, token, chatId, applicant, text);
     return;
   }
