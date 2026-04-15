@@ -80,25 +80,6 @@ export default function SettingsPage() {
         });
       }
     });
-    // Load viewing schedule from DB
-    supabase.from('viewing_schedule').select('*').eq('landlord_id', user.id).then(({ data }) => {
-      if (data && data.length > 0) {
-        const updated = { ...availability };
-        data.forEach((row: any) => {
-          const dayName = DAYS[row.day_of_week];
-          if (dayName) {
-            updated[dayName] = {
-              enabled: row.enabled,
-              from: row.start_time?.slice(0, 5) || '10:00',
-              to: row.end_time?.slice(0, 5) || '18:00',
-            };
-          }
-        });
-        setAvailability(updated);
-      }
-    });
-  }, [user]);
-
   const saveProfile = async () => {
     if (!user) return;
     setLoading(true);
@@ -132,23 +113,6 @@ export default function SettingsPage() {
     toast({ title: t('settings.criteria_saved') });
   };
 
-  const saveAvailability = async () => {
-    if (!user) return;
-    setLoading(true);
-    // Delete existing schedule
-    await supabase.from('viewing_schedule').delete().eq('landlord_id', user.id);
-    // Insert new schedule
-    const rows = DAYS.map(day => ({
-      landlord_id: user.id,
-      day_of_week: DAY_INDEX[day],
-      start_time: availability[day].from + ':00',
-      end_time: availability[day].to + ':00',
-      enabled: availability[day].enabled,
-    }));
-    await supabase.from('viewing_schedule').insert(rows as any);
-    setLoading(false);
-    toast({ title: t('settings.availability_saved') });
-  };
 
   const renderCriteriaQuestion = () => {
     const q = CRITERIA_QUESTIONS[criteriaStep];
