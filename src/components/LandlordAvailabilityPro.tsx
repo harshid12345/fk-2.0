@@ -40,7 +40,7 @@ function getSlotKey(dayIdx: number, blockIdx: number): string {
 const ONBOARDING_STEPS = [
   {
     title: 'Welcome to Availability',
-    desc: 'Define when you're available for property viewings. This schedule syncs with your Telegram bot.',
+    desc: 'Define when you are available for property viewings. This schedule syncs with your Telegram bot.',
     icon: '📅',
   },
   {
