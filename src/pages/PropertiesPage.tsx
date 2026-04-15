@@ -4,10 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Button } from '@/components/ui/button';
 import { Plus, Building2, MapPin, Home, Users, TrendingUp, ArrowUpRight } from 'lucide-react';
 import AddPropertyDialog from '@/components/AddPropertyDialog';
-import { getComplianceStatus } from '@/lib/wws';
 
 interface Property {
   id: string;
@@ -15,9 +13,6 @@ interface Property {
   city: string;
   rent_amount: number | null;
   surface_m2: number | null;
-  wws_compliant: boolean | null;
-  wws_max_rent: number | null;
-  wws_points: number | null;
   tenant_name: string | null;
   accommodation_type: string | null;
   status: string;
@@ -45,14 +40,6 @@ export default function PropertiesPage() {
 
   const totalRent = properties.reduce((sum, p) => sum + (p.rent_amount || 0), 0);
   const rentedCount = properties.filter(p => p.status === 'rented').length;
-
-  const getComplianceBadge = (p: Property) => {
-    if (!p.rent_amount || !p.wws_max_rent) return null;
-    const status = getComplianceStatus(p.rent_amount, p.wws_max_rent);
-    if (status === 'compliant') return <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-success/15 text-success">{t('properties.compliant')}</span>;
-    if (status === 'at_risk') return <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-warning/15 text-warning">{t('properties.at_risk')}</span>;
-    return <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-destructive/15 text-destructive">{t('properties.over_limit')}</span>;
-  };
 
   return (
     <div className="pb-24">
@@ -117,7 +104,6 @@ export default function PropertiesPage() {
                 </div>
 
                 <div className="flex items-center gap-2 mb-3">
-                  {getComplianceBadge(p)}
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium ${
                     p.status === 'rented' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
                   }`}>
@@ -136,9 +122,9 @@ export default function PropertiesPage() {
                     <p className="font-semibold text-foreground text-sm mt-0.5">{p.surface_m2 || '—'} m²</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-muted-foreground">{p.status === 'rented' ? t('properties.tenant') : t('properties.wws_points')}</p>
+                    <p className="text-[11px] text-muted-foreground">{p.status === 'rented' ? t('properties.tenant') : t('properties.type')}</p>
                     <p className="font-semibold text-foreground text-sm truncate mt-0.5">
-                      {p.status === 'rented' ? (p.tenant_name || '—') : (p.wws_points || '—')}
+                      {p.status === 'rented' ? (p.tenant_name || '—') : (p.accommodation_type || '—')}
                     </p>
                   </div>
                 </div>
