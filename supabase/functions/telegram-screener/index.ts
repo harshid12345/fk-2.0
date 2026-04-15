@@ -525,8 +525,8 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
         });
       } else if (q.nextStage === 'consent') {
         const msg = followUp 
-          ? `${followUp}\n\nAlright ${firstName}, we're almost done! One quick legal thing — by continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nJust type <b>"I agree"</b> and we'll wrap up 🙏`
-          : `Almost there ${firstName}! By continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nType <b>"I agree"</b> to continue 🙏`;
+          ? `${followUp}\n\nAlright ${firstName}, we're almost done! One quick legal thing — by continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nJust type <b>"I agree"</b> and we'll wrap up.`
+          : `Almost there ${firstName}! By continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nType <b>"I agree"</b> to continue.`;
         await sendMessage(token, chatId, msg);
       }
       return;
@@ -537,7 +537,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
   if (data === 'skip_social') {
     await supabase.from('applicants').update({ stage: 'id_check' }).eq('id', applicant.id);
     await sendMessage(token, chatId,
-      `No worries at all ${firstName}!\n\nOkay, last thing — could you snap a photo of your ID (passport or Dutch ID card)? It stays completely private and encrypted 🔒`
+      `No worries at all ${firstName}!\n\nOkay, last thing — could you snap a photo of your ID (passport or Dutch ID card)? It stays completely private and encrypted.`
     );
     return;
   }
@@ -552,7 +552,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
     
     const selectedSlot = availableSlots[slotIndex];
     if (!selectedSlot) {
-      await sendMessage(token, chatId, `Hmm, that time doesn't seem available anymore ${firstName}. The landlord will send you fresh options soon! 🙏`);
+      await sendMessage(token, chatId, `Hmm, that time doesn't seem available anymore ${firstName}. The landlord will send you fresh options soon.`);
       return;
     }
 
@@ -569,7 +569,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
       .maybeSingle();
 
     if (existingBooking) {
-      await sendMessage(token, chatId, `Oh no, someone just grabbed that slot! 😅 Let me check what else is available...`);
+      await sendMessage(token, chatId, `Oh no, someone just grabbed that slot. Let me check what else is available...`);
       // Regenerate and resend slots
       const { data: schedule } = await supabase.from('viewing_schedule').select('*').eq('landlord_id', property.landlord_id);
       const { data: bookings } = await supabase.from('viewing_bookings').select('*').eq('landlord_id', property.landlord_id);
@@ -577,10 +577,10 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
       if (freshSlots.length > 0) {
         const display = freshSlots.slice(0, 6);
         await supabase.from('applicants').update({ pending_viewing_slots: JSON.stringify(display) }).eq('id', applicant.id);
-        const buttons = display.map((s, i) => [{ text: `📅 ${s.label}`, callback_data: `vslot_${i}` }]);
+        const buttons = display.map((s, i) => [{ text: s.label, callback_data: `vslot_${i}` }]);
         await sendMessage(token, chatId, `Here are the available times — pick one that works for you:`, { reply_markup: { inline_keyboard: buttons } });
       } else {
-        await sendMessage(token, chatId, `All slots are taken right now. I'll message you when new ones open up!`);
+        await sendMessage(token, chatId, `All slots are taken right now. I'll message you when new ones open up.`);
       }
       return;
     }
