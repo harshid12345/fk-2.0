@@ -50,15 +50,14 @@ ${JSON.stringify(scrapedData, null, 2)}
 Analyze ONLY these signals. Return ONLY valid JSON, no other text.
 
 Rules:
-- Party photos are NORMAL for people in their 20s. Do NOT flag them.
-- Private profiles are FINE. Score them neutral.
-- Multiple profiles on the same platform (e.g. two LinkedIn accounts) is COMPLETELY NORMAL. Many people have old accounts, student accounts, or professional vs personal accounts. Do NOT flag this as inconsistent or suspicious.
-- Having profiles with different cities, schools, or jobs is NORMAL — people move, change careers, and study abroad. Only flag if the name itself is clearly a different person entirely.
-- socialConsistent should be TRUE unless there is strong evidence of deliberate identity fraud (fake name, stolen photos, etc). Normal life changes are NOT inconsistencies.
-- Only flag things directly related to tenancy risk: active fraud, property damage history, eviction court records, or criminal convictions.
+- socialConsistent should be TRUE unless there is CLEAR evidence of deliberate identity fraud. Multiple profiles, different cities, different schools, old accounts — all NORMAL.
+- profilesFound: list ONLY the platforms where you found a profile (e.g. "instagram", "linkedin"). Do NOT list usernames or profile details.
+- summary: Write ONE short sentence (max 15 words) about the most relevant finding for a landlord. Focus on: employment confirmation, clean record, or any real red flag. Do NOT mention number of profiles found or consistency — that is useless information.
+- flaggedConcerns: ONLY include genuine tenancy risks: active fraud, property damage history, eviction records, criminal convictions. Do NOT flag name variations, multiple profiles, case differences in usernames, or location changes.
+- Only flag things directly related to tenancy risk.
 - NEVER assess based on race, religion, nationality, gender, or political views.
-- If very little data was found, say so honestly. Do not invent findings.
-- When in doubt, score POSITIVELY. The absence of red flags is a good sign.`;
+- If very little data was found, summary should be "Limited public data available, no red flags."
+- When in doubt, score POSITIVELY.`;
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
