@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Bot, MessageCircle, ArrowRight, Check, RotateCcw, Clock, Building2, User, ChevronDown, Link2, Trash2, Calendar, Shield, LogOut } from 'lucide-react';
+import { Copy, Bot, MessageCircle, ArrowRight, Check, RotateCcw, Building2, User, ChevronDown, Trash2, Shield } from 'lucide-react';
 
 interface CriteriaState {
   preferred_gender: string;
