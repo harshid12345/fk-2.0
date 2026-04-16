@@ -9,7 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { calculateWWS, getComplianceStatus } from '@/lib/wws';
 import { useToast } from '@/hooks/use-toast';
-import { Home, Users, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Home, Users, ArrowLeft, ArrowRight, BookOpen } from 'lucide-react';
+import PropertyKnowledgeBaseManager from './PropertyKnowledgeBaseManager';
 
 interface Props {
   open: boolean;
