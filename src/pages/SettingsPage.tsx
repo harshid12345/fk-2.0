@@ -66,7 +66,6 @@ export default function SettingsPage() {
   const [selectedPropertyForCriteria, setSelectedPropertyForCriteria] = useState<string | null>(null);
   const [criteriaCompleted, setCriteriaCompleted] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [showSchedule, setShowSchedule] = useState(false);
 
   const CRITERIA_QUESTIONS = [
     { key: 'preferred_gender', question: t('criteria.q_gender'), type: 'select', options: [{ value: 'any', label: t('criteria.no_pref') }, { value: 'male', label: t('criteria.male') }, { value: 'female', label: t('criteria.female') }] },
