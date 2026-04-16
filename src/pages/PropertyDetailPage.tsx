@@ -12,10 +12,6 @@ import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Share2, FileTex
 import PropertyKnowledgeBaseManager from '@/components/PropertyKnowledgeBaseManager';
 import { toast as sonnerToast } from 'sonner';
 
-interface ViewingSlot {
-  label: string;
-  datetime: string;
-}
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -79,7 +75,7 @@ export default function PropertyDetailPage() {
   if (!property) return <div className="flex items-center justify-center py-20 text-muted-foreground">Property not found</div>;
 
   const isRented = property.status === 'rented';
-  const viewingSlots: ViewingSlot[] = (property.viewing_slots as ViewingSlot[]) || [];
+  
 
   const tabs = isRented
     ? [{ label: 'Overview' }, { label: 'Tenant' }, { label: 'Documents' }]
