@@ -450,18 +450,62 @@ Deno.serve(async (req) => {
     const { data: applicant } = await supabase
       .from('applicants').select('*').eq('telegram_user_id', telegramUserId).maybeSingle();
 
+    // ── TENANT (post-contract) routing ───────────────────────────────────────
+    // Before treating this as an applicant flow, check whether this telegram
+    // user is the registered tenant of any property. If so, serve them via the
+    // concierge AI using the property's knowledge base.
+    const { data: tenantProperty } = await supabase
+      .from('landlord_properties')
+      .select('*')
+      .eq('tenant_telegram_user_id', telegramUserId)
+      .eq('status', 'rented')
+      .maybeSingle();
+
+    if (tenantProperty) {
+      // Always keep chat_id current
+      if (tenantProperty.tenant_telegram_chat_id !== chatId) {
+        await supabase.from('landlord_properties')
+          .update({ tenant_telegram_chat_id: chatId }).eq('id', tenantProperty.id);
+      }
+      if (text.startsWith('/start')) {
+        await sendMessage(BOT_TOKEN, chatId,
+          `Hey ${(tenantProperty.tenant_name || firstName).split(' ')[0]}! I'm your assistant for ${tenantProperty.address}. Ask me anything about the place — wifi, heating, waste schedule, contract terms, maintenance contacts, you name it.`);
+        return new Response('OK');
+      }
+      await handleTenantConcierge(supabase, BOT_TOKEN, chatId, tenantProperty, text);
+      return new Response('OK');
+    }
+
     if (!applicant) {
       if (text.startsWith('/start')) {
         const parts = text.split(' ');
         const propertyId = parts[1];
         if (!propertyId) {
-          await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! You'll need a screening link from your landlord to get started. Ask them for it.`);
+          await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! You'll need a link from your landlord to get started. Ask them for it.`);
           return new Response('OK');
         }
         const { data: property } = await supabase
-          .from('landlord_properties').select('id, address, landlord_id').eq('id', propertyId).maybeSingle();
+          .from('landlord_properties').select('id, address, landlord_id, status, tenant_name, tenant_phone, tenant_telegram_user_id').eq('id', propertyId).maybeSingle();
         if (!property) {
           await sendMessage(BOT_TOKEN, chatId, `Hmm, that link doesn't seem to work ${firstName}. Could you double-check with your landlord?`);
+          return new Response('OK');
+        }
+
+        // If property is already rented and has no tenant claimed yet, claim this user as the tenant.
+        if (property.status === 'rented' && !property.tenant_telegram_user_id) {
+          await supabase.from('landlord_properties').update({
+            tenant_telegram_user_id: telegramUserId,
+            tenant_telegram_chat_id: chatId,
+            tenant_name: property.tenant_name || (message.from?.first_name && message.from?.last_name ? `${message.from.first_name} ${message.from.last_name}` : firstName),
+          }).eq('id', property.id);
+          await sendMessage(BOT_TOKEN, chatId,
+            `Hey ${firstName}! I'm your assistant for ${property.address}. Hope you enjoy your stay! Ask me anything about the place — wifi, heating, waste schedule, contract terms, maintenance contacts, you name it.`);
+          return new Response('OK');
+        }
+
+        // If property is rented and already has a different tenant, decline.
+        if (property.status === 'rented') {
+          await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! This property is already occupied. If you're the tenant and this is wrong, please ask your landlord to update your contact details.`);
           return new Response('OK');
         }
 
