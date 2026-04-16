@@ -895,7 +895,13 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
   const useLang = (lang === 'en' || lang === 'nl') ? lang : 'en';
 
   if (stage === 'name') {
-    const name = text.trim();
+    const name = extractName(text);
+    if (!name) {
+      await sendMessage(token, chatId, useLang === 'nl'
+        ? "Sorry, ik kon je naam niet herkennen. Kun je alleen je volledige naam typen? Bijvoorbeeld: Jan de Vries"
+        : "Sorry, I couldn't catch your name. Could you just type your full name? For example: John Smith");
+      return;
+    }
     const first = name.split(' ')[0];
     await supabase.from('applicants').update({ full_name: name, stage: 'q_occupants' }).eq('id', applicant.id);
     const firstQ = SCREENING_QUESTIONS[0];
