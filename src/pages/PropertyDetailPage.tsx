@@ -326,6 +326,21 @@ export default function PropertyDetailPage() {
             </div>
           </motion.div>
         )}
+
+        {activeTab === documentsTabIndex && (
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
+            <div className="glass-card rounded-2xl p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                <h3 className="font-medium text-foreground text-sm">Property documents</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Upload house manuals, wifi info, appliance guides, or contracts. The AI assistant uses these to answer tenant questions.
+              </p>
+              <PropertyKnowledgeBaseManager propertyId={property.id} compact onChange={() => fetchData()} />
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
