@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Plus, X, Share2 } from 'lucide-react';
+import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Plus, X, Share2, FileText } from 'lucide-react';
+import PropertyKnowledgeBaseManager from '@/components/PropertyKnowledgeBaseManager';
 import { toast as sonnerToast } from 'sonner';
 
 interface ViewingSlot {
@@ -102,8 +103,9 @@ export default function PropertyDetailPage() {
   const viewingSlots: ViewingSlot[] = (property.viewing_slots as ViewingSlot[]) || [];
 
   const tabs = isRented
-    ? [{ label: 'Overview' }, { label: 'Tenant' }]
-    : [{ label: 'Overview' }, { label: 'Applicants' }, { label: t('detail.viewing_slots') }];
+    ? [{ label: 'Overview' }, { label: 'Tenant' }, { label: 'Documents' }]
+    : [{ label: 'Overview' }, { label: 'Applicants' }, { label: t('detail.viewing_slots') }, { label: 'Documents' }];
+  const documentsTabIndex = isRented ? 2 : 3;
 
   return (
     <div className="pb-8">
@@ -321,6 +323,21 @@ export default function PropertyDetailPage() {
                   </Button>
                 </motion.div>
               </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === documentsTabIndex && (
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
+            <div className="glass-card rounded-2xl p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                <h3 className="font-medium text-foreground text-sm">Property documents</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Upload house manuals, wifi info, appliance guides, or contracts. The AI assistant uses these to answer tenant questions.
+              </p>
+              <PropertyKnowledgeBaseManager propertyId={property.id} compact onChange={() => fetchData()} />
             </div>
           </motion.div>
         )}
