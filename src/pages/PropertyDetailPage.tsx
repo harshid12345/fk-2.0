@@ -26,6 +26,7 @@ export default function PropertyDetailPage() {
   const [markRentedOpen, setMarkRentedOpen] = useState(false);
 
   const [tenantName, setTenantName] = useState('');
+  const [tenantPhone, setTenantPhone] = useState('');
   const [tenantContractStart, setTenantContractStart] = useState('');
   const [tenantMonthlyRent, setTenantMonthlyRent] = useState('');
   const [tenantDeposit, setTenantDeposit] = useState('');
@@ -40,6 +41,7 @@ export default function PropertyDetailPage() {
     if (prop) {
       setProperty(prop);
       setTenantName(prop.tenant_name || '');
+      setTenantPhone(prop.tenant_phone || '');
       setTenantContractStart(prop.tenant_contract_start || '');
       setTenantMonthlyRent(prop.tenant_monthly_rent?.toString() || '');
       setTenantDeposit(prop.tenant_deposit?.toString() || '');
@@ -51,14 +53,34 @@ export default function PropertyDetailPage() {
 
   const saveTenant = async () => {
     if (!id) return;
+    const phoneChanged = (tenantPhone || null) !== (property?.tenant_phone || null);
     await supabase.from('landlord_properties').update({
       tenant_name: tenantName || null,
+      tenant_phone: tenantPhone || null,
       tenant_contract_start: tenantContractStart || null,
       tenant_monthly_rent: parseFloat(tenantMonthlyRent) || null,
       tenant_deposit: parseFloat(tenantDeposit) || null,
     }).eq('id', id);
     toast({ title: t('detail.tenant_saved') });
-    fetchData();
+    await fetchData();
+    // If a new phone was just added/changed, immediately offer to text the tenant the bot intro.
+    if (phoneChanged && tenantPhone.trim() && property?.address) {
+      sendTelegramIntro(tenantPhone, tenantName || 'there', property.address, id);
+    }
+  };
+
+  const sendTelegramIntro = (phone: string, name: string, address: string, propId: string) => {
+    const link = `https://t.me/fairkamer_screen_bot?start=${propId}`;
+    const first = (name || 'there').split(' ')[0];
+    const msg = `Hey ${first}! Your landlord set up FairKamer for ${address}. I'm your AI assistant — I can help with wifi, heating, house rules, contract questions, maintenance contacts, and anything about the place.\n\nTap to open our chat on Telegram and say hi:\n${link}`;
+    const cleaned = phone.replace(/[^\d]/g, '');
+    navigator.clipboard.writeText(msg).catch(() => {});
+    if (cleaned) {
+      window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+      sonnerToast.success('WhatsApp opened with the Telegram intro');
+    } else {
+      sonnerToast.success('Intro message copied');
+    }
   };
 
   const deleteProperty = async () => {
@@ -213,6 +235,11 @@ export default function PropertyDetailPage() {
                 <Input value={tenantName} onChange={e => setTenantName(e.target.value)} placeholder="Full name" className="bg-accent/50 border-border/50" />
               </div>
               <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Tenant phone (WhatsApp / Telegram)</Label>
+                <Input value={tenantPhone} onChange={e => setTenantPhone(e.target.value)} placeholder="+31 6 1234 5678" inputMode="tel" className="bg-accent/50 border-border/50" />
+                <p className="text-[11px] text-muted-foreground">We'll text them the Telegram bot link so they can chat with their AI assistant.</p>
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">{t('detail.contract_start')}</Label>
                 <Input type="date" value={tenantContractStart} onChange={e => setTenantContractStart(e.target.value)} className="bg-accent/50 border-border/50" />
               </div>
@@ -227,9 +254,29 @@ export default function PropertyDetailPage() {
                 </div>
               </div>
             </div>
-            <motion.div whileTap={{ scale: 0.97 }}>
-              <Button onClick={saveTenant} className="w-full h-10 rounded-xl text-sm font-medium">{t('detail.save_tenant')}</Button>
-            </motion.div>
+            <div className="flex flex-col gap-2">
+              <motion.div whileTap={{ scale: 0.97 }}>
+                <Button onClick={saveTenant} className="w-full h-10 rounded-xl text-sm font-medium">{t('detail.save_tenant')}</Button>
+              </motion.div>
+              <motion.div whileTap={{ scale: 0.97 }}>
+                <Button
+                  onClick={() => {
+                    if (!tenantPhone.trim()) {
+                      toast({ title: 'Add a phone first', description: 'Enter the tenant\'s phone number, save, and we\'ll text them the Telegram bot link.', variant: 'destructive' });
+                      return;
+                    }
+                    sendTelegramIntro(tenantPhone, tenantName, property.address, property.id);
+                  }}
+                  variant="outline"
+                  className="w-full h-10 rounded-xl text-sm font-medium gap-2"
+                >
+                  <MessageCircle className="w-4 h-4" /> Send Telegram intro to tenant
+                </Button>
+              </motion.div>
+              {property.tenant_telegram_user_id && (
+                <p className="text-[11px] text-success text-center">Tenant has connected to the bot</p>
+              )}
+            </div>
           </motion.div>
         )}
 
