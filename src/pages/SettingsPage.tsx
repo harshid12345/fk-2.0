@@ -85,7 +85,6 @@ export default function SettingsPage() {
     supabase.from('landlords').select('*').eq('id', user.id).single().then(({ data }: any) => {
       if (data) {
         setFullName(data.full_name || ''); setPhone(data.phone || ''); setEmail(data.email || '');
-        if (data.apify_token) { setApifyToken(data.apify_token); setApifyConfigured(true); }
       }
     });
     supabase.from('landlord_properties').select('id, address, city').then(({ data }) => { setProperties(data || []); });
