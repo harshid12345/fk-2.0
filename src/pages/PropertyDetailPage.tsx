@@ -235,6 +235,11 @@ export default function PropertyDetailPage() {
                 <Input value={tenantName} onChange={e => setTenantName(e.target.value)} placeholder="Full name" className="bg-accent/50 border-border/50" />
               </div>
               <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Tenant phone (WhatsApp / Telegram)</Label>
+                <Input value={tenantPhone} onChange={e => setTenantPhone(e.target.value)} placeholder="+31 6 1234 5678" inputMode="tel" className="bg-accent/50 border-border/50" />
+                <p className="text-[11px] text-muted-foreground">We'll text them the Telegram bot link so they can chat with their AI assistant.</p>
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">{t('detail.contract_start')}</Label>
                 <Input type="date" value={tenantContractStart} onChange={e => setTenantContractStart(e.target.value)} className="bg-accent/50 border-border/50" />
               </div>
@@ -249,9 +254,29 @@ export default function PropertyDetailPage() {
                 </div>
               </div>
             </div>
-            <motion.div whileTap={{ scale: 0.97 }}>
-              <Button onClick={saveTenant} className="w-full h-10 rounded-xl text-sm font-medium">{t('detail.save_tenant')}</Button>
-            </motion.div>
+            <div className="flex flex-col gap-2">
+              <motion.div whileTap={{ scale: 0.97 }}>
+                <Button onClick={saveTenant} className="w-full h-10 rounded-xl text-sm font-medium">{t('detail.save_tenant')}</Button>
+              </motion.div>
+              <motion.div whileTap={{ scale: 0.97 }}>
+                <Button
+                  onClick={() => {
+                    if (!tenantPhone.trim()) {
+                      toast({ title: 'Add a phone first', description: 'Enter the tenant\'s phone number, save, and we\'ll text them the Telegram bot link.', variant: 'destructive' });
+                      return;
+                    }
+                    sendTelegramIntro(tenantPhone, tenantName, property.address, property.id);
+                  }}
+                  variant="outline"
+                  className="w-full h-10 rounded-xl text-sm font-medium gap-2"
+                >
+                  <MessageCircle className="w-4 h-4" /> Send Telegram intro to tenant
+                </Button>
+              </motion.div>
+              {property.tenant_telegram_user_id && (
+                <p className="text-[11px] text-success text-center">Tenant has connected to the bot</p>
+              )}
+            </div>
           </motion.div>
         )}
 
