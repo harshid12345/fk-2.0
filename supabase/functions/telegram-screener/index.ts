@@ -888,6 +888,43 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
 // ═══════════════════════════════════════════
 // TEXT MESSAGE HANDLER
 // ═══════════════════════════════════════════
+// NAME EXTRACTION — strip conversational filler so we don't store
+// "my name is John" as the full name.
+// ═══════════════════════════════════════════
+function extractName(raw: string): string | null {
+  let s = (raw || '').trim().replace(/[.!?,;:"']+$/g, '').trim();
+  if (!s) return null;
+
+  // Try common intro patterns first (EN + NL).
+  const patterns = [
+    /^(?:my\s+name\s+is|i\s*am|i'm|im|this\s+is|name['’]?s|call\s+me|they\s+call\s+me)\s+(.+)$/i,
+    /^(?:mijn\s+naam\s+is|ik\s+ben|ik\s+heet|men\s+noemt\s+mij|noem\s+mij)\s+(.+)$/i,
+    /^(?:hi|hello|hey|hoi|hallo)[,!\s]+(?:my\s+name\s+is|i\s*am|i'm|im|mijn\s+naam\s+is|ik\s+ben|ik\s+heet)\s+(.+)$/i,
+  ];
+  for (const p of patterns) {
+    const m = s.match(p);
+    if (m && m[1]) { s = m[1].trim().replace(/[.!?,;:"']+$/g, '').trim(); break; }
+  }
+
+  // Drop trailing filler like "and i'm 25", "uit Amsterdam"
+  s = s.split(/\s+(?:and|en)\s+/i)[0].trim();
+
+  // Keep only the first 4 word-tokens that look like name parts.
+  const tokens = s.split(/\s+/).filter(Boolean).slice(0, 4);
+  // Reject if it's clearly not a name (numbers, urls, very long single token)
+  if (!tokens.length) return null;
+  if (tokens.some(t => /https?:\/\/|@|\d/.test(t))) return null;
+  const cleaned = tokens
+    .map(t => t.replace(/[^\p{L}\-']/gu, ''))
+    .filter(Boolean)
+    .map(t => t.charAt(0).toUpperCase() + t.slice(1));
+  if (!cleaned.length) return null;
+  const joined = cleaned.join(' ');
+  if (joined.length < 2 || joined.length > 60) return null;
+  return joined;
+}
+
+// ═══════════════════════════════════════════
 async function handleTextMessage(supabase: any, token: string, chatId: number, applicant: any, text: string) {
   const stage = applicant.stage;
   const firstName = (applicant.full_name || 'there').split(' ')[0];
