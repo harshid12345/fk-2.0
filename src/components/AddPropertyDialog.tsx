@@ -22,8 +22,10 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<'status' | 'property' | 'preferences'>('status');
+  const [step, setStep] = useState<'status' | 'property' | 'preferences' | 'knowledge'>('status');
   const [status, setStatus] = useState<'rented' | 'seeking'>('seeking');
+  const [createdPropertyId, setCreatedPropertyId] = useState<string | null>(null);
+  const [kbCount, setKbCount] = useState(0);
 
   // Block 1: Property fields
   const [address, setAddress] = useState('');
