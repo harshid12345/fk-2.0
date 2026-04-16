@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
-import LandlordAvailabilityPro from '@/components/LandlordAvailabilityPro';
+
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Bot, MessageCircle, ArrowRight, Check, RotateCcw, Clock, Building2, User, ChevronDown, Link2, Trash2, Calendar, Shield, LogOut } from 'lucide-react';
+import { Copy, Bot, MessageCircle, ArrowRight, Check, RotateCcw, Building2, User, ChevronDown, Trash2, Shield, LogOut } from 'lucide-react';
 
 interface CriteriaState {
   preferred_gender: string;
@@ -66,7 +66,6 @@ export default function SettingsPage() {
   const [selectedPropertyForCriteria, setSelectedPropertyForCriteria] = useState<string | null>(null);
   const [criteriaCompleted, setCriteriaCompleted] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [showSchedule, setShowSchedule] = useState(false);
 
   const CRITERIA_QUESTIONS = [
     { key: 'preferred_gender', question: t('criteria.q_gender'), type: 'select', options: [{ value: 'any', label: t('criteria.no_pref') }, { value: 'male', label: t('criteria.male') }, { value: 'female', label: t('criteria.female') }] },
@@ -180,36 +179,7 @@ export default function SettingsPage() {
       </motion.div>
 
       <div className="px-5 space-y-3">
-        {/* ── VIEWING SCHEDULE — Primary action ── */}
-        <div className="glass-card rounded-2xl overflow-hidden">
-          <div className="p-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Calendar className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-foreground text-sm">Viewing schedule</p>
-                <p className="text-[11px] text-muted-foreground">Set when tenants can book property viewings. Syncs with your screening bot.</p>
-              </div>
-            </div>
-            {!showSchedule ? (
-              <motion.div whileTap={{ scale: 0.97 }}>
-                <Button onClick={() => setShowSchedule(true)} className="w-full h-12 rounded-xl text-sm font-medium">
-                  <Clock className="w-4 h-4 mr-2" /> Manage availability
-                </Button>
-              </motion.div>
-            ) : (
-              <div className="space-y-3">
-                <LandlordAvailabilityPro />
-                <Button variant="outline" onClick={() => setShowSchedule(false)} className="w-full h-9 rounded-xl text-xs">
-                  Collapse
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── TENANT CRITERIA — Secondary action ── */}
+        {/* ── TENANT CRITERIA — Primary action ── */}
         <div className="glass-card rounded-2xl overflow-hidden">
           <div className="p-4 space-y-3">
             <div className="flex items-center gap-3">
