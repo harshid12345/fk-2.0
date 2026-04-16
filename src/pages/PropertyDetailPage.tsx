@@ -23,6 +23,7 @@ export default function PropertyDetailPage() {
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
+  const [markRentedOpen, setMarkRentedOpen] = useState(false);
 
   const [tenantName, setTenantName] = useState('');
   const [tenantContractStart, setTenantContractStart] = useState('');
