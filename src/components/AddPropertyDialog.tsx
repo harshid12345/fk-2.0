@@ -167,6 +167,8 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
     setMaxOccupants('1'); setSmokingAllowed('No'); setPetsAllowed('No');
     setAcceptedTypes(['Working professional']); setMinIncome('');
     setReferencesRequired(false);
+    setCreatedPropertyId(null);
+    setKbCount(0);
     setStep('status');
   };
 
