@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Bot, MessageCircle, ArrowRight, Check, RotateCcw, Building2, User, ChevronDown, Trash2, Shield, LogOut } from 'lucide-react';
+import { Copy, Bot, MessageCircle, ArrowRight, Check, RotateCcw, Building2, User, ChevronDown, Trash2, Shield, LogOut, HelpCircle, Mail, PlayCircle, Info } from 'lucide-react';
 
 interface CriteriaState {
   preferred_gender: string;
@@ -257,25 +257,91 @@ export default function SettingsPage() {
         </CollapsibleSection>
 
 
-        <CollapsibleSection id="bots" icon={Bot} title="Telegram bots" expanded={expandedSection === 'bots'} onToggle={() => toggleSection('bots')}>
-          <div className="space-y-2">
+        <CollapsibleSection id="how" icon={PlayCircle} title="How the app works" subtitle="Replay the intro tour" expanded={expandedSection === 'how'} onToggle={() => toggleSection('how')}>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Watch the same walkthrough that appeared the first time you opened FairKamer.
+            </p>
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Button
+                onClick={() => {
+                  localStorage.removeItem('fk_onboarding_completed_v1');
+                  window.location.reload();
+                }}
+                className="w-full h-10 rounded-xl text-sm"
+              >
+                <PlayCircle className="w-4 h-4 mr-2" /> Replay intro tour
+              </Button>
+            </motion.div>
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection id="faq" icon={HelpCircle} title="FAQ" subtitle="Common questions" expanded={expandedSection === 'faq'} onToggle={() => toggleSection('faq')}>
+          <div className="space-y-3 text-xs">
             {[
-              { icon: Bot, name: t('settings.screening_bot'), desc: t('settings.screening_desc'), link: 'https://t.me/FairKamerBot' },
-              { icon: MessageCircle, name: t('settings.concierge_bot'), desc: t('settings.concierge_desc'), link: 'https://t.me/FairKamerConcierge' },
-            ].map((bot) => (
-              <div key={bot.name} className="flex items-center justify-between p-3 rounded-xl bg-accent">
-                <div className="flex items-center gap-3">
-                  <bot.icon className="w-4 h-4 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{bot.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{bot.desc}</p>
-                  </div>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(bot.link); toast({ title: 'Copied' }); }} className="h-8 w-8 p-0 rounded-lg">
-                  <Copy className="w-3.5 h-3.5" />
-                </Button>
+              {
+                q: 'How do applicants reach the screening bot?',
+                a: 'Open any property on the Properties tab, tap the link icon, and the message with your bot link is copied. Paste it into your Funda or Marktplaats reply.',
+              },
+              {
+                q: 'How are match scores calculated?',
+                a: 'Each applicant is scored on tenant criteria, financial fit (income vs. rent), and verifiable signals from their socials. Disqualifiers like smoking when not allowed mark them automatically.',
+              },
+              {
+                q: 'When are viewing reminders sent?',
+                a: 'Tenants get an automatic Telegram reminder 48h, 24h, and 2h before their viewing. You receive an in-app notification if delivery fails.',
+              },
+              {
+                q: 'Where do I set my viewing availability?',
+                a: 'Go to the Calendar tab. Toggle days on, set start and end times, and the bot uses those slots when offering times to applicants.',
+              },
+              {
+                q: 'How do I update tenant criteria for one specific property?',
+                a: 'Disable "Same for all" in the Tenant criteria card above, then pick the property to customise.',
+              },
+            ].map((item, i) => (
+              <div key={i} className="rounded-xl bg-accent p-3">
+                <p className="font-medium text-foreground mb-1">{item.q}</p>
+                <p className="text-muted-foreground leading-relaxed">{item.a}</p>
               </div>
             ))}
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection id="contact" icon={Mail} title="Contact us" subtitle="Get help or share feedback" expanded={expandedSection === 'contact'} onToggle={() => toggleSection('contact')}>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Questions, bug reports, or feature requests — we read every message.
+            </p>
+            <a
+              href="mailto:support@fairkamer.nl?subject=FairKamer%20support%20request"
+              className="flex items-center justify-between p-3 rounded-xl bg-accent hover:bg-accent/80 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Mail className="w-4 h-4 text-primary" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">support@fairkamer.nl</p>
+                  <p className="text-[10px] text-muted-foreground">Replies within 1 business day</p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-muted-foreground" />
+            </a>
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection id="about" icon={Info} title="About & legal" subtitle="Version, terms, privacy" expanded={expandedSection === 'about'} onToggle={() => toggleSection('about')}>
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <p>FairKamer helps Dutch landlords screen and schedule tenants fairly under AVG/GDPR.</p>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <div className="rounded-xl bg-accent p-2.5">
+                <p className="text-[10px]">Version</p>
+                <p className="text-foreground font-medium">1.0.0</p>
+              </div>
+              <div className="rounded-xl bg-accent p-2.5">
+                <p className="text-[10px]">Region</p>
+                <p className="text-foreground font-medium">Netherlands</p>
+              </div>
+            </div>
           </div>
         </CollapsibleSection>
 
