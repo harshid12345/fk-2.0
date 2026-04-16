@@ -1116,7 +1116,7 @@ async function handleAIResponse(supabase: any, token: string, chatId: number, ap
     }
 
     const { data: property } = await supabase.from('landlord_properties')
-      .select('address, city, rent_amount, surface_m2, num_rooms, property_type, accommodation_type, building_year, energy_label, furnished_status, available_date, min_lease_length, postcode')
+      .select('address, city, rent_amount, surface_m2, num_rooms, property_type, accommodation_type, building_year, energy_label, furnished_status, available_date, min_lease_length, postcode, knowledge_base_text')
       .eq('id', applicant.property_id).maybeSingle();
 
     const { data: booking } = await supabase.from('viewing_bookings')
@@ -1177,13 +1177,17 @@ PROPERTY INFO:
 ${propertyContext || 'No property details available yet.'}
 ${bookingContext}
 
+${property?.knowledge_base_text ? `PROPERTY KNOWLEDGE BASE (uploaded by the landlord — use this to answer specific questions about wifi, appliances, house rules, contract terms, etc.):
+${property.knowledge_base_text}
+` : ''}
 TENANT STATUS: ${stageContext}
 
 LANGUAGE: ${langInstruction}
 
 RULES:
-- Answer questions about the property using the info above
-- If you don't have info the tenant asks about, say something like "Good question! I don't have that detail handy — I'd suggest asking the landlord directly during the viewing."
+- Answer questions about the property using the info and knowledge base above
+- Quote specifics verbatim (wifi passwords, codes, numbers) — never paraphrase them
+- If you don't have info the tenant asks about, say something like "Good question! I don't have that detail handy — I'd suggest asking the landlord directly."
 - If they want to cancel, ask them to confirm with the cancel button
 - If they ask about their application status, use the tenant status above
 - NEVER make up property details you don't have
