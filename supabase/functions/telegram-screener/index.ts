@@ -1317,6 +1317,95 @@ RULES:
 }
 
 // ═══════════════════════════════════════════
+// TENANT CONCIERGE (post-contract)
+// ═══════════════════════════════════════════
+async function handleTenantConcierge(supabase: any, token: string, chatId: number, property: any, userText: string) {
+  const tenantFirst = (property.tenant_name || 'there').split(' ')[0];
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+
+  if (!LOVABLE_API_KEY) {
+    await sendMessage(token, chatId, `Hey ${tenantFirst}! I'm temporarily offline — please reach out to your landlord directly.`);
+    return;
+  }
+
+  // Issue / maintenance keywords → log a tenant_issue so the landlord sees it.
+  const issueWords = ['broken', 'leak', 'leaking', 'not working', "doesn't work", 'doesnt work', 'no hot water', 'no heating', 'mold', 'mould', 'urgent', 'emergency', 'kapot', 'lekt', 'werkt niet', 'storing'];
+  const lower = userText.toLowerCase();
+  const looksLikeIssue = issueWords.some(w => lower.includes(w));
+  if (looksLikeIssue) {
+    try {
+      await supabase.from('tenant_issues').insert({
+        property_id: property.id,
+        message: userText,
+        tenant_name: property.tenant_name || null,
+        telegram_user_id: property.tenant_telegram_user_id || null,
+        category: 'needs_attention',
+      });
+    } catch (e) {
+      console.error('[tenant-concierge] issue log failed', e);
+    }
+  }
+
+  const details: string[] = [];
+  if (property.address) details.push(`Address: ${property.address}`);
+  if (property.city) details.push(`City: ${property.city}`);
+  if (property.postcode) details.push(`Postcode: ${property.postcode}`);
+  if (property.tenant_monthly_rent || property.rent_amount) details.push(`Rent: \u20AC${property.tenant_monthly_rent || property.rent_amount}/month`);
+  if (property.tenant_deposit) details.push(`Deposit: \u20AC${property.tenant_deposit}`);
+  if (property.tenant_contract_start) details.push(`Contract start: ${property.tenant_contract_start}`);
+  if (property.surface_m2) details.push(`Surface: ${property.surface_m2}m\u00B2`);
+  if (property.energy_label) details.push(`Energy label: ${property.energy_label}`);
+
+  const systemPrompt = `You are the post-contract concierge assistant for a tenant who is currently living at this property. You speak with them via Telegram.
+
+Your personality:
+- Warm, casual, helpful — like texting a friend who knows the building inside out
+- Use the tenant's first name (${tenantFirst})
+- Keep responses SHORT (2-4 sentences). This is Telegram, not email.
+- Do NOT use emojis. Keep it professional and clean.
+
+PROPERTY (the tenant lives here):
+${details.join('\n')}
+
+${property.knowledge_base_text ? `PROPERTY KNOWLEDGE BASE (uploaded by the landlord — house rules, wifi, appliances, contract terms, contacts, etc.):
+${property.knowledge_base_text}
+` : 'NOTE: No knowledge base has been uploaded yet. If asked something specific, tell them honestly you don\'t have that detail and suggest contacting the landlord.'}
+
+RULES:
+- This person is the CURRENT TENANT, not an applicant. Never ask screening questions, never mention "applications" or "viewings".
+- Quote specifics verbatim (wifi passwords, codes, contact numbers) — never paraphrase.
+- For maintenance issues (leaks, broken things, no heating, etc.) acknowledge it warmly, tell them you've logged it for the landlord, and share any relevant emergency contact from the knowledge base.
+- If you don't have info, say so honestly and suggest contacting the landlord.
+- Reply in the language the tenant writes in (English or Dutch).
+- Plain text only. No markdown headers.`;
+
+  try {
+    const response = await fetch(AI_GATEWAY, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userText },
+        ],
+      }),
+    });
+    if (!response.ok) {
+      console.error('[tenant-concierge] AI error', response.status, await response.text());
+      await sendMessage(token, chatId, `Hey ${tenantFirst}! I'm having a hiccup — please try again in a moment, or reach out to your landlord directly.`);
+      return;
+    }
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content?.trim();
+    await sendMessage(token, chatId, reply || `Hey ${tenantFirst}! I'm here — could you rephrase that?`);
+  } catch (err) {
+    console.error('[tenant-concierge] error', err);
+    await sendMessage(token, chatId, `Hey ${tenantFirst}! I'm having trouble reaching the system. Please try again shortly.`);
+  }
+}
+
+// ═══════════════════════════════════════════
 // TELEGRAM HELPERS
 // ═══════════════════════════════════════════
 async function sendMessage(token: string, chatId: number, text: string, extra?: any) {
