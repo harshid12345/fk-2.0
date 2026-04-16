@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Plus, X, Share2, FileText } from 'lucide-react';
+import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Share2, FileText } from 'lucide-react';
 import PropertyKnowledgeBaseManager from '@/components/PropertyKnowledgeBaseManager';
 import { toast as sonnerToast } from 'sonner';
 
@@ -33,8 +33,6 @@ export default function PropertyDetailPage() {
   const [tenantDeposit, setTenantDeposit] = useState('');
   const [applicants, setApplicants] = useState<any[]>([]);
 
-  const [newSlotLabel, setNewSlotLabel] = useState('');
-  const [newSlotDatetime, setNewSlotDatetime] = useState('');
 
   useEffect(() => { fetchData(); }, [id, user]);
 
@@ -72,25 +70,6 @@ export default function PropertyDetailPage() {
     navigate('/properties');
   };
 
-  const addViewingSlot = async () => {
-    if (!id || !newSlotLabel || !newSlotDatetime) return;
-    const slots: ViewingSlot[] = (property?.viewing_slots as ViewingSlot[]) || [];
-    const updated = [...slots, { label: newSlotLabel, datetime: newSlotDatetime }];
-    await supabase.from('landlord_properties').update({ viewing_slots: updated as any }).eq('id', id);
-    setNewSlotLabel('');
-    setNewSlotDatetime('');
-    toast({ title: t('detail.slot_added') });
-    fetchData();
-  };
-
-  const removeViewingSlot = async (index: number) => {
-    if (!id) return;
-    const slots: ViewingSlot[] = (property?.viewing_slots as ViewingSlot[]) || [];
-    const updated = slots.filter((_, i) => i !== index);
-    await supabase.from('landlord_properties').update({ viewing_slots: updated as any }).eq('id', id);
-    toast({ title: t('detail.slot_removed') });
-    fetchData();
-  };
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
