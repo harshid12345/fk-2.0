@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Share2, FileText } from 'lucide-react';
+import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Share2, FileText, KeyRound, MessageCircle } from 'lucide-react';
 import PropertyKnowledgeBaseManager from '@/components/PropertyKnowledgeBaseManager';
+import MarkAsRentedDialog from '@/components/MarkAsRentedDialog';
 import { toast as sonnerToast } from 'sonner';
 
 
@@ -22,6 +23,7 @@ export default function PropertyDetailPage() {
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
+  const [markRentedOpen, setMarkRentedOpen] = useState(false);
 
   const [tenantName, setTenantName] = useState('');
   const [tenantContractStart, setTenantContractStart] = useState('');
@@ -106,13 +108,43 @@ export default function PropertyDetailPage() {
             <p className="text-sm text-muted-foreground">{property.city} · {property.postcode}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center justify-between gap-2">
           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium ${
             isRented ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
           }`}>
             {isRented ? <Home className="w-3 h-3" /> : <Users className="w-3 h-3" />}
             {isRented ? t('properties.rented') : t('properties.seeking')}
           </span>
+          {isRented ? (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                const link = `https://t.me/fairkamer_screen_bot?start=${property.id}`;
+                const tenantFirst = (property.tenant_name || 'there').split(' ')[0];
+                const msg = `Hey ${tenantFirst}! Just a reminder — your AI assistant for ${property.address} is here to help with wifi, heating, house rules, contract questions and anything else about the place.\n\nTap to start chatting:\n${link}`;
+                if (property.tenant_phone) {
+                  const cleaned = String(property.tenant_phone).replace(/[^\d]/g, '');
+                  navigator.clipboard.writeText(msg).catch(() => {});
+                  window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+                  sonnerToast.success('WhatsApp opened with the tenant message');
+                } else {
+                  navigator.clipboard.writeText(msg);
+                  sonnerToast.success('Concierge message copied');
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-primary text-primary-foreground"
+            >
+              <MessageCircle className="w-3.5 h-3.5" /> Send concierge link
+            </motion.button>
+          ) : (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setMarkRentedOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-success text-success-foreground"
+            >
+              <KeyRound className="w-3.5 h-3.5" /> Mark as rented
+            </motion.button>
+          )}
         </div>
       </motion.div>
 
@@ -275,6 +307,15 @@ export default function PropertyDetailPage() {
           </motion.div>
         )}
       </div>
+
+      <MarkAsRentedDialog
+        open={markRentedOpen}
+        onOpenChange={setMarkRentedOpen}
+        propertyId={property.id}
+        propertyAddress={property.address}
+        defaultName={property.tenant_name || ''}
+        onMarked={fetchData}
+      />
     </div>
   );
 }

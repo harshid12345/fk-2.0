@@ -232,8 +232,12 @@ export type Database = {
           surface_m2: number | null
           tenant_contract_start: string | null
           tenant_deposit: number | null
+          tenant_email: string | null
           tenant_monthly_rent: number | null
           tenant_name: string | null
+          tenant_phone: string | null
+          tenant_telegram_chat_id: number | null
+          tenant_telegram_user_id: string | null
           viewing_slots: Json | null
           wws_compliant: boolean | null
           wws_max_rent: number | null
@@ -263,8 +267,12 @@ export type Database = {
           surface_m2?: number | null
           tenant_contract_start?: string | null
           tenant_deposit?: number | null
+          tenant_email?: string | null
           tenant_monthly_rent?: number | null
           tenant_name?: string | null
+          tenant_phone?: string | null
+          tenant_telegram_chat_id?: number | null
+          tenant_telegram_user_id?: string | null
           viewing_slots?: Json | null
           wws_compliant?: boolean | null
           wws_max_rent?: number | null
@@ -294,8 +302,12 @@ export type Database = {
           surface_m2?: number | null
           tenant_contract_start?: string | null
           tenant_deposit?: number | null
+          tenant_email?: string | null
           tenant_monthly_rent?: number | null
           tenant_name?: string | null
+          tenant_phone?: string | null
+          tenant_telegram_chat_id?: number | null
+          tenant_telegram_user_id?: string | null
           viewing_slots?: Json | null
           wws_compliant?: boolean | null
           wws_max_rent?: number | null
