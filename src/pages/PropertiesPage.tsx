@@ -187,22 +187,27 @@ export default function PropertiesPage() {
 
                   {/* Top-right action cluster */}
                   <div className="absolute top-3 right-3 flex items-center gap-1">
-                    {p.status !== 'rented' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const link = `https://t.me/fairkamer_screen_bot?start=${p.id}`;
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const link = `https://t.me/fairkamer_screen_bot?start=${p.id}`;
+                        if (p.status === 'rented') {
+                          const tenantFirst = (p.tenant_name || 'there').split(' ')[0];
+                          const msg = `Hey ${tenantFirst}! Your AI assistant for ${p.address} is here to help with wifi, heating, house rules, contract questions and anything else about the place.\n\nTap to start chatting:\n${link}`;
+                          navigator.clipboard.writeText(msg);
+                          sonnerToast.success('Concierge link copied');
+                        } else {
                           const msg = `Hi! I use FairKamer to screen tenants for my property at ${p.address}.\n\nIt takes about 5 minutes and helps you stand out from other applicants. Click the link below to get started:\n\n${link}`;
                           navigator.clipboard.writeText(msg);
                           sonnerToast.success('Screening link copied');
-                        }}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        aria-label="Copy screening bot link"
-                        title="Copy screening bot link"
-                      >
-                        <Link2 className="w-4 h-4" />
-                      </button>
-                    )}
+                        }
+                      }}
+                      className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      aria-label={p.status === 'rented' ? 'Copy tenant concierge link' : 'Copy screening bot link'}
+                      title={p.status === 'rented' ? 'Copy tenant concierge link' : 'Copy screening bot link'}
+                    >
+                      <Link2 className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); setKbDialog({ id: p.id, address: p.address }); }}
                       className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
