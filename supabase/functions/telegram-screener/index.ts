@@ -34,7 +34,7 @@ const TRANSLATIONS: Record<string, Record<string, any>> = {
     bkr_clean: "No, all good", bkr_yes: "Yes, I can explain",
     consent_msg: (name: string) => `Alright ${name}, almost done! By continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nJust type <b>"I agree"</b> and we'll wrap up.`,
     consent_remind: (name: string) => `Just type <b>"I agree"</b> to continue, ${name}.`,
-    social_ask: (name: string) => `Thanks ${name}!\n\nOne more optional thing — if you share your Instagram handle, it helps the landlord get a better sense of who you are.\n\nDrop your handle (like @yourname) or skip it.`,
+    social_ask: (name: string) => `Thanks ${name}!\n\nOne last optional step — paste a link to your <b>LinkedIn</b>, <b>Instagram</b>, or <b>Facebook</b> profile. It helps the landlord get a sense of who you are.\n\nJust paste the full URL, or tap skip.`,
     skip_social: "Skip this",
     done_msg: (name: string) => `You're all done ${name}! Your screening is complete and the landlord will review your profile. If they like what they see, I'll send you available viewing times right here.\n\nThanks for going through the process — fingers crossed!`,
     use_buttons: (name: string) => `Hey ${name}, could you use the buttons above to answer? It helps me keep track.`,
@@ -68,7 +68,7 @@ const TRANSLATIONS: Record<string, Record<string, any>> = {
     bkr_clean: "Nee, alles goed", bkr_yes: "Ja, ik kan het uitleggen",
     consent_msg: (name: string) => `Bijna klaar ${name}! Door verder te gaan, ga je ermee akkoord dat je gegevens mogen worden gebruikt om je aanvraag te verifiëren onder de AVG/GDPR.\n\nTyp <b>"Ik ga akkoord"</b> om af te ronden.`,
     consent_remind: (name: string) => `Typ <b>"Ik ga akkoord"</b> om verder te gaan, ${name}.`,
-    social_ask: (name: string) => `Bedankt ${name}!\n\nNog een optioneel ding — als je je Instagram-handle deelt, helpt dat de verhuurder om een beter beeld van je te krijgen.\n\nStuur je handle (bijv. @jouwNaam) of sla het over.`,
+    social_ask: (name: string) => `Bedankt ${name}!\n\nLaatste optionele stap — plak een link naar je <b>LinkedIn</b>, <b>Instagram</b> of <b>Facebook</b> profiel. Zo krijgt de verhuurder een beter beeld van je.\n\nPlak de volledige URL, of tik op overslaan.`,
     skip_social: "Overslaan",
     done_msg: (name: string) => `Je bent klaar ${name}! Je screening is voltooid en de verhuurder zal je profiel bekijken. Als ze enthousiast zijn, stuur ik je hier de beschikbare bezichtigingstijden.\n\nBedankt voor het doorlopen van het proces!`,
     use_buttons: (name: string) => `Hoi ${name}, kun je de knoppen hierboven gebruiken om te antwoorden?`,
@@ -920,7 +920,8 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
   }
 
   if (stage === 'socials') {
-    const handle = text.replace('@', '').trim();
+    // Accept any LinkedIn / Instagram / Facebook URL or handle. Store the raw text — the scrape function detects platform.
+    const handle = text.trim();
     await supabase.from('applicants').update({ social_handle: handle, stage: 'screening_complete' }).eq('id', applicant.id);
     await runMatchScoring(supabase, applicant.id);
     await sendMessage(token, chatId, tr(useLang, 'done_msg', firstName));

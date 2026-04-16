@@ -164,9 +164,30 @@ Deno.serve(async (req) => {
 
     const tenantName = applicant.full_name || '';
     const tenantCity = property?.city || 'Netherlands';
-    const tenantIG = applicant.social_handle || '';
+    const rawHandle = (applicant.social_handle || '').trim();
 
-    const allScrapedData: any = {};
+    // Detect which platform the applicant gave us (LinkedIn, Instagram or Facebook)
+    function detectPlatform(input: string): { platform: 'instagram' | 'linkedin' | 'facebook' | null; username: string } {
+      if (!input) return { platform: null, username: '' };
+      const lower = input.toLowerCase();
+      if (lower.includes('linkedin.com')) {
+        const m = input.match(/linkedin\.com\/(?:in|pub)\/([^/?#\s]+)/i);
+        return { platform: 'linkedin', username: m?.[1] || '' };
+      }
+      if (lower.includes('facebook.com') || lower.includes('fb.com')) {
+        const m = input.match(/(?:facebook\.com|fb\.com)\/([^/?#\s]+)/i);
+        return { platform: 'facebook', username: m?.[1] || '' };
+      }
+      if (lower.includes('instagram.com')) {
+        const m = input.match(/instagram\.com\/([^/?#\s]+)/i);
+        return { platform: 'instagram', username: m?.[1] || '' };
+      }
+      // Bare handle — default to Instagram
+      return { platform: 'instagram', username: input.replace('@', '').trim() };
+    }
+
+    const { platform: providedPlatform, username: providedUsername } = detectPlatform(rawHandle);
+    const allScrapedData: any = { providedProfile: rawHandle ? { platform: providedPlatform, username: providedUsername } : null };
 
     // SCRAPE 1: Social Media Finder
     console.log('Running Social Media Finder for:', tenantName);
@@ -177,8 +198,8 @@ Deno.serve(async (req) => {
     );
     allScrapedData.socialMediaFinder = finderResults;
 
-    // SCRAPE 2: Instagram Profile
-    let igUsername = tenantIG;
+    // SCRAPE 2: Instagram Profile (only if applicant gave IG, or finder discovered one)
+    let igUsername = providedPlatform === 'instagram' ? providedUsername : '';
     if (!igUsername && finderResults) {
       const igResult = finderResults?.find((r: any) => r.instagram);
       if (igResult?.instagram) {
