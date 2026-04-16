@@ -307,6 +307,15 @@ export default function PropertyDetailPage() {
           </motion.div>
         )}
       </div>
+
+      <MarkAsRentedDialog
+        open={markRentedOpen}
+        onOpenChange={setMarkRentedOpen}
+        propertyId={property.id}
+        propertyAddress={property.address}
+        defaultName={property.tenant_name || ''}
+        onMarked={fetchData}
+      />
     </div>
   );
 }
