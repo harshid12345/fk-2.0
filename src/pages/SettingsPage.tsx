@@ -66,9 +66,6 @@ export default function SettingsPage() {
   const [selectedPropertyForCriteria, setSelectedPropertyForCriteria] = useState<string | null>(null);
   const [criteriaCompleted, setCriteriaCompleted] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [apifyToken, setApifyToken] = useState('');
-  const [apifyLoading, setApifyLoading] = useState(false);
-  const [apifyConfigured, setApifyConfigured] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
 
   const CRITERIA_QUESTIONS = [
@@ -88,7 +85,6 @@ export default function SettingsPage() {
     supabase.from('landlords').select('*').eq('id', user.id).single().then(({ data }: any) => {
       if (data) {
         setFullName(data.full_name || ''); setPhone(data.phone || ''); setEmail(data.email || '');
-        if (data.apify_token) { setApifyToken(data.apify_token); setApifyConfigured(true); }
       }
     });
     supabase.from('landlord_properties').select('id, address, city').then(({ data }) => { setProperties(data || []); });
@@ -290,33 +286,6 @@ export default function SettingsPage() {
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection id="integrations" icon={Link2} title="Integrations" subtitle={apifyConfigured ? 'Connected' : 'Not configured'} expanded={expandedSection === 'integrations'} onToggle={() => toggleSection('integrations')}>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Apify API token</Label>
-              <div className="flex gap-2">
-                <Input type="password" value={apifyToken} onChange={e => setApifyToken(e.target.value)} placeholder="apify_api_..." />
-                <motion.div whileTap={{ scale: 0.97 }}>
-                  <Button
-                    onClick={async () => {
-                      if (!user || !apifyToken.trim()) return;
-                      setApifyLoading(true);
-                      await supabase.from('landlords').update({ apify_token: apifyToken.trim() } as any).eq('id', user.id);
-                      setApifyConfigured(true); setApifyLoading(false);
-                      toast({ title: 'Token saved' });
-                    }}
-                    disabled={apifyLoading || !apifyToken.trim()} size="sm" className="h-10 rounded-xl"
-                  >{apifyLoading ? '...' : 'Save'}</Button>
-                </motion.div>
-              </div>
-              <p className="text-[11px] text-muted-foreground">Enables automated tenant background checks. <a href="https://apify.com/account" target="_blank" rel="noopener noreferrer" className="text-primary underline">Get token</a></p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <div className={`w-2 h-2 rounded-full ${apifyConfigured ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
-                <span className="text-[11px] text-muted-foreground">{apifyConfigured ? 'Connected' : 'Not connected'}</span>
-              </div>
-            </div>
-          </div>
-        </CollapsibleSection>
 
         <CollapsibleSection id="bots" icon={Bot} title="Telegram bots" expanded={expandedSection === 'bots'} onToggle={() => toggleSection('bots')}>
           <div className="space-y-2">
