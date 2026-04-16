@@ -216,7 +216,7 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
             <Button variant="ghost" size="sm" onClick={() => setStep('status')} className="text-muted-foreground -ml-2">
               <ArrowLeft className="w-4 h-4 mr-1" /> Back
             </Button>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 1 of 2 — Property Details</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 1 of 3 — Property Details</p>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -340,12 +340,12 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
               Next: Tenant Preferences <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
-        ) : (
+        ) : step === 'preferences' ? (
           <div className="space-y-4">
             <Button variant="ghost" size="sm" onClick={() => setStep('property')} className="text-muted-foreground -ml-2">
               <ArrowLeft className="w-4 h-4 mr-1" /> Back
             </Button>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 2 of 2 — Tenant Preferences</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 2 of 3 — Tenant Preferences</p>
 
             <div className="space-y-2">
               <Label>Maximum number of occupants</Label>
