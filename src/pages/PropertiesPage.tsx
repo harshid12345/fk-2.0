@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Plus, Building2, MapPin, Home, Users, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { Plus, Building2, MapPin, Home, Users, TrendingUp, ArrowUpRight, Paperclip, AlertTriangle, BookOpen } from 'lucide-react';
 import AddPropertyDialog from '@/components/AddPropertyDialog';
+import PropertyKnowledgeBaseDialog from '@/components/PropertyKnowledgeBaseDialog';
 
 interface Property {
   id: string;
@@ -16,6 +17,7 @@ interface Property {
   tenant_name: string | null;
   accommodation_type: string | null;
   status: string;
+  knowledge_base_urls: string[] | null;
 }
 
 export default function PropertiesPage() {
@@ -25,8 +27,9 @@ export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [kbDialog, setKbDialog] = useState<{ id: string; address: string } | null>(null);
 
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
       .from('landlord_properties')
@@ -34,12 +37,15 @@ export default function PropertiesPage() {
       .order('created_at', { ascending: false });
     setProperties((data as Property[]) || []);
     setLoading(false);
-  };
+  }, [user]);
 
-  useEffect(() => { fetchProperties(); }, [user]);
+  useEffect(() => { fetchProperties(); }, [fetchProperties]);
 
   const totalRent = properties.reduce((sum, p) => sum + (p.rent_amount || 0), 0);
   const rentedCount = properties.filter(p => p.status === 'rented').length;
+
+  // "Pending tasks": occupied properties without any uploaded documents
+  const pendingKb = properties.filter(p => p.status === 'rented' && (!p.knowledge_base_urls || p.knowledge_base_urls.length === 0));
 
   return (
     <div className="pb-24">
@@ -67,6 +73,40 @@ export default function PropertiesPage() {
         </motion.div>
       )}
 
+      {/* Pending tasks: KB missing on occupied properties */}
+      {!loading && pendingKb.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="px-5 pb-4"
+        >
+          <div className="rounded-2xl border border-warning/30 bg-warning/5 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-warning" />
+              <p className="text-sm font-semibold text-foreground">Pending tasks</p>
+            </div>
+            {pendingKb.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setKbDialog({ id: p.id, address: p.address })}
+                className="w-full text-left flex items-start gap-2.5 p-2.5 rounded-xl bg-background/60 hover:bg-background transition-colors border border-border"
+              >
+                <BookOpen className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">
+                    {p.address} has no house manual
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Upload now to enable AI Concierge support.
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       <div className="px-5 space-y-3">
         {loading ? (
           [...Array(3)].map((_, i) => <div key={i} className="shimmer rounded-2xl h-36" />))
@@ -78,58 +118,84 @@ export default function PropertiesPage() {
           </motion.div>
         ) : (
           <AnimatePresence>
-            {properties.map((p, index) => (
-              <motion.div
-                key={p.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05, type: 'spring', damping: 25, stiffness: 250 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => navigate(`/properties/${p.id}`)}
-                className="glass-card rounded-2xl p-5 cursor-pointer active:ring-1 active:ring-primary/30 transition-shadow"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <Building2 className="w-5 h-5 text-primary" />
+            {properties.map((p, index) => {
+              const kbCount = p.knowledge_base_urls?.length || 0;
+              const kbMissing = p.status === 'rented' && kbCount === 0;
+              return (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05, type: 'spring', damping: 25, stiffness: 250 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="glass-card rounded-2xl p-5 active:ring-1 active:ring-primary/30 transition-shadow relative"
+                >
+                  {/* Card body acts as the navigation target */}
+                  <div onClick={() => navigate(`/properties/${p.id}`)} className="cursor-pointer">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <Building2 className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground text-sm truncate">{p.address}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3" /> {p.city || 'Unknown'}
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowUpRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-medium text-foreground text-sm truncate">{p.address}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" /> {p.city || 'Unknown'}
-                      </p>
+
+                    <div className="flex items-center flex-wrap gap-1.5 mb-3">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium ${
+                        p.status === 'rented' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
+                      }`}>
+                        {p.status === 'rented' ? <Home className="w-3 h-3" /> : <Users className="w-3 h-3" />}
+                        {p.status === 'rented' ? t('properties.rented') : t('properties.seeking')}
+                      </span>
+                      {kbMissing && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-warning/15 text-warning">
+                          <AlertTriangle className="w-3 h-3" /> Missing knowledge base
+                        </span>
+                      )}
+                      {kbCount > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-muted text-muted-foreground">
+                          <BookOpen className="w-3 h-3" /> {kbCount} doc{kbCount === 1 ? '' : 's'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-[11px] text-muted-foreground">{t('properties.rent')}</p>
+                        <p className="font-semibold text-foreground text-sm mt-0.5">€{p.rent_amount?.toFixed(0) || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground">{t('properties.surface')}</p>
+                        <p className="font-semibold text-foreground text-sm mt-0.5">{p.surface_m2 || '—'} m²</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground">{p.status === 'rented' ? t('properties.tenant') : 'Type'}</p>
+                        <p className="font-semibold text-foreground text-sm truncate mt-0.5">
+                          {p.status === 'rented' ? (p.tenant_name || '—') : (p.accommodation_type || '—')}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <ArrowUpRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
-                </div>
 
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium ${
-                    p.status === 'rented' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
-                  }`}>
-                    {p.status === 'rented' ? <Home className="w-3 h-3" /> : <Users className="w-3 h-3" />}
-                    {p.status === 'rented' ? t('properties.rented') : t('properties.seeking')}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-[11px] text-muted-foreground">{t('properties.rent')}</p>
-                    <p className="font-semibold text-foreground text-sm mt-0.5">€{p.rent_amount?.toFixed(0) || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground">{t('properties.surface')}</p>
-                    <p className="font-semibold text-foreground text-sm mt-0.5">{p.surface_m2 || '—'} m²</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground">{p.status === 'rented' ? t('properties.tenant') : t('properties.type')}</p>
-                    <p className="font-semibold text-foreground text-sm truncate mt-0.5">
-                      {p.status === 'rented' ? (p.tenant_name || '—') : (p.accommodation_type || '—')}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                  {/* Upload Info button — separate from the card click target */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setKbDialog({ id: p.id, address: p.address }); }}
+                    className="absolute top-3 right-3 p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    aria-label="Upload property documents"
+                    title="Upload property documents"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         )}
       </div>
@@ -146,6 +212,14 @@ export default function PropertiesPage() {
       </motion.button>
 
       <AddPropertyDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={fetchProperties} />
+      {kbDialog && (
+        <PropertyKnowledgeBaseDialog
+          open={!!kbDialog}
+          onOpenChange={(v) => { if (!v) { setKbDialog(null); fetchProperties(); } }}
+          propertyId={kbDialog.id}
+          propertyAddress={kbDialog.address}
+        />
+      )}
     </div>
   );
 }
