@@ -44,8 +44,8 @@ export default function PropertiesPage() {
   const totalRent = properties.reduce((sum, p) => sum + (p.rent_amount || 0), 0);
   const rentedCount = properties.filter(p => p.status === 'rented').length;
 
-  // "Pending tasks": occupied properties without any uploaded documents
-  const pendingKb = properties.filter(p => p.status === 'rented' && (!p.knowledge_base_urls || p.knowledge_base_urls.length === 0));
+  // "Pending tasks": ANY property without uploaded documents (rented or seeking)
+  const pendingKb = properties.filter(p => !p.knowledge_base_urls || p.knowledge_base_urls.length === 0);
 
   return (
     <div className="pb-24">
