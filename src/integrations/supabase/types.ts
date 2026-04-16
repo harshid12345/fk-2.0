@@ -219,6 +219,8 @@ export type Database = {
           energy_label: string | null
           furnished_status: string | null
           id: string
+          knowledge_base_text: string | null
+          knowledge_base_urls: string[]
           landlord_id: string
           min_lease_length: string | null
           num_rooms: number | null
@@ -248,6 +250,8 @@ export type Database = {
           energy_label?: string | null
           furnished_status?: string | null
           id?: string
+          knowledge_base_text?: string | null
+          knowledge_base_urls?: string[]
           landlord_id: string
           min_lease_length?: string | null
           num_rooms?: number | null
@@ -277,6 +281,8 @@ export type Database = {
           energy_label?: string | null
           furnished_status?: string | null
           id?: string
+          knowledge_base_text?: string | null
+          knowledge_base_urls?: string[]
           landlord_id?: string
           min_lease_length?: string | null
           num_rooms?: number | null
