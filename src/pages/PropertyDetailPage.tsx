@@ -104,8 +104,8 @@ export default function PropertyDetailPage() {
 
   const tabs = isRented
     ? [{ label: 'Overview' }, { label: 'Tenant' }, { label: 'Documents' }]
-    : [{ label: 'Overview' }, { label: 'Applicants' }, { label: t('detail.viewing_slots') }, { label: 'Documents' }];
-  const documentsTabIndex = isRented ? 2 : 3;
+    : [{ label: 'Overview' }, { label: 'Applicants' }, { label: 'Documents' }];
+  const documentsTabIndex = 2;
 
   return (
     <div className="pb-8">
