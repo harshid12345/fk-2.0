@@ -120,7 +120,7 @@ export default function PropertiesPage() {
           <AnimatePresence>
             {properties.map((p, index) => {
               const kbCount = p.knowledge_base_urls?.length || 0;
-              const kbMissing = p.status === 'rented' && kbCount === 0;
+              const kbMissing = kbCount === 0;
               return (
                 <motion.div
                   key={p.id}
