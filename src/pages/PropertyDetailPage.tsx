@@ -103,8 +103,9 @@ export default function PropertyDetailPage() {
   const viewingSlots: ViewingSlot[] = (property.viewing_slots as ViewingSlot[]) || [];
 
   const tabs = isRented
-    ? [{ label: 'Overview' }, { label: 'Tenant' }]
-    : [{ label: 'Overview' }, { label: 'Applicants' }, { label: t('detail.viewing_slots') }];
+    ? [{ label: 'Overview' }, { label: 'Tenant' }, { label: 'Documents' }]
+    : [{ label: 'Overview' }, { label: 'Applicants' }, { label: t('detail.viewing_slots') }, { label: 'Documents' }];
+  const documentsTabIndex = isRented ? 2 : 3;
 
   return (
     <div className="pb-8">
