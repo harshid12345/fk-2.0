@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Share2, FileText } from 'lucide-react';
+import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Share2, FileText, KeyRound, MessageCircle } from 'lucide-react';
 import PropertyKnowledgeBaseManager from '@/components/PropertyKnowledgeBaseManager';
+import MarkAsRentedDialog from '@/components/MarkAsRentedDialog';
 import { toast as sonnerToast } from 'sonner';
 
 
