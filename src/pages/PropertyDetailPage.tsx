@@ -41,6 +41,7 @@ export default function PropertyDetailPage() {
     if (prop) {
       setProperty(prop);
       setTenantName(prop.tenant_name || '');
+      setTenantPhone(prop.tenant_phone || '');
       setTenantContractStart(prop.tenant_contract_start || '');
       setTenantMonthlyRent(prop.tenant_monthly_rent?.toString() || '');
       setTenantDeposit(prop.tenant_deposit?.toString() || '');
@@ -52,14 +53,34 @@ export default function PropertyDetailPage() {
 
   const saveTenant = async () => {
     if (!id) return;
+    const phoneChanged = (tenantPhone || null) !== (property?.tenant_phone || null);
     await supabase.from('landlord_properties').update({
       tenant_name: tenantName || null,
+      tenant_phone: tenantPhone || null,
       tenant_contract_start: tenantContractStart || null,
       tenant_monthly_rent: parseFloat(tenantMonthlyRent) || null,
       tenant_deposit: parseFloat(tenantDeposit) || null,
     }).eq('id', id);
     toast({ title: t('detail.tenant_saved') });
-    fetchData();
+    await fetchData();
+    // If a new phone was just added/changed, immediately offer to text the tenant the bot intro.
+    if (phoneChanged && tenantPhone.trim() && property?.address) {
+      sendTelegramIntro(tenantPhone, tenantName || 'there', property.address, id);
+    }
+  };
+
+  const sendTelegramIntro = (phone: string, name: string, address: string, propId: string) => {
+    const link = `https://t.me/fairkamer_screen_bot?start=${propId}`;
+    const first = (name || 'there').split(' ')[0];
+    const msg = `Hey ${first}! Your landlord set up FairKamer for ${address}. I'm your AI assistant — I can help with wifi, heating, house rules, contract questions, maintenance contacts, and anything about the place.\n\nTap to open our chat on Telegram and say hi:\n${link}`;
+    const cleaned = phone.replace(/[^\d]/g, '');
+    navigator.clipboard.writeText(msg).catch(() => {});
+    if (cleaned) {
+      window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+      sonnerToast.success('WhatsApp opened with the Telegram intro');
+    } else {
+      sonnerToast.success('Intro message copied');
+    }
   };
 
   const deleteProperty = async () => {
