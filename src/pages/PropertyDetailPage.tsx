@@ -26,6 +26,7 @@ export default function PropertyDetailPage() {
   const [markRentedOpen, setMarkRentedOpen] = useState(false);
 
   const [tenantName, setTenantName] = useState('');
+  const [tenantPhone, setTenantPhone] = useState('');
   const [tenantContractStart, setTenantContractStart] = useState('');
   const [tenantMonthlyRent, setTenantMonthlyRent] = useState('');
   const [tenantDeposit, setTenantDeposit] = useState('');
