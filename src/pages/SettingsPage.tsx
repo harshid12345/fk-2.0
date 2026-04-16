@@ -180,36 +180,7 @@ export default function SettingsPage() {
       </motion.div>
 
       <div className="px-5 space-y-3">
-        {/* ── VIEWING SCHEDULE — Primary action ── */}
-        <div className="glass-card rounded-2xl overflow-hidden">
-          <div className="p-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Calendar className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-foreground text-sm">Viewing schedule</p>
-                <p className="text-[11px] text-muted-foreground">Set when tenants can book property viewings. Syncs with your screening bot.</p>
-              </div>
-            </div>
-            {!showSchedule ? (
-              <motion.div whileTap={{ scale: 0.97 }}>
-                <Button onClick={() => setShowSchedule(true)} className="w-full h-12 rounded-xl text-sm font-medium">
-                  <Clock className="w-4 h-4 mr-2" /> Manage availability
-                </Button>
-              </motion.div>
-            ) : (
-              <div className="space-y-3">
-                <LandlordAvailabilityPro />
-                <Button variant="outline" onClick={() => setShowSchedule(false)} className="w-full h-9 rounded-xl text-xs">
-                  Collapse
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── TENANT CRITERIA — Secondary action ── */}
+        {/* ── TENANT CRITERIA — Primary action ── */}
         <div className="glass-card rounded-2xl overflow-hidden">
           <div className="p-4 space-y-3">
             <div className="flex items-center gap-3">
