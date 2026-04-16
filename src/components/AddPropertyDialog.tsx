@@ -129,7 +129,29 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
     }
 
     setLoading(false);
-    toast({ title: 'Property added' });
+    if (propData?.id) {
+      setCreatedPropertyId(propData.id);
+      setStep('knowledge');
+      toast({ title: 'Property added', description: 'Now add documents the bot can use to help your tenant.' });
+    } else {
+      toast({ title: 'Property added' });
+      onCreated();
+      onOpenChange(false);
+      resetForm();
+    }
+  };
+
+  const finishWithoutKnowledge = () => {
+    toast({
+      title: 'You can add these later in the Properties tab',
+      description: 'Note: Tenants cannot receive automated support until documents are uploaded.',
+    });
+    onCreated();
+    onOpenChange(false);
+    resetForm();
+  };
+
+  const finishWithKnowledge = () => {
     onCreated();
     onOpenChange(false);
     resetForm();
