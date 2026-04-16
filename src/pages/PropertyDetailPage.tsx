@@ -187,23 +187,8 @@ export default function PropertyDetailPage() {
                 <div className="flex items-center gap-1.5 text-xs text-success">
                   <ShieldCheck className="w-3.5 h-3.5" /> {t('detail.verified')}
                 </div>
-        )}
-
-        {activeTab === documentsTabIndex && (
-          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
-            <div className="glass-card rounded-2xl p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" />
-                <h3 className="font-medium text-foreground text-sm">Property documents</h3>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Upload house manuals, wifi info, appliance guides, or contracts. The AI assistant uses these to answer tenant questions.
-              </p>
-              <PropertyKnowledgeBaseManager propertyId={property.id} compact onChange={() => fetchData()} />
+              )}
             </div>
-          </motion.div>
-        )}
-      </div>
 
             <div className="glass-card rounded-2xl p-5 space-y-4">
               <h3 className="font-medium text-foreground text-sm">{t('detail.current_rent')}</h3>
