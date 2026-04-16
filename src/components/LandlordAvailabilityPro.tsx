@@ -199,23 +199,23 @@ export default function LandlordAvailabilityPro() {
         <Copy className="w-3.5 h-3.5 mr-1.5" /> Apply Monday → Weekdays
       </Button>
 
-      <div className="overflow-x-auto -mx-4 px-4">
-        <div className="grid grid-cols-[56px_1fr_1fr_1fr_1fr] gap-1.5 text-center min-w-[360px]">
+      <div className="w-full">
+        <div className="grid grid-cols-[32px_1fr_1fr_1fr_1fr] gap-1 text-center">
           <div />
           {TIME_BLOCKS.map(block => (
-            <div key={block.label} className="space-y-0.5">
-              <p className="text-[10px] font-medium text-muted-foreground">{block.label}</p>
-              <p className="text-[9px] text-muted-foreground/60">{block.range}</p>
+            <div key={block.label} className="space-y-0.5 min-w-0">
+              <p className="text-[10px] font-medium text-muted-foreground truncate">{block.label}</p>
+              <p className="text-[8px] text-muted-foreground/60 truncate">{block.range}</p>
             </div>
           ))}
         </div>
 
-        <div className="space-y-1.5 mt-2 min-w-[360px]">
+        <div className="space-y-1 mt-2">
           {DAY_LABELS.map((day, dayIdx) => (
-            <div key={day} className="grid grid-cols-[56px_1fr_1fr_1fr_1fr] gap-1.5 items-center border-b border-border/50 pb-1.5">
+            <div key={day} className="grid grid-cols-[32px_1fr_1fr_1fr_1fr] gap-1 items-center border-b border-border/50 pb-1">
               <div className="text-center">
-                <p className="text-[11px] font-medium text-muted-foreground">{day}</p>
-                <p className="text-base font-bold text-foreground">{getDayDate(dayIdx)}</p>
+                <p className="text-[10px] font-medium text-muted-foreground leading-tight">{day}</p>
+                <p className="text-sm font-bold text-foreground leading-tight">{getDayDate(dayIdx)}</p>
               </div>
               {TIME_BLOCKS.map((_, blockIdx) => {
                 const state = slots[getSlotKey(dayIdx, blockIdx)] || 'neutral';
@@ -224,7 +224,7 @@ export default function LandlordAvailabilityPro() {
                     key={blockIdx}
                     whileTap={{ scale: 0.92 }}
                     onClick={() => cycleSlot(dayIdx, blockIdx)}
-                    className={`h-10 rounded-full text-xs font-medium transition-colors duration-200 ${getSlotColor(state)}`}
+                    className={`h-9 rounded-full text-[10px] font-medium transition-colors duration-200 px-1 truncate ${getSlotColor(state)}`}
                   >
                     {TIME_BLOCKS[blockIdx].label}
                   </motion.button>
