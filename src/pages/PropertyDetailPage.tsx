@@ -8,14 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Plus, X, Share2, FileText } from 'lucide-react';
+import { ArrowLeft, Building2, ShieldCheck, Trash2, Home, Users, Share2, FileText } from 'lucide-react';
 import PropertyKnowledgeBaseManager from '@/components/PropertyKnowledgeBaseManager';
 import { toast as sonnerToast } from 'sonner';
 
-interface ViewingSlot {
-  label: string;
-  datetime: string;
-}
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -33,8 +29,6 @@ export default function PropertyDetailPage() {
   const [tenantDeposit, setTenantDeposit] = useState('');
   const [applicants, setApplicants] = useState<any[]>([]);
 
-  const [newSlotLabel, setNewSlotLabel] = useState('');
-  const [newSlotDatetime, setNewSlotDatetime] = useState('');
 
   useEffect(() => { fetchData(); }, [id, user]);
 
@@ -72,25 +66,6 @@ export default function PropertyDetailPage() {
     navigate('/properties');
   };
 
-  const addViewingSlot = async () => {
-    if (!id || !newSlotLabel || !newSlotDatetime) return;
-    const slots: ViewingSlot[] = (property?.viewing_slots as ViewingSlot[]) || [];
-    const updated = [...slots, { label: newSlotLabel, datetime: newSlotDatetime }];
-    await supabase.from('landlord_properties').update({ viewing_slots: updated as any }).eq('id', id);
-    setNewSlotLabel('');
-    setNewSlotDatetime('');
-    toast({ title: t('detail.slot_added') });
-    fetchData();
-  };
-
-  const removeViewingSlot = async (index: number) => {
-    if (!id) return;
-    const slots: ViewingSlot[] = (property?.viewing_slots as ViewingSlot[]) || [];
-    const updated = slots.filter((_, i) => i !== index);
-    await supabase.from('landlord_properties').update({ viewing_slots: updated as any }).eq('id', id);
-    toast({ title: t('detail.slot_removed') });
-    fetchData();
-  };
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
@@ -100,12 +75,12 @@ export default function PropertyDetailPage() {
   if (!property) return <div className="flex items-center justify-center py-20 text-muted-foreground">Property not found</div>;
 
   const isRented = property.status === 'rented';
-  const viewingSlots: ViewingSlot[] = (property.viewing_slots as ViewingSlot[]) || [];
+  
 
   const tabs = isRented
     ? [{ label: 'Overview' }, { label: 'Tenant' }, { label: 'Documents' }]
-    : [{ label: 'Overview' }, { label: 'Applicants' }, { label: t('detail.viewing_slots') }, { label: 'Documents' }];
-  const documentsTabIndex = isRented ? 2 : 3;
+    : [{ label: 'Overview' }, { label: 'Applicants' }, { label: 'Documents' }];
+  const documentsTabIndex = 2;
 
   return (
     <div className="pb-8">
@@ -283,49 +258,7 @@ export default function PropertyDetailPage() {
           </motion.div>
         )}
 
-        {activeTab === 2 && (
-          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
-            <div className="glass-card rounded-2xl p-5 space-y-4">
-              <h3 className="font-medium text-foreground text-sm">{t('detail.viewing_slots')}</h3>
-              {viewingSlots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t('detail.no_slots')}</p>
-              ) : (
-                <div className="space-y-2">
-                  {viewingSlots.map((slot, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-accent">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{slot.label}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(slot.datetime).toLocaleString('nl-NL')}</p>
-                      </div>
-                      <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => removeViewingSlot(i)}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </motion.button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="border-t border-border/50 pt-4 space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">{t('detail.label')}</Label>
-                  <Input value={newSlotLabel} onChange={e => setNewSlotLabel(e.target.value)} placeholder="e.g. Tue 15 Apr, 14:00" className="bg-accent/50 border-border/50" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">{t('detail.date_time')}</Label>
-                  <Input type="datetime-local" value={newSlotDatetime} onChange={e => setNewSlotDatetime(e.target.value)} className="bg-accent/50 border-border/50" />
-                </div>
-                <motion.div whileTap={{ scale: 0.97 }}>
-                  <Button onClick={addViewingSlot} disabled={!newSlotLabel || !newSlotDatetime} className="w-full h-10 rounded-xl text-sm font-medium">
-                    <Plus className="w-4 h-4 mr-1.5" /> {t('detail.add_slot')}
-                  </Button>
-                </motion.div>
-              </div>
-            </div>
-          </motion.div>
-        )}
+        {/* Viewing slots tab removed — managed centrally in Calendar tab */}
 
         {activeTab === documentsTabIndex && (
           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">

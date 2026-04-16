@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Plus, Building2, MapPin, Home, Users, TrendingUp, ArrowUpRight, Paperclip, AlertTriangle, BookOpen } from 'lucide-react';
+import { Plus, Building2, MapPin, Home, Users, TrendingUp, ArrowUpRight, Paperclip, AlertTriangle, BookOpen, Link2 } from 'lucide-react';
 import AddPropertyDialog from '@/components/AddPropertyDialog';
 import PropertyKnowledgeBaseDialog from '@/components/PropertyKnowledgeBaseDialog';
+import { toast as sonnerToast } from 'sonner';
 
 interface Property {
   id: string;
@@ -184,15 +185,33 @@ export default function PropertiesPage() {
                     </div>
                   </div>
 
-                  {/* Upload Info button — separate from the card click target */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setKbDialog({ id: p.id, address: p.address }); }}
-                    className="absolute top-3 right-3 p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                    aria-label="Upload property documents"
-                    title="Upload property documents"
-                  >
-                    <Paperclip className="w-4 h-4" />
-                  </button>
+                  {/* Top-right action cluster */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1">
+                    {p.status !== 'rented' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const link = `https://t.me/fairkamer_screen_bot?start=${p.id}`;
+                          const msg = `Hi! I use FairKamer to screen tenants for my property at ${p.address}.\n\nIt takes about 5 minutes and helps you stand out from other applicants. Click the link below to get started:\n\n${link}`;
+                          navigator.clipboard.writeText(msg);
+                          sonnerToast.success('Screening link copied');
+                        }}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        aria-label="Copy screening bot link"
+                        title="Copy screening bot link"
+                      >
+                        <Link2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setKbDialog({ id: p.id, address: p.address }); }}
+                      className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      aria-label="Upload property documents"
+                      title="Upload property documents"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+                  </div>
                 </motion.div>
               );
             })}
