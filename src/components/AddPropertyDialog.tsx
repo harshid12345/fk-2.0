@@ -407,8 +407,41 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
             </div>
 
             <Button className="w-full" onClick={handleSave} disabled={loading || !address}>
-              {loading ? 'Saving...' : 'Add Property'}
+              {loading ? 'Saving...' : (
+                <>Save & add documents <ArrowRight className="w-4 h-4 ml-1" /></>
+              )}
             </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 3 of 3 — Property Knowledge Base</p>
+
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
+              <BookOpen className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium text-foreground">Help your bot help your tenant</p>
+                <p className="text-xs text-muted-foreground">
+                  Upload the house manual, wifi info, contracts or appliance guides. The AI uses these to answer tenant questions automatically.
+                </p>
+              </div>
+            </div>
+
+            {createdPropertyId && (
+              <PropertyKnowledgeBaseManager
+                propertyId={createdPropertyId}
+                onChange={setKbCount}
+                compact
+              />
+            )}
+
+            <div className="flex flex-col gap-2 pt-1">
+              <Button className="w-full" onClick={finishWithKnowledge} disabled={kbCount === 0}>
+                {kbCount === 0 ? 'Upload at least one file or skip' : `Done — ${kbCount} document${kbCount === 1 ? '' : 's'} added`}
+              </Button>
+              <Button variant="ghost" className="w-full text-muted-foreground" onClick={finishWithoutKnowledge}>
+                Skip for now
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>
