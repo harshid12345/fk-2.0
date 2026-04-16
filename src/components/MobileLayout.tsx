@@ -1,7 +1,7 @@
 import { ReactNode, useState, useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Building2, Users, Settings, Menu, X, LogOut, Globe, Moon, Sun, Bell } from 'lucide-react';
+import { Building2, Users, Settings, Menu, X, LogOut, Globe, Moon, Sun, Bell, Calendar as CalIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTheme } from '@/hooks/useTheme';
@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 const TABS = [
   { path: '/properties', icon: Building2, key: 'nav.properties' },
   { path: '/applicants', icon: Users, key: 'nav.applicants' },
+  { path: '/calendar', icon: CalIcon, key: 'nav.calendar' },
   { path: '/settings', icon: Settings, key: 'nav.settings' },
 ];
 
