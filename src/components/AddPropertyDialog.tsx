@@ -9,7 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { calculateWWS, getComplianceStatus } from '@/lib/wws';
 import { useToast } from '@/hooks/use-toast';
-import { Home, Users, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Home, Users, ArrowLeft, ArrowRight, BookOpen } from 'lucide-react';
+import PropertyKnowledgeBaseManager from './PropertyKnowledgeBaseManager';
 
 interface Props {
   open: boolean;
@@ -21,8 +22,10 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<'status' | 'property' | 'preferences'>('status');
+  const [step, setStep] = useState<'status' | 'property' | 'preferences' | 'knowledge'>('status');
   const [status, setStatus] = useState<'rented' | 'seeking'>('seeking');
+  const [createdPropertyId, setCreatedPropertyId] = useState<string | null>(null);
+  const [kbCount, setKbCount] = useState(0);
 
   // Block 1: Property fields
   const [address, setAddress] = useState('');
@@ -126,7 +129,29 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
     }
 
     setLoading(false);
-    toast({ title: 'Property added' });
+    if (propData?.id) {
+      setCreatedPropertyId(propData.id);
+      setStep('knowledge');
+      toast({ title: 'Property added', description: 'Now add documents the bot can use to help your tenant.' });
+    } else {
+      toast({ title: 'Property added' });
+      onCreated();
+      onOpenChange(false);
+      resetForm();
+    }
+  };
+
+  const finishWithoutKnowledge = () => {
+    toast({
+      title: 'You can add these later in the Properties tab',
+      description: 'Note: Tenants cannot receive automated support until documents are uploaded.',
+    });
+    onCreated();
+    onOpenChange(false);
+    resetForm();
+  };
+
+  const finishWithKnowledge = () => {
     onCreated();
     onOpenChange(false);
     resetForm();
@@ -142,6 +167,8 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
     setMaxOccupants('1'); setSmokingAllowed('No'); setPetsAllowed('No');
     setAcceptedTypes(['Working professional']); setMinIncome('');
     setReferencesRequired(false);
+    setCreatedPropertyId(null);
+    setKbCount(0);
     setStep('status');
   };
 
@@ -189,7 +216,7 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
             <Button variant="ghost" size="sm" onClick={() => setStep('status')} className="text-muted-foreground -ml-2">
               <ArrowLeft className="w-4 h-4 mr-1" /> Back
             </Button>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 1 of 2 — Property Details</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 1 of 3 — Property Details</p>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -313,12 +340,12 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
               Next: Tenant Preferences <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
-        ) : (
+        ) : step === 'preferences' ? (
           <div className="space-y-4">
             <Button variant="ghost" size="sm" onClick={() => setStep('property')} className="text-muted-foreground -ml-2">
               <ArrowLeft className="w-4 h-4 mr-1" /> Back
             </Button>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 2 of 2 — Tenant Preferences</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 2 of 3 — Tenant Preferences</p>
 
             <div className="space-y-2">
               <Label>Maximum number of occupants</Label>
@@ -380,8 +407,41 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
             </div>
 
             <Button className="w-full" onClick={handleSave} disabled={loading || !address}>
-              {loading ? 'Saving...' : 'Add Property'}
+              {loading ? 'Saving...' : (
+                <>Save & add documents <ArrowRight className="w-4 h-4 ml-1" /></>
+              )}
             </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 3 of 3 — Property Knowledge Base</p>
+
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
+              <BookOpen className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium text-foreground">Help your bot help your tenant</p>
+                <p className="text-xs text-muted-foreground">
+                  Upload the house manual, wifi info, contracts or appliance guides. The AI uses these to answer tenant questions automatically.
+                </p>
+              </div>
+            </div>
+
+            {createdPropertyId && (
+              <PropertyKnowledgeBaseManager
+                propertyId={createdPropertyId}
+                onChange={setKbCount}
+                compact
+              />
+            )}
+
+            <div className="flex flex-col gap-2 pt-1">
+              <Button className="w-full" onClick={finishWithKnowledge} disabled={kbCount === 0}>
+                {kbCount === 0 ? 'Upload at least one file or skip' : `Done — ${kbCount} document${kbCount === 1 ? '' : 's'} added`}
+              </Button>
+              <Button variant="ghost" className="w-full text-muted-foreground" onClick={finishWithoutKnowledge}>
+                Skip for now
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>
