@@ -145,27 +145,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Applicant not found' }), { status: 404, headers: corsHeaders });
     }
 
-    // Get property + landlord's apify token
+    // Get property info
     const { data: property } = await supabase
       .from('landlord_properties')
       .select('city, landlord_id')
       .eq('id', applicant.property_id)
       .single();
 
-    let apifyToken: string | null = null;
-    if (property?.landlord_id) {
-      const { data: landlord } = await supabase
-        .from('landlords')
-        .select('apify_token')
-        .eq('id', property.landlord_id)
-        .single();
-      apifyToken = landlord?.apify_token || null;
-    }
-
+    // Use company-owned Apify token from secrets
+    const apifyToken = Deno.env.get('APIFY_TOKEN');
     if (!apifyToken) {
-      console.log('No Apify token configured, skipping scrape');
+      console.error('APIFY_TOKEN secret not configured');
       await supabase.from('applicants').update({
-        social_scrape_data: { skipped: true, reason: 'No Apify token configured' },
+        social_scrape_data: { skipped: true, reason: 'Service temporarily unavailable' },
       }).eq('id', applicantId);
       return new Response(JSON.stringify({ skipped: true }), { headers: corsHeaders });
     }

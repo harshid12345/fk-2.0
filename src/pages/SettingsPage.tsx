@@ -66,9 +66,6 @@ export default function SettingsPage() {
   const [selectedPropertyForCriteria, setSelectedPropertyForCriteria] = useState<string | null>(null);
   const [criteriaCompleted, setCriteriaCompleted] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [apifyToken, setApifyToken] = useState('');
-  const [apifyLoading, setApifyLoading] = useState(false);
-  const [apifyConfigured, setApifyConfigured] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
 
   const CRITERIA_QUESTIONS = [
