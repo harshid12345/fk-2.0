@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/integrations/supabase/client';
+import OnboardingTour from './OnboardingTour';
 
 const TABS = [
   { path: '/properties', icon: Building2, key: 'nav.properties' },
@@ -60,6 +61,7 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
+      <OnboardingTour />
       {/* Drawer overlay */}
       <AnimatePresence>
         {drawerOpen && (
