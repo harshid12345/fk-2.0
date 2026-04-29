@@ -8,6 +8,7 @@ import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
 import MobileLayout from "@/components/MobileLayout";
 import AuthPage from "./pages/AuthPage";
+import LandingPage from "./pages/LandingPage";
 import PropertiesPage from "./pages/PropertiesPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import IssuesPage from "./pages/IssuesPage";
