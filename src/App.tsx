@@ -52,7 +52,7 @@ const App = () => (
           <BrowserRouter>
             <AuthProvider>
               <Routes>
-                <Route path="/" element={<Navigate to="/properties" replace />} />
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/auth" element={<AuthRoute><AuthPage /></AuthRoute>} />
                 <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
                 <Route path="/properties/:id" element={<ProtectedRoute><PropertyDetailPage /></ProtectedRoute>} />
