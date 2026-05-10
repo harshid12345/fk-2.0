@@ -8,7 +8,6 @@ import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
 import MobileLayout from "@/components/MobileLayout";
 import AuthPage from "./pages/AuthPage";
-import LandingPage from "./pages/LandingPage";
 import PropertiesPage from "./pages/PropertiesPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import IssuesPage from "./pages/IssuesPage";
@@ -52,7 +51,7 @@ const App = () => (
           <BrowserRouter>
             <AuthProvider>
               <Routes>
-                <Route path="/" element={<LandingPage />} />
+                <Route path="/" element={<Navigate to="/properties" replace />} />
                 <Route path="/auth" element={<AuthRoute><AuthPage /></AuthRoute>} />
                 <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
                 <Route path="/properties/:id" element={<ProtectedRoute><PropertyDetailPage /></ProtectedRoute>} />
