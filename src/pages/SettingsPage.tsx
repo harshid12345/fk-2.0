@@ -11,18 +11,16 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowRight, Check, RotateCcw, Building2, User, ChevronDown, Trash2, Shield, LogOut, HelpCircle, Mail, PlayCircle, Info } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+  ArrowRight, Check, RotateCcw, Building2, User, ChevronRight, Trash2, Shield,
+  LogOut, HelpCircle, Mail, PlayCircle, Info, UserCircle2, BookOpen, Bell,
+} from 'lucide-react';
 
 interface CriteriaState {
-  preferred_gender: string;
-  min_age: string;
-  max_age: string;
-  smoking_allowed: string;
-  pets_allowed: string;
-  students_ok: boolean;
-  professionals_ok: boolean;
-  min_income_multiplier: string;
-  notes: string;
+  preferred_gender: string; min_age: string; max_age: string;
+  smoking_allowed: string; pets_allowed: string; students_ok: boolean;
+  professionals_ok: boolean; min_income_multiplier: string; notes: string;
 }
 
 const defaultCriteria: CriteriaState = {
@@ -31,23 +29,35 @@ const defaultCriteria: CriteriaState = {
   professionals_ok: true, min_income_multiplier: '3.0', notes: '',
 };
 
-function CollapsibleSection({ id, icon: Icon, title, subtitle, expanded, onToggle, children }: { id: string; icon: any; title: string; subtitle?: string; expanded: boolean; onToggle: () => void; children: React.ReactNode }) {
+/** Uber-style list row */
+function ListRow({ icon: Icon, title, subtitle, onClick, danger }: { icon: any; title: string; subtitle?: string; onClick: () => void; danger?: boolean }) {
   return (
-    <div className="glass-card rounded-2xl overflow-hidden">
-      <button onClick={onToggle} className="w-full flex items-center justify-between p-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-accent flex items-center justify-center shrink-0">
-            <Icon className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-left min-w-0">
-            <span className="font-medium text-foreground text-sm block">{title}</span>
-            {subtitle && <span className="text-[11px] text-muted-foreground block truncate">{subtitle}</span>}
-          </div>
-        </div>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 shrink-0 ${expanded ? 'rotate-180' : ''}`} />
-      </button>
-      {expanded && <div className="px-4 pb-4 pt-0">{children}</div>}
-    </div>
+    <motion.button
+      whileTap={{ scale: 0.99 }}
+      onClick={onClick}
+      className="w-full flex items-center gap-4 py-4 text-left"
+    >
+      <Icon className={`w-6 h-6 shrink-0 ${danger ? 'text-destructive' : 'text-foreground'}`} strokeWidth={1.75} />
+      <div className="flex-1 min-w-0">
+        <p className={`text-[17px] font-medium leading-tight ${danger ? 'text-destructive' : 'text-foreground'}`}>{title}</p>
+        {subtitle && <p className="text-[13px] text-muted-foreground mt-0.5 truncate">{subtitle}</p>}
+      </div>
+      <ChevronRight className="w-5 h-5 text-muted-foreground/60 shrink-0" />
+    </motion.button>
+  );
+}
+
+/** Uber-style 3-tile quick action */
+function QuickTile({ icon: Icon, label, onClick }: { icon: any; label: string; onClick: () => void }) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.96 }}
+      onClick={onClick}
+      className="flex-1 flex flex-col items-center justify-center gap-2 py-5 rounded-2xl bg-muted hover:bg-accent transition-colors"
+    >
+      <Icon className="w-7 h-7 text-foreground" strokeWidth={1.75} />
+      <span className="text-[15px] font-medium text-foreground">{label}</span>
+    </motion.button>
   );
 }
 
@@ -65,7 +75,7 @@ export default function SettingsPage() {
   const [properties, setProperties] = useState<any[]>([]);
   const [selectedPropertyForCriteria, setSelectedPropertyForCriteria] = useState<string | null>(null);
   const [criteriaCompleted, setCriteriaCompleted] = useState(false);
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [openSheet, setOpenSheet] = useState<string | null>(null);
 
   const CRITERIA_QUESTIONS = [
     { key: 'preferred_gender', question: t('criteria.q_gender'), type: 'select', options: [{ value: 'any', label: t('criteria.no_pref') }, { value: 'male', label: t('criteria.male') }, { value: 'female', label: t('criteria.female') }] },
@@ -82,21 +92,19 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!user) return;
     supabase.from('landlords').select('*').eq('id', user.id).single().then(({ data }: any) => {
-      if (data) {
-        setFullName(data.full_name || ''); setPhone(data.phone || ''); setEmail(data.email || '');
-      }
+      if (data) { setFullName(data.full_name || ''); setPhone(data.phone || ''); setEmail(data.email || ''); }
     });
     supabase.from('landlord_properties').select('id, address, city').then(({ data }) => { setProperties(data || []); });
     supabase.from('landlord_criteria').select('*').then(({ data }) => {
       if (data && data.length > 0) {
         setCriteriaCompleted(true);
-        const first = data[0];
+        const f = data[0];
         setCriteria({
-          preferred_gender: first.preferred_gender || 'any', min_age: first.min_age?.toString() || '18',
-          max_age: first.max_age?.toString() || '65', smoking_allowed: first.smoking_allowed || 'No',
-          pets_allowed: first.pets_allowed || 'No', students_ok: first.students_ok ?? true,
-          professionals_ok: first.professionals_ok ?? true, min_income_multiplier: first.min_income_multiplier?.toString() || '3.0',
-          notes: first.notes || '',
+          preferred_gender: f.preferred_gender || 'any', min_age: f.min_age?.toString() || '18',
+          max_age: f.max_age?.toString() || '65', smoking_allowed: f.smoking_allowed || 'No',
+          pets_allowed: f.pets_allowed || 'No', students_ok: f.students_ok ?? true,
+          professionals_ok: f.professionals_ok ?? true, min_income_multiplier: f.min_income_multiplier?.toString() || '3.0',
+          notes: f.notes || '',
         });
       }
     });
@@ -113,7 +121,7 @@ export default function SettingsPage() {
   const saveCriteria = async () => {
     if (!user || properties.length === 0) return;
     setLoading(true);
-    const criteriaData = {
+    const data = {
       preferred_gender: criteria.preferred_gender === 'any' ? null : criteria.preferred_gender,
       min_age: parseInt(criteria.min_age) || null, max_age: parseInt(criteria.max_age) || null,
       smoking_allowed: criteria.smoking_allowed, pets_allowed: criteria.pets_allowed,
@@ -121,17 +129,15 @@ export default function SettingsPage() {
       min_income_multiplier: parseFloat(criteria.min_income_multiplier) || 3.0, notes: criteria.notes || null,
     };
     if (sameCriteriaForAll) {
-      for (const prop of properties) {
-        await supabase.from('landlord_criteria').delete().eq('property_id', prop.id);
-        await supabase.from('landlord_criteria').insert([{ ...criteriaData, property_id: prop.id }] as any);
+      for (const p of properties) {
+        await supabase.from('landlord_criteria').delete().eq('property_id', p.id);
+        await supabase.from('landlord_criteria').insert([{ ...data, property_id: p.id }] as any);
       }
     } else if (selectedPropertyForCriteria) {
       await supabase.from('landlord_criteria').delete().eq('property_id', selectedPropertyForCriteria);
-      await supabase.from('landlord_criteria').insert([{ ...criteriaData, property_id: selectedPropertyForCriteria }] as any);
+      await supabase.from('landlord_criteria').insert([{ ...data, property_id: selectedPropertyForCriteria }] as any);
     }
-    setLoading(false);
-    setCriteriaCompleted(true);
-    setCriteriaStep(-1);
+    setLoading(false); setCriteriaCompleted(true); setCriteriaStep(-1);
     toast({ title: t('settings.criteria_saved') });
   };
 
@@ -157,237 +163,237 @@ export default function SettingsPage() {
         )}
         {q.type === 'textarea' && <Textarea value={criteria[key] as string} onChange={e => setCriteria({ ...criteria, [key]: e.target.value })} placeholder={q.placeholder} rows={3} />}
         <div className="flex gap-2">
-          {criteriaStep > 0 && <motion.div whileTap={{ scale: 0.97 }} className="flex-1"><Button variant="outline" onClick={() => setCriteriaStep(criteriaStep - 1)} className="w-full h-10 rounded-xl">{t('settings.back')}</Button></motion.div>}
-          <motion.div whileTap={{ scale: 0.97 }} className="flex-1">
-            {criteriaStep < CRITERIA_QUESTIONS.length - 1 ? (
-              <Button onClick={() => setCriteriaStep(criteriaStep + 1)} className="w-full h-10 rounded-xl">{t('settings.next')} <ArrowRight className="w-4 h-4 ml-1" /></Button>
-            ) : (
-              <Button onClick={saveCriteria} disabled={loading} className="w-full h-10 rounded-xl"><Check className="w-4 h-4 mr-1" /> {loading ? t('settings.saving') : t('settings.save_criteria')}</Button>
-            )}
-          </motion.div>
+          {criteriaStep > 0 && <Button variant="outline" onClick={() => setCriteriaStep(criteriaStep - 1)} className="flex-1 h-11 rounded-xl">{t('settings.back')}</Button>}
+          {criteriaStep < CRITERIA_QUESTIONS.length - 1 ? (
+            <Button onClick={() => setCriteriaStep(criteriaStep + 1)} className="flex-1 h-11 rounded-xl">{t('settings.next')} <ArrowRight className="w-4 h-4 ml-1" /></Button>
+          ) : (
+            <Button onClick={saveCriteria} disabled={loading} className="flex-1 h-11 rounded-xl"><Check className="w-4 h-4 mr-1" /> {loading ? t('settings.saving') : t('settings.save_criteria')}</Button>
+          )}
         </div>
       </motion.div>
     );
   };
 
-  const toggleSection = (id: string) => setExpandedSection(expandedSection === id ? null : id);
+  const initials = (fullName || email || 'U').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+  const answeredCount = criteriaCompleted ? CRITERIA_QUESTIONS.length : 0;
+  const ringPct = (answeredCount / CRITERIA_QUESTIONS.length) * 100;
+
+  const closeSheet = () => setOpenSheet(null);
 
   return (
-    <div className="pb-8">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="px-5 pt-4 pb-4">
-        <h1 className="text-2xl font-semibold text-foreground">{t('settings.title')}</h1>
+    <div className="pb-12 bg-background min-h-full">
+      {/* Header — name + avatar */}
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="px-5 pt-6 pb-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-[34px] font-bold leading-[1.05] text-foreground tracking-tight">
+            {fullName || 'Your account'}
+          </h1>
+          <div className="mt-3 inline-flex items-center gap-1.5 bg-muted rounded-md px-2 py-1">
+            <Shield className="w-3.5 h-3.5 text-foreground" />
+            <span className="text-[13px] font-semibold text-foreground">Verified landlord</span>
+          </div>
+        </div>
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center shrink-0 ring-1 ring-border">
+          {initials ? <span className="text-xl font-semibold text-muted-foreground">{initials}</span> : <UserCircle2 className="w-10 h-10 text-muted-foreground" />}
+        </div>
       </motion.div>
 
       <div className="px-5 space-y-3">
-        {/* ── TENANT CRITERIA — Primary action ── */}
-        <div className="glass-card rounded-2xl overflow-hidden">
-          <div className="p-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Shield className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-foreground text-sm">Tenant criteria</p>
-                <p className="text-[11px] text-muted-foreground">Define who qualifies. Used to auto-score applicants.</p>
-              </div>
+        {/* 3-tile quick actions */}
+        <div className="flex gap-3">
+          <QuickTile icon={HelpCircle} label="Help" onClick={() => setOpenSheet('faq')} />
+          <QuickTile icon={User} label="Profile" onClick={() => setOpenSheet('profile')} />
+          <QuickTile icon={Bell} label="Activity" onClick={() => setOpenSheet('how')} />
+        </div>
+
+        {/* Big card — Tenant criteria checkup (Uber Safety checkup style) */}
+        <motion.button
+          whileTap={{ scale: 0.99 }}
+          onClick={() => setOpenSheet('criteria')}
+          className="w-full bg-muted rounded-2xl p-5 flex items-center justify-between gap-4 text-left"
+        >
+          <div className="min-w-0">
+            <p className="text-[17px] font-semibold text-foreground">Tenant criteria</p>
+            <p className="text-[13px] text-muted-foreground mt-1">Define who qualifies for your properties</p>
+          </div>
+          <div className="relative w-16 h-16 shrink-0">
+            <svg viewBox="0 0 36 36" className="w-16 h-16 -rotate-90">
+              <circle cx="18" cy="18" r="15.5" fill="none" stroke="hsl(var(--border))" strokeWidth="3" />
+              <circle cx="18" cy="18" r="15.5" fill="none" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round"
+                strokeDasharray={`${ringPct} 100`} pathLength={100} />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-[15px] font-bold text-primary">{answeredCount}/{CRITERIA_QUESTIONS.length}</span>
             </div>
+          </div>
+        </motion.button>
+
+        {/* Compact info card */}
+        <div className="bg-muted rounded-2xl p-5 flex items-center justify-between">
+          <div>
+            <p className="text-[17px] font-semibold text-foreground">Properties managed</p>
+            <p className="text-[13px] text-muted-foreground mt-1">Active listings on FairKamer</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
+            <span className="text-[22px] font-bold text-foreground">{properties.length}</span>
+          </div>
+        </div>
+
+        {/* List rows */}
+        <div className="pt-4 divide-y divide-border">
+          <ListRow icon={PlayCircle} title="How the app works" subtitle="Replay the intro tour" onClick={() => setOpenSheet('how')} />
+          <ListRow icon={BookOpen} title="FAQ" subtitle="Common questions" onClick={() => setOpenSheet('faq')} />
+          <ListRow icon={Mail} title="Contact us" subtitle="Get help or share feedback" onClick={() => setOpenSheet('contact')} />
+          <ListRow icon={Info} title="About & legal" subtitle="Version, terms, privacy" onClick={() => setOpenSheet('about')} />
+          <ListRow icon={Trash2} title="Developer tools" subtitle="Clear test data" onClick={() => setOpenSheet('dev')} danger />
+          <ListRow icon={LogOut} title="Sign out" onClick={async () => { await supabase.auth.signOut(); }} />
+        </div>
+
+        <p className="text-[11px] text-center text-muted-foreground/60 pt-6">FairKamer v1.0 · Netherlands</p>
+      </div>
+
+      {/* ─── Sheets ─── */}
+      <Sheet open={openSheet === 'profile'} onOpenChange={closeSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto">
+          <SheetHeader><SheetTitle>Profile</SheetTitle></SheetHeader>
+          <div className="space-y-3 mt-4">
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.full_name')}</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input value={email} onChange={e => setEmail(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.phone')}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
+            <Button onClick={saveProfile} disabled={loading} className="w-full h-11 rounded-xl">{loading ? t('settings.saving') : t('settings.save')}</Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openSheet === 'criteria'} onOpenChange={(o) => { if (!o) { setCriteriaStep(-1); closeSheet(); } }}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto">
+          <SheetHeader><SheetTitle>Tenant criteria</SheetTitle></SheetHeader>
+          <div className="mt-4 space-y-4">
             {criteriaStep === -1 ? (
               criteriaCompleted ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-accent rounded-xl p-2.5">
-                      <p className="text-[10px] text-muted-foreground">Gender</p>
-                      <p className="text-foreground font-medium mt-0.5 capitalize">{criteria.preferred_gender === 'any' ? 'Any' : criteria.preferred_gender}</p>
-                    </div>
-                    <div className="bg-accent rounded-xl p-2.5">
-                      <p className="text-[10px] text-muted-foreground">Age</p>
-                      <p className="text-foreground font-medium mt-0.5">{criteria.min_age} – {criteria.max_age}</p>
-                    </div>
-                    <div className="bg-accent rounded-xl p-2.5">
-                      <p className="text-[10px] text-muted-foreground">Smoking</p>
-                      <p className="text-foreground font-medium mt-0.5">{criteria.smoking_allowed}</p>
-                    </div>
-                    <div className="bg-accent rounded-xl p-2.5">
-                      <p className="text-[10px] text-muted-foreground">Pets</p>
-                      <p className="text-foreground font-medium mt-0.5">{criteria.pets_allowed}</p>
-                    </div>
+                    <div className="bg-muted rounded-xl p-3"><p className="text-[10px] text-muted-foreground">Gender</p><p className="font-medium mt-0.5 capitalize">{criteria.preferred_gender === 'any' ? 'Any' : criteria.preferred_gender}</p></div>
+                    <div className="bg-muted rounded-xl p-3"><p className="text-[10px] text-muted-foreground">Age</p><p className="font-medium mt-0.5">{criteria.min_age} – {criteria.max_age}</p></div>
+                    <div className="bg-muted rounded-xl p-3"><p className="text-[10px] text-muted-foreground">Smoking</p><p className="font-medium mt-0.5">{criteria.smoking_allowed}</p></div>
+                    <div className="bg-muted rounded-xl p-3"><p className="text-[10px] text-muted-foreground">Pets</p><p className="font-medium mt-0.5">{criteria.pets_allowed}</p></div>
                   </div>
                   <div className="flex items-center justify-between pt-1">
                     <Label className="text-xs text-muted-foreground">{t('settings.same_for_all')}</Label>
                     <Switch checked={sameCriteriaForAll} onCheckedChange={setSameCriteriaForAll} />
                   </div>
                   {!sameCriteriaForAll && properties.map(p => (
-                    <motion.button key={p.id} whileTap={{ scale: 0.98 }} onClick={() => { setSelectedPropertyForCriteria(p.id); setCriteriaStep(0); }}
-                      className="flex items-center gap-2 w-full p-3 rounded-xl text-left text-sm bg-accent hover:bg-accent/80 transition-colors">
-                      <Building2 className="w-4 h-4 text-primary" /><span className="text-foreground">{p.address}</span>
-                    </motion.button>
+                    <button key={p.id} onClick={() => { setSelectedPropertyForCriteria(p.id); setCriteriaStep(0); }}
+                      className="flex items-center gap-2 w-full p-3 rounded-xl text-left text-sm bg-muted hover:bg-accent transition-colors">
+                      <Building2 className="w-4 h-4 text-primary" /><span>{p.address}</span>
+                    </button>
                   ))}
-                  <motion.div whileTap={{ scale: 0.97 }}>
-                    <Button variant="outline" onClick={() => setCriteriaStep(0)} className="w-full h-9 rounded-xl text-xs">
-                      <RotateCcw className="w-3.5 h-3.5 mr-1" /> Update criteria
-                    </Button>
-                  </motion.div>
+                  <Button variant="outline" onClick={() => setCriteriaStep(0)} className="w-full h-11 rounded-xl"><RotateCcw className="w-4 h-4 mr-1.5" /> Update criteria</Button>
                 </div>
               ) : (
-                <motion.div whileTap={{ scale: 0.97 }}>
-                  <Button onClick={() => setCriteriaStep(0)} className="w-full h-12 rounded-xl text-sm font-medium">
-                    <ArrowRight className="w-4 h-4 mr-2" /> Set up criteria
-                  </Button>
-                </motion.div>
+                <Button onClick={() => setCriteriaStep(0)} className="w-full h-12 rounded-xl"><ArrowRight className="w-4 h-4 mr-2" /> Set up criteria</Button>
               )
             ) : (
               <div>
-                <div className="flex gap-1 mb-4">
-                  {CRITERIA_QUESTIONS.map((_, i) => <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= criteriaStep ? 'bg-primary' : 'bg-border'}`} />)}
-                </div>
+                <div className="flex gap-1 mb-4">{CRITERIA_QUESTIONS.map((_, i) => <div key={i} className={`h-1 flex-1 rounded-full ${i <= criteriaStep ? 'bg-primary' : 'bg-border'}`} />)}</div>
                 {renderCriteriaQuestion()}
               </div>
             )}
           </div>
-        </div>
+        </SheetContent>
+      </Sheet>
 
-        {/* ── Collapsible sections below ── */}
-        <CollapsibleSection id="profile" icon={User} title="Profile" subtitle={fullName || 'Not set'} expanded={expandedSection === 'profile'} onToggle={() => toggleSection('profile')}>
-          <div className="space-y-3">
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.full_name')}</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} /></div>
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.email')}</Label><Input value={email} onChange={e => setEmail(e.target.value)} /></div>
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{t('settings.phone')}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
-            <motion.div whileTap={{ scale: 0.97 }}><Button onClick={saveProfile} disabled={loading} className="w-full h-10 rounded-xl">{loading ? t('settings.saving') : t('settings.save')}</Button></motion.div>
-          </div>
-        </CollapsibleSection>
+      <Sheet open={openSheet === 'how'} onOpenChange={closeSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl">
+          <SheetHeader><SheetTitle>How the app works</SheetTitle></SheetHeader>
+          <p className="text-sm text-muted-foreground mt-3">Watch the same walkthrough that appeared the first time you opened FairKamer.</p>
+          <Button className="w-full h-11 rounded-xl mt-4" onClick={() => { localStorage.removeItem('fk_onboarding_completed_v1'); window.location.reload(); }}>
+            <PlayCircle className="w-4 h-4 mr-2" /> Replay intro tour
+          </Button>
+        </SheetContent>
+      </Sheet>
 
-
-        <CollapsibleSection id="how" icon={PlayCircle} title="How the app works" subtitle="Replay the intro tour" expanded={expandedSection === 'how'} onToggle={() => toggleSection('how')}>
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Watch the same walkthrough that appeared the first time you opened FairKamer.
-            </p>
-            <motion.div whileTap={{ scale: 0.97 }}>
-              <Button
-                onClick={() => {
-                  localStorage.removeItem('fk_onboarding_completed_v1');
-                  window.location.reload();
-                }}
-                className="w-full h-10 rounded-xl text-sm"
-              >
-                <PlayCircle className="w-4 h-4 mr-2" /> Replay intro tour
-              </Button>
-            </motion.div>
-          </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection id="faq" icon={HelpCircle} title="FAQ" subtitle="Common questions" expanded={expandedSection === 'faq'} onToggle={() => toggleSection('faq')}>
-          <div className="space-y-3 text-xs">
+      <Sheet open={openSheet === 'faq'} onOpenChange={closeSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto">
+          <SheetHeader><SheetTitle>FAQ</SheetTitle></SheetHeader>
+          <div className="space-y-3 text-sm mt-4">
             {[
-              {
-                q: 'How do applicants reach the screening bot?',
-                a: 'Open any property on the Properties tab, tap the link icon, and the message with your bot link is copied. Paste it into your Funda or Marktplaats reply.',
-              },
-              {
-                q: 'How are match scores calculated?',
-                a: 'Each applicant is scored on tenant criteria, financial fit (income vs. rent), and verifiable signals from their socials. Disqualifiers like smoking when not allowed mark them automatically.',
-              },
-              {
-                q: 'When are viewing reminders sent?',
-                a: 'Tenants get an automatic Telegram reminder 48h, 24h, and 2h before their viewing. You receive an in-app notification if delivery fails.',
-              },
-              {
-                q: 'Where do I set my viewing availability?',
-                a: 'Go to the Calendar tab. Toggle days on, set start and end times, and the bot uses those slots when offering times to applicants.',
-              },
-              {
-                q: 'How do I update tenant criteria for one specific property?',
-                a: 'Disable "Same for all" in the Tenant criteria card above, then pick the property to customise.',
-              },
-            ].map((item, i) => (
-              <div key={i} className="rounded-xl bg-accent p-3">
-                <p className="font-medium text-foreground mb-1">{item.q}</p>
-                <p className="text-muted-foreground leading-relaxed">{item.a}</p>
+              { q: 'How do applicants reach the screening bot?', a: 'Open any property, tap the link icon, and the message with your bot link is copied. Paste it into your Funda or Marktplaats reply.' },
+              { q: 'How are match scores calculated?', a: 'Each applicant is scored on tenant criteria, financial fit, and verifiable signals from socials.' },
+              { q: 'When are viewing reminders sent?', a: 'Tenants get an automatic Telegram reminder 48h, 24h, and 2h before their viewing.' },
+              { q: 'Where do I set my viewing availability?', a: 'Go to the Calendar tab and toggle days on with start/end times.' },
+              { q: 'Update criteria for one property?', a: 'Disable "Same for all" in Tenant criteria, then pick the property.' },
+            ].map((it, i) => (
+              <div key={i} className="rounded-xl bg-muted p-4">
+                <p className="font-medium text-foreground mb-1">{it.q}</p>
+                <p className="text-muted-foreground leading-relaxed text-[13px]">{it.a}</p>
               </div>
             ))}
           </div>
-        </CollapsibleSection>
+        </SheetContent>
+      </Sheet>
 
-        <CollapsibleSection id="contact" icon={Mail} title="Contact us" subtitle="Get help or share feedback" expanded={expandedSection === 'contact'} onToggle={() => toggleSection('contact')}>
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Questions, bug reports, or feature requests — we read every message.
-            </p>
-            <a
-              href="mailto:support@fairkamer.nl?subject=FairKamer%20support%20request"
-              className="flex items-center justify-between p-3 rounded-xl bg-accent hover:bg-accent/80 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-primary" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">support@fairkamer.nl</p>
-                  <p className="text-[10px] text-muted-foreground">Replies within 1 business day</p>
-                </div>
+      <Sheet open={openSheet === 'contact'} onOpenChange={closeSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl">
+          <SheetHeader><SheetTitle>Contact us</SheetTitle></SheetHeader>
+          <p className="text-sm text-muted-foreground mt-3">Questions, bug reports, or feature requests — we read every message.</p>
+          <a href="mailto:support@fairkamer.nl?subject=FairKamer%20support%20request"
+            className="flex items-center justify-between p-4 rounded-xl bg-muted hover:bg-accent transition-colors mt-4">
+            <div className="flex items-center gap-3">
+              <Mail className="w-5 h-5 text-primary" />
+              <div>
+                <p className="text-sm font-medium text-foreground">support@fairkamer.nl</p>
+                <p className="text-[11px] text-muted-foreground">Replies within 1 business day</p>
               </div>
-              <ArrowRight className="w-4 h-4 text-muted-foreground" />
-            </a>
-          </div>
-        </CollapsibleSection>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground" />
+          </a>
+        </SheetContent>
+      </Sheet>
 
-        <CollapsibleSection id="about" icon={Info} title="About & legal" subtitle="Version, terms, privacy" expanded={expandedSection === 'about'} onToggle={() => toggleSection('about')}>
-          <div className="space-y-2 text-xs text-muted-foreground">
+      <Sheet open={openSheet === 'about'} onOpenChange={closeSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl">
+          <SheetHeader><SheetTitle>About & legal</SheetTitle></SheetHeader>
+          <div className="space-y-3 text-sm text-muted-foreground mt-4">
             <p>FairKamer helps Dutch landlords screen and schedule tenants fairly under AVG/GDPR.</p>
             <div className="grid grid-cols-2 gap-2 pt-2">
-              <div className="rounded-xl bg-accent p-2.5">
-                <p className="text-[10px]">Version</p>
-                <p className="text-foreground font-medium">1.0.0</p>
-              </div>
-              <div className="rounded-xl bg-accent p-2.5">
-                <p className="text-[10px]">Region</p>
-                <p className="text-foreground font-medium">Netherlands</p>
-              </div>
+              <div className="rounded-xl bg-muted p-3"><p className="text-[10px]">Version</p><p className="text-foreground font-medium">1.0.0</p></div>
+              <div className="rounded-xl bg-muted p-3"><p className="text-[10px]">Region</p><p className="text-foreground font-medium">Netherlands</p></div>
             </div>
           </div>
-        </CollapsibleSection>
+        </SheetContent>
+      </Sheet>
 
-        <CollapsibleSection id="developer" icon={Trash2} title="Developer tools" expanded={expandedSection === 'developer'} onToggle={() => toggleSection('developer')}>
-          <div className="space-y-2">
-            <p className="text-[11px] text-muted-foreground">Clear test data. Cannot be undone.</p>
-            <div className="flex gap-2">
-              <Button variant="destructive" size="sm" className="flex-1 h-9 rounded-xl text-xs"
-                onClick={async () => {
-                  if (!user) return;
-                  if (!window.confirm('Delete all notifications?')) return;
-                  setLoading(true);
-                  await supabase.from('notifications').delete().eq('landlord_id', user.id);
-                  setLoading(false);
-                  toast({ title: 'Notifications cleared' });
-                }} disabled={loading}>
-                Notifications
-              </Button>
-              <Button variant="destructive" size="sm" className="flex-1 h-9 rounded-xl text-xs"
-                onClick={async () => {
-                  if (!user) return;
-                  if (!window.confirm('Delete all applicants and bookings?')) return;
-                  setLoading(true);
-                  const { data: props } = await supabase.from('landlord_properties').select('id').eq('landlord_id', user.id);
-                  if (props && props.length > 0) {
-                    const propIds = props.map(p => p.id);
-                    await supabase.from('viewing_bookings').delete().in('property_id', propIds);
-                    await supabase.from('applicants').delete().in('property_id', propIds);
-                  }
-                  setLoading(false);
-                  toast({ title: 'Applicants cleared' });
-                }} disabled={loading}>
-                Applicants
-              </Button>
-            </div>
+      <Sheet open={openSheet === 'dev'} onOpenChange={closeSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl">
+          <SheetHeader><SheetTitle>Developer tools</SheetTitle></SheetHeader>
+          <p className="text-xs text-muted-foreground mt-3">Clear test data. Cannot be undone.</p>
+          <div className="flex gap-2 mt-4">
+            <Button variant="destructive" className="flex-1 h-11 rounded-xl"
+              onClick={async () => {
+                if (!user) return;
+                if (!window.confirm('Delete all notifications?')) return;
+                setLoading(true);
+                await supabase.from('notifications').delete().eq('landlord_id', user.id);
+                setLoading(false); toast({ title: 'Notifications cleared' });
+              }} disabled={loading}>Notifications</Button>
+            <Button variant="destructive" className="flex-1 h-11 rounded-xl"
+              onClick={async () => {
+                if (!user) return;
+                if (!window.confirm('Delete all applicants and bookings?')) return;
+                setLoading(true);
+                const { data: props } = await supabase.from('landlord_properties').select('id').eq('landlord_id', user.id);
+                if (props && props.length > 0) {
+                  const ids = props.map(p => p.id);
+                  await supabase.from('viewing_bookings').delete().in('property_id', ids);
+                  await supabase.from('applicants').delete().in('property_id', ids);
+                }
+                setLoading(false); toast({ title: 'Applicants cleared' });
+              }} disabled={loading}>Applicants</Button>
           </div>
-        </CollapsibleSection>
-
-        {/* Account actions */}
-        <div className="pt-2 space-y-2">
-          <Button variant="outline" className="w-full h-10 rounded-xl text-sm text-muted-foreground" onClick={async () => { await supabase.auth.signOut(); }}>
-            <LogOut className="w-4 h-4 mr-2" /> Sign out
-          </Button>
-          <p className="text-[10px] text-center text-muted-foreground/50">FairKamer v1.0</p>
-        </div>
-      </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
