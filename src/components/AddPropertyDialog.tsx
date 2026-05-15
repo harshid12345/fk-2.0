@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { calculateWWS, getComplianceStatus } from '@/lib/wws';
 import { useToast } from '@/hooks/use-toast';
-import { Home, Users, ArrowLeft, ArrowRight, BookOpen } from 'lucide-react';
+import { Home, Users, ArrowLeft, ArrowRight, BookOpen, Search, CheckCircle2, Loader2 } from 'lucide-react';
 import PropertyKnowledgeBaseManager from './PropertyKnowledgeBaseManager';
 
 interface Props {
@@ -22,10 +22,17 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [bagLoading, setBagLoading] = useState(false);
+  const [bagVerified, setBagVerified] = useState(false);
   const [step, setStep] = useState<'status' | 'property' | 'preferences' | 'knowledge'>('status');
   const [status, setStatus] = useState<'rented' | 'seeking'>('seeking');
   const [createdPropertyId, setCreatedPropertyId] = useState<string | null>(null);
   const [kbCount, setKbCount] = useState(0);
+
+  // BAG lookup fields
+  const [lookupPostcode, setLookupPostcode] = useState('');
+  const [lookupHuisnummer, setLookupHuisnummer] = useState('');
+  const [lookupHuisletter, setLookupHuisletter] = useState('');
 
   // Block 1: Property fields
   const [address, setAddress] = useState('');
@@ -54,6 +61,39 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
   const [tenantName, setTenantName] = useState('');
   const [tenantContractStart, setTenantContractStart] = useState('');
   const [tenantDeposit, setTenantDeposit] = useState('');
+
+  const handleBagLookup = async () => {
+    if (!lookupPostcode || !lookupHuisnummer) {
+      toast({ title: 'Enter a postcode and house number first', variant: 'destructive' });
+      return;
+    }
+    setBagLoading(true);
+    setBagVerified(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('bag-lookup', {
+        body: {
+          postcode: lookupPostcode,
+          huisnummer: lookupHuisnummer,
+          huisletter: lookupHuisletter || undefined,
+        },
+      });
+      if (error || data?.error) {
+        toast({ title: 'Address not found in BAG', description: 'Check the postcode and house number, or fill in the details manually.', variant: 'destructive' });
+      } else {
+        if (data.address) setAddress(data.address);
+        if (data.postcode) setPostcode(data.postcode);
+        if (data.city) setCity(data.city);
+        if (data.surface_m2) setSurfaceM2(String(data.surface_m2));
+        if (data.building_year) setBuildingYear(String(data.building_year));
+        setBagVerified(true);
+        toast({ title: 'Address verified via BAG', description: `${data.address}, ${data.city}` });
+      }
+    } catch (err) {
+      toast({ title: 'BAG lookup failed', description: 'Try again or fill in the details manually.', variant: 'destructive' });
+    } finally {
+      setBagLoading(false);
+    }
+  };
 
   // Auto-calc min income when rent changes
   const autoMinIncome = () => {
@@ -98,6 +138,7 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
       available_date: availableDate || null,
       min_lease_length: minLeaseLength || null,
       sector: sector || null,
+      bag_verified: bagVerified,
     };
 
     if (status === 'rented') {
@@ -169,6 +210,8 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
     setReferencesRequired(false);
     setCreatedPropertyId(null);
     setKbCount(0);
+    setBagVerified(false);
+    setLookupPostcode(''); setLookupHuisnummer(''); setLookupHuisletter('');
     setStep('status');
   };
 
@@ -217,6 +260,63 @@ export default function AddPropertyDialog({ open, onOpenChange, onCreated }: Pro
               <ArrowLeft className="w-4 h-4 mr-1" /> Back
             </Button>
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Step 1 of 3 — Property Details</p>
+
+            {/* BAG auto-lookup */}
+            <div className="rounded-xl border border-border bg-accent/40 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-foreground">Quick lookup via BAG register</p>
+                {bagVerified && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success">
+                    <CheckCircle2 className="w-3 h-3" /> BAG verified
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1 space-y-1">
+                  <Label className="text-[11px]">Postcode</Label>
+                  <Input
+                    value={lookupPostcode}
+                    onChange={e => { setLookupPostcode(e.target.value); setBagVerified(false); }}
+                    placeholder="1234 AB"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="col-span-1 space-y-1">
+                  <Label className="text-[11px]">Huisnr.</Label>
+                  <Input
+                    value={lookupHuisnummer}
+                    onChange={e => { setLookupHuisnummer(e.target.value); setBagVerified(false); }}
+                    placeholder="12"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="col-span-1 space-y-1">
+                  <Label className="text-[11px]">Letter / Toev.</Label>
+                  <Input
+                    value={lookupHuisletter}
+                    onChange={e => { setLookupHuisletter(e.target.value); setBagVerified(false); }}
+                    placeholder="A"
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-8 text-xs"
+                onClick={handleBagLookup}
+                disabled={bagLoading || !lookupPostcode || !lookupHuisnummer}
+              >
+                {bagLoading ? (
+                  <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Looking up...</>
+                ) : (
+                  <><Search className="w-3 h-3 mr-1.5" /> Fill in from BAG</>
+                )}
+              </Button>
+              <p className="text-[10px] text-muted-foreground">
+                Fills in address, city, surface and building year automatically. You can edit any field afterwards.
+              </p>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">

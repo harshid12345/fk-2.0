@@ -1,15 +1,114 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const TELEGRAM_API = 'https://api.telegram.org/bot';
+// WhatsApp Cloud API base URL and AI gateway — same gateway as Telegram screener
+const WA_API = 'https://graph.facebook.com/v19.0';
 const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const VERIFY_TOKEN = 'fairkamer2026';
 
 // ═══════════════════════════════════════════
-// TRANSLATIONS
+// WHATSAPP HELPERS
+// Differences from Telegram:
+//   - No HTML in message bodies — use stripHtml()
+//   - Button title max 20 chars, list row title max 24 chars
+//   - ≤3 options → interactive button message
+//   - ≥4 options → interactive list message
+//   - "from" field is the phone number string (e.g. "31612345678")
+//   - No separate chat_id — phone number IS the recipient address
+// ═══════════════════════════════════════════
+
+function stripHtml(text: string): string {
+  return text
+    .replace(/<b>(.*?)<\/b>/gi, '*$1*')   // bold → WhatsApp bold (*text*)
+    .replace(/<[^>]+>/g, '')              // remove remaining tags
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function trunc(text: string, max: number): string {
+  return text.length > max ? text.substring(0, max - 1) + '…' : text;
+}
+
+async function sendText(phoneNumberId: string, token: string, to: string, text: string) {
+  const body = stripHtml(text);
+  await fetch(`${WA_API}/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'text',
+      text: { body: body.substring(0, 4096) },
+    }),
+  });
+}
+
+async function sendButtons(phoneNumberId: string, token: string, to: string, bodyText: string, buttons: { id: string; title: string }[]) {
+  await fetch(`${WA_API}/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: stripHtml(bodyText).substring(0, 1024) },
+        action: {
+          buttons: buttons.slice(0, 3).map(b => ({
+            type: 'reply',
+            reply: { id: b.id, title: trunc(b.title, 20) },
+          })),
+        },
+      },
+    }),
+  });
+}
+
+async function sendList(phoneNumberId: string, token: string, to: string, bodyText: string, rows: { id: string; title: string }[], buttonLabel = 'Choose') {
+  await fetch(`${WA_API}/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'interactive',
+      interactive: {
+        type: 'list',
+        body: { text: stripHtml(bodyText).substring(0, 1024) },
+        action: {
+          button: trunc(buttonLabel, 20),
+          sections: [{
+            title: 'Options',
+            rows: rows.slice(0, 10).map(r => ({
+              id: r.id,
+              title: trunc(r.title, 24),
+            })),
+          }],
+        },
+      },
+    }),
+  });
+}
+
+// Unified send: picks text, buttons, or list based on options count
+async function sendWA(phoneNumberId: string, token: string, to: string, text: string, options?: { id: string; title: string }[]) {
+  if (!options || options.length === 0) {
+    await sendText(phoneNumberId, token, to, text);
+  } else if (options.length <= 3) {
+    await sendButtons(phoneNumberId, token, to, text, options);
+  } else {
+    await sendList(phoneNumberId, token, to, text, options);
+  }
+}
+
+// ═══════════════════════════════════════════
+// TRANSLATIONS — identical to telegram-screener
 // ═══════════════════════════════════════════
 const TRANSLATIONS: Record<string, Record<string, any>> = {
   en: {
     welcome: (firstName: string, landlordName: string, address: string) =>
-      `Hey ${firstName}!\n\nI'm helping ${landlordName} find the right tenant for their place at <b>${address}</b>.\n\nI'll ask you a few quick questions — takes about 5 minutes — and it really helps you stand out from other applicants. Ready to go?`,
+      `Hey ${firstName}!\n\nI'm helping ${landlordName} find the right tenant for their place at *${address}*.\n\nI'll ask you a few quick questions — takes about 5 minutes — and it really helps you stand out from other applicants. Ready to go?`,
     start_yes: "Yeah, let's do it!",
     start_info: "Wait, what is this?",
     info_reply: `Good question! FairKamer helps landlords find their ideal tenant — fairly and transparently.\n\nI'll ask you a few things about yourself, and the landlord gets a compatibility score. No weird stuff, no hidden checks. Just honest matching.\n\nWant to give it a go?`,
@@ -21,20 +120,20 @@ const TRANSLATIONS: Record<string, Record<string, any>> = {
     move_q: "When are you hoping to move in?",
     move_this: "ASAP / this month", move_next: "Next month", move_later: "In 2-3 months", move_flex: "I'm flexible",
     emp_q: "What do you do for work?",
-    emp_loon: "Employed (loondienst)", emp_zzp: "Self-employed (ZZP)", emp_student: "Student", emp_uitkering: "Uitkering (benefits)",
+    emp_loon: "Employed", emp_zzp: "Self-employed (ZZP)", emp_student: "Student", emp_uitkering: "Benefits",
     income_q: "Roughly what's your gross monthly income? This stays private.",
-    inc_1: "Under \u20AC1,500", inc_2: "\u20AC1,500 \u2013 \u20AC2,500", inc_3: "\u20AC2,500 \u2013 \u20AC3,500", inc_4: "\u20AC3,500 \u2013 \u20AC5,000", inc_5: "\u20AC5,000+",
+    inc_1: "Under \u20AC1,500", inc_2: "\u20AC1,500-\u20AC2,500", inc_3: "\u20AC2,500-\u20AC3,500", inc_4: "\u20AC3,500-\u20AC5,000", inc_5: "\u20AC5,000+",
     lease_q: "How long are you looking to stay?",
-    lease_6: "~6 months", lease_12: "About a year", lease_2plus: "2+ years", lease_max: "As long as possible!",
+    lease_6: "~6 months", lease_12: "About a year", lease_2plus: "2+ years", lease_max: "As long as possible",
     smoking_q: "Quick one — do you smoke?",
-    smoke_no: "Nope", smoke_outside: "Only outside", smoke_yes: "Yes",
+    smoke_no: "No", smoke_outside: "Only outside", smoke_yes: "Yes",
     pets_q: "Any pets coming along?",
     pets_none: "No pets", pets_cat: "Cat", pets_dog: "Dog", pets_other: "Other",
     bkr_q: "Last question — do you have any unpaid debts or past issues paying rent on time?",
     bkr_clean: "No, all good", bkr_yes: "Yes, I can explain",
-    consent_msg: (name: string) => `Alright ${name}, almost done! By continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nJust type <b>"I agree"</b> and we'll wrap up.`,
-    consent_remind: (name: string) => `Just type <b>"I agree"</b> to continue, ${name}.`,
-    social_ask: (name: string) => `Thanks ${name}!\n\nOne last optional step — paste a link to your <b>LinkedIn</b>, <b>Instagram</b>, or <b>Facebook</b> profile. It helps the landlord get a sense of who you are.\n\nJust paste the full URL, or tap skip.`,
+    consent_msg: (name: string) => `Alright ${name}, almost done! By continuing, you agree that your info may be used to verify your application under Dutch AVG/GDPR rules.\n\nJust type *"I agree"* and we'll wrap up.`,
+    consent_remind: (name: string) => `Just type *"I agree"* to continue, ${name}.`,
+    social_ask: (name: string) => `Thanks ${name}!\n\nOne last optional step — paste a link to your *LinkedIn*, *Instagram*, or *Facebook* profile. It helps the landlord get a sense of who you are.\n\nJust paste the full URL, or tap Skip.`,
     skip_social: "Skip this",
     done_msg: (name: string) => `You're all done ${name}! Your screening is complete and the landlord will review your profile. If they like what they see, I'll send you available viewing times right here.\n\nThanks for going through the process — fingers crossed!`,
     use_buttons: (name: string) => `Hey ${name}, could you use the buttons above to answer? It helps me keep track.`,
@@ -43,35 +142,35 @@ const TRANSLATIONS: Record<string, Record<string, any>> = {
   },
   nl: {
     welcome: (firstName: string, landlordName: string, address: string) =>
-      `Hoi ${firstName}!\n\nIk help ${landlordName} bij het vinden van de juiste huurder voor het adres <b>${address}</b>.\n\nIk stel je een paar korte vragen — duurt ongeveer 5 minuten — en het helpt je echt om op te vallen. Klaar om te beginnen?`,
-    start_yes: "Ja, laten we beginnen!",
-    start_info: "Wacht, wat is dit?",
+      `Hoi ${firstName}!\n\nIk help ${landlordName} bij het vinden van de juiste huurder voor het adres *${address}*.\n\nIk stel je een paar korte vragen — duurt ongeveer 5 minuten — en het helpt je echt om op te vallen. Klaar?`,
+    start_yes: "Ja, beginnen!",
+    start_info: "Wat is dit?",
     info_reply: `Goede vraag! FairKamer helpt verhuurders hun ideale huurder te vinden — eerlijk en transparant.\n\nIk stel je een paar vragen over jezelf, en de verhuurder krijgt een compatibiliteitsscore. Geen rare dingen, geen verborgen checks. Gewoon eerlijke matching.\n\nZullen we beginnen?`,
-    lets_go: "Oké, laten we gaan!",
+    lets_go: "Ja, laten we gaan!",
     ask_name: "Top! Laten we beginnen — wat is je volledige naam?",
     nice_to_meet: (name: string) => `Leuk je te ontmoeten, ${name}!`,
     occupants_q: (name: string) => `${name}, ga je alleen wonen of met anderen?`,
-    occ_1: "Alleen", occ_2: "Met z'n tweeën", occ_3: "3 personen", occ_4: "4+",
+    occ_1: "Alleen", occ_2: "Met z'n twee\u00ebn", occ_3: "3 personen", occ_4: "4+",
     move_q: "Wanneer wil je verhuizen?",
     move_this: "Zo snel mogelijk", move_next: "Volgende maand", move_later: "Over 2-3 maanden", move_flex: "Flexibel",
     emp_q: "Wat doe je voor werk?",
     emp_loon: "In loondienst", emp_zzp: "ZZP'er", emp_student: "Student", emp_uitkering: "Uitkering",
-    income_q: "Wat is ongeveer je bruto maandinkomen? Dit blijft privé.",
-    inc_1: "Onder \u20AC1.500", inc_2: "\u20AC1.500 \u2013 \u20AC2.500", inc_3: "\u20AC2.500 \u2013 \u20AC3.500", inc_4: "\u20AC3.500 \u2013 \u20AC5.000", inc_5: "\u20AC5.000+",
+    income_q: "Wat is ongeveer je bruto maandinkomen? Dit blijft priv\u00e9.",
+    inc_1: "Onder \u20AC1.500", inc_2: "\u20AC1.500-\u20AC2.500", inc_3: "\u20AC2.500-\u20AC3.500", inc_4: "\u20AC3.500-\u20AC5.000", inc_5: "\u20AC5.000+",
     lease_q: "Hoe lang wil je blijven?",
-    lease_6: "~6 maanden", lease_12: "Ongeveer een jaar", lease_2plus: "2+ jaar", lease_max: "Zo lang mogelijk!",
+    lease_6: "~6 maanden", lease_12: "Ongeveer een jaar", lease_2plus: "2+ jaar", lease_max: "Zo lang mogelijk",
     smoking_q: "Rook je?",
     smoke_no: "Nee", smoke_outside: "Alleen buiten", smoke_yes: "Ja",
     pets_q: "Neem je huisdieren mee?",
     pets_none: "Geen huisdieren", pets_cat: "Kat", pets_dog: "Hond", pets_other: "Anders",
     bkr_q: "Laatste vraag — heb je openstaande schulden of eerder problemen gehad met huur betalen?",
-    bkr_clean: "Nee, alles goed", bkr_yes: "Ja, ik kan het uitleggen",
-    consent_msg: (name: string) => `Bijna klaar ${name}! Door verder te gaan, ga je ermee akkoord dat je gegevens mogen worden gebruikt om je aanvraag te verifiëren onder de AVG/GDPR.\n\nTyp <b>"Ik ga akkoord"</b> om af te ronden.`,
-    consent_remind: (name: string) => `Typ <b>"Ik ga akkoord"</b> om verder te gaan, ${name}.`,
-    social_ask: (name: string) => `Bedankt ${name}!\n\nLaatste optionele stap — plak een link naar je <b>LinkedIn</b>, <b>Instagram</b> of <b>Facebook</b> profiel. Zo krijgt de verhuurder een beter beeld van je.\n\nPlak de volledige URL, of tik op overslaan.`,
+    bkr_clean: "Nee, alles goed", bkr_yes: "Ja, kan het uitleggen",
+    consent_msg: (name: string) => `Bijna klaar ${name}! Door verder te gaan, ga je ermee akkoord dat je gegevens mogen worden gebruikt om je aanvraag te verifi\u00ebren onder de AVG/GDPR.\n\nTyp *"Ik ga akkoord"* om af te ronden.`,
+    consent_remind: (name: string) => `Typ *"Ik ga akkoord"* om verder te gaan, ${name}.`,
+    social_ask: (name: string) => `Bedankt ${name}!\n\nLaatste optionele stap — plak een link naar je *LinkedIn*, *Instagram* of *Facebook* profiel. Zo krijgt de verhuurder een beter beeld van je.\n\nPlak de volledige URL, of tik op Overslaan.`,
     skip_social: "Overslaan",
     done_msg: (name: string) => `Je bent klaar ${name}! Je screening is voltooid en de verhuurder zal je profiel bekijken. Als ze enthousiast zijn, stuur ik je hier de beschikbare bezichtigingstijden.\n\nBedankt voor het doorlopen van het proces!`,
-    use_buttons: (name: string) => `Hoi ${name}, kun je de knoppen hierboven gebruiken om te antwoorden?`,
+    use_buttons: (name: string) => `Hoi ${name}, kun je de knoppen gebruiken om te antwoorden?`,
     no_link: (name: string) => `Hoi ${name}! Je hebt een screeningslink van je verhuurder nodig. Vraag het hen.`,
     bad_link: (name: string) => `Hmm, die link lijkt niet te werken ${name}. Kun je het dubbelchecken bij je verhuurder?`,
   },
@@ -85,7 +184,7 @@ function tr(lang: string, key: string, ...args: any[]): string {
 }
 
 // ═══════════════════════════════════════════
-// SCREENING QUESTIONS
+// SCREENING QUESTIONS — identical to telegram-screener
 // ═══════════════════════════════════════════
 const SCREENING_QUESTIONS = [
   {
@@ -194,7 +293,7 @@ const SCREENING_QUESTIONS = [
 ];
 
 // ═══════════════════════════════════════════
-// MATCH SCORE
+// MATCH SCORE — identical to telegram-screener
 // ═══════════════════════════════════════════
 function getIncomeEstimate(range: string | null): number {
   switch (range) {
@@ -275,7 +374,7 @@ function calculateMatchScore(tenant: any, criteria: any, propertyRent: number, s
 }
 
 // ═══════════════════════════════════════════
-// SLOT GENERATION
+// SLOT GENERATION — identical to telegram-screener
 // ═══════════════════════════════════════════
 function generateAvailableSlots(schedule: any[], existingBookings: any[], weeksAhead = 2): { start: string; end: string; label: string }[] {
   const slots: { start: string; end: string; label: string }[] = [];
@@ -321,10 +420,28 @@ function generateAvailableSlots(schedule: any[], existingBookings: any[], weeksA
 // MAIN HANDLER
 // ═══════════════════════════════════════════
 Deno.serve(async (req) => {
+  // ── GET: Meta webhook verification ──────────────────────────────────────
+  if (req.method === 'GET') {
+    const url = new URL(req.url);
+    const mode = url.searchParams.get('hub.mode');
+    const token = url.searchParams.get('hub.verify_token');
+    const challenge = url.searchParams.get('hub.challenge');
+
+    if (mode === 'subscribe' && token === VERIFY_TOKEN && challenge) {
+      return new Response(challenge, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    }
+    return new Response('Forbidden', { status: 403 });
+  }
+
   if (req.method === 'OPTIONS') return new Response('ok', { status: 200 });
 
-  const BOT_TOKEN = Deno.env.get('TELEGRAM_SCREENER_TOKEN');
-  if (!BOT_TOKEN) return new Response('Server error', { status: 500 });
+  const PHONE_NUMBER_ID = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID');
+  const ACCESS_TOKEN = Deno.env.get('WHATSAPP_ACCESS_TOKEN');
+
+  if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) {
+    console.error('Missing WhatsApp credentials');
+    return new Response('Server error', { status: 500 });
+  }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -333,16 +450,17 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
 
-    // ═══════════════════════════════════════════
-    // INTERNAL ACTIONS (called from frontend)
-    // ═══════════════════════════════════════════
+    // ── INTERNAL ACTIONS (called from frontend / telegram-notify-tenant) ────
+    // These mirror the telegram-screener internal actions but send via WhatsApp.
+    // The recipient phone number is stored in applicant.whatsapp_phone.
+
     if (body.action === 'send_slots') {
       const { applicant_id, property_id, landlord_id } = body;
       const { data: appData } = await supabase.from('applicants').select('*').eq('id', applicant_id).single();
       if (!appData) return new Response(JSON.stringify({ error: 'Applicant not found' }), { status: 404 });
 
-      const chatId = appData.telegram_chat_id || (appData.telegram_user_id ? parseInt(appData.telegram_user_id) : null);
-      if (!chatId) return new Response(JSON.stringify({ error: 'No chat ID' }), { status: 400 });
+      const waTo = appData.whatsapp_phone;
+      if (!waTo) return new Response(JSON.stringify({ error: 'No WhatsApp phone on applicant' }), { status: 400 });
 
       const firstName = (appData.full_name || 'there').split(' ')[0];
       const { data: propData } = await supabase.from('landlord_properties').select('address').eq('id', property_id).single();
@@ -350,7 +468,8 @@ Deno.serve(async (req) => {
 
       const { data: schedule } = await supabase.from('viewing_schedule').select('*').eq('landlord_id', landlord_id);
       if (!schedule || schedule.length === 0) {
-        await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! The landlord loved your profile and wants to meet you. They're setting up viewing times right now — I'll send you the options as soon as they're ready.`);
+        await sendText(PHONE_NUMBER_ID, ACCESS_TOKEN, waTo,
+          `Hey ${firstName}! The landlord loved your profile and wants to meet you. They're setting up viewing times right now — I'll send you the options as soon as they're ready.`);
         return new Response(JSON.stringify({ ok: true }));
       }
 
@@ -358,18 +477,23 @@ Deno.serve(async (req) => {
       const slots = generateAvailableSlots(schedule, bookings || []);
 
       if (slots.length === 0) {
-        await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! The landlord loved your application. All viewing times are full right now, but I'll message you the moment a slot opens up.`);
+        await sendText(PHONE_NUMBER_ID, ACCESS_TOKEN, waTo,
+          `Hey ${firstName}! The landlord loved your application. All viewing times are full right now, but I'll message you the moment a slot opens up.`);
         return new Response(JSON.stringify({ ok: true }));
       }
 
       const displaySlots = slots.slice(0, 6);
-      const buttons = displaySlots.map((slot, i) => [{ text: slot.label, callback_data: `vslot_${i}` }]);
       await supabase.from('applicants').update({ pending_viewing_slots: JSON.stringify(displaySlots) }).eq('id', applicant_id);
 
-      const msg = displaySlots.length === 1
-        ? `Hey ${firstName}! Great news — the landlord would love to show you the place at <b>${address}</b>.\n\nHow does <b>${displaySlots[0].label}</b> work for you?`
-        : `Hey ${firstName}! Great news — the landlord would love to show you the place at <b>${address}</b>.\n\nWould <b>${displaySlots[0].label}</b> work for you? If not, I've got a few other times below.`;
-      await sendMessage(BOT_TOKEN, chatId, msg, { reply_markup: { inline_keyboard: buttons } });
+      const msgText = displaySlots.length === 1
+        ? `Hey ${firstName}! Great news — the landlord would love to show you the place at *${address}*.\n\nHow does *${displaySlots[0].label}* work for you?`
+        : `Hey ${firstName}! Great news — the landlord would love to show you the place at *${address}*.\n\nPick a viewing time that works for you:`;
+
+      // Use a list message for slot selection (up to 6 slots)
+      await sendList(PHONE_NUMBER_ID, ACCESS_TOKEN, waTo, stripHtml(msgText),
+        displaySlots.map((slot, i) => ({ id: `vslot_${i}`, title: slot.label })),
+        'Pick a time'
+      );
       return new Response(JSON.stringify({ ok: true }));
     }
 
@@ -378,15 +502,15 @@ Deno.serve(async (req) => {
       const { data: appData } = await supabase.from('applicants').select('*').eq('id', applicant_id).single();
       if (!appData) return new Response(JSON.stringify({ ok: true }));
 
-      const chatId = appData.telegram_chat_id || (appData.telegram_user_id ? parseInt(appData.telegram_user_id) : null);
-      if (!chatId) return new Response(JSON.stringify({ ok: true }));
+      const waTo = appData.whatsapp_phone;
+      if (!waTo) return new Response(JSON.stringify({ ok: true }));
 
       const firstName = (appData.full_name || 'there').split(' ')[0];
       const { data: propData } = await supabase.from('landlord_properties').select('address').eq('id', appData.property_id).single();
       const address = propData?.address || 'the property';
 
-      await sendMessage(BOT_TOKEN, chatId,
-        `Hi ${firstName},\n\nThanks so much for taking the time to apply for <b>${address}</b>. The landlord has decided to go in a different direction this time.\n\nI know it's not the news you were hoping for, but don't give up — the right place is out there. Good luck with your search.`
+      await sendText(PHONE_NUMBER_ID, ACCESS_TOKEN, waTo,
+        `Hi ${firstName},\n\nThanks so much for taking the time to apply for ${address}. The landlord has decided to go in a different direction this time.\n\nI know it's not the news you were hoping for, but don't give up — the right place is out there. Good luck with your search.`
       );
       return new Response(JSON.stringify({ ok: true }));
     }
@@ -396,8 +520,8 @@ Deno.serve(async (req) => {
       const { data: appData } = await supabase.from('applicants').select('*').eq('id', applicant_id).single();
       if (!appData) return new Response(JSON.stringify({ ok: true }));
 
-      const chatId = appData.telegram_chat_id || (appData.telegram_user_id ? parseInt(appData.telegram_user_id) : null);
-      if (!chatId) return new Response(JSON.stringify({ ok: true }));
+      const waTo = appData.whatsapp_phone;
+      if (!waTo) return new Response(JSON.stringify({ ok: true }));
 
       const firstName = (appData.full_name || 'there').split(' ')[0];
       const dt = new Date(slot_start);
@@ -405,169 +529,164 @@ Deno.serve(async (req) => {
       const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
-      await sendMessage(BOT_TOKEN, chatId,
-        `It's official, ${firstName}!\n\nYour viewing is confirmed:\n\n<b>${dateStr} at ${timeStr}</b>\n<b>${address}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nI'll send you a reminder the day before. See you there!`
+      await sendText(PHONE_NUMBER_ID, ACCESS_TOKEN, waTo,
+        `It's official, ${firstName}!\n\nYour viewing is confirmed:\n\n*${dateStr} at ${timeStr}*\n*${address}*\n${mapsLink}\n\nI'll send you a reminder the day before. See you there!`
       );
       return new Response(JSON.stringify({ ok: true }));
     }
 
-    // Reminders are now handled by the telegram-reminder edge function via cron
-    // Cascade slot offering is handled via triggerCascade in the callback handler
-
-    // ═══════════════════════════════════════════
-    // TELEGRAM WEBHOOK UPDATES
-    // ═══════════════════════════════════════════
-    const update = body;
-
-    if (update.callback_query) {
-      const cbMessage = update.callback_query.message;
-      const cbChatId = cbMessage.chat.id;
-      const telegramUserId = String(update.callback_query.from.id);
-      const callbackData = update.callback_query.data;
-
-      const { data: applicant } = await supabase
-        .from('applicants').select('*').eq('telegram_user_id', telegramUserId).maybeSingle();
-
-      if (applicant) {
-        await handleCallback(supabase, BOT_TOKEN, cbChatId, telegramUserId, applicant, callbackData);
-      }
-
-      await fetch(`${TELEGRAM_API}${BOT_TOKEN}/answerCallbackQuery`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callback_query_id: update.callback_query.id }),
-      });
-      return new Response('OK');
+    // ── WHATSAPP WEBHOOK ─────────────────────────────────────────────────────
+    // Meta sends both message events and delivery status updates to the same URL.
+    // Only process message events (object === 'whatsapp_business_account').
+    if (body.object !== 'whatsapp_business_account') {
+      return new Response('OK', { status: 200 });
     }
 
-    const message = update.message;
-    if (!message) return new Response('OK', { status: 200 });
+    const value = body.entry?.[0]?.changes?.[0]?.value;
+    if (!value) return new Response('OK', { status: 200 });
 
-    const chatId = message.chat.id;
-    const text = message.text?.trim() || '';
-    const telegramUserId = String(message.from.id);
-    const firstName = message.from?.first_name || 'there';
+    // Ignore delivery status updates — only care about messages
+    if (value.statuses && !value.messages) return new Response('OK', { status: 200 });
 
-    const { data: applicant } = await supabase
-      .from('applicants').select('*').eq('telegram_user_id', telegramUserId).maybeSingle();
+    const messages = value.messages;
+    if (!messages || messages.length === 0) return new Response('OK', { status: 200 });
 
-    // ── TENANT (post-contract) routing ───────────────────────────────────────
-    // Before treating this as an applicant flow, check whether this telegram
-    // user is the registered tenant of any property. If so, serve them via the
-    // concierge AI using the property's knowledge base.
+    const message = messages[0];
+    const waUserId = message.from; // phone number, e.g. "31612345678"
+
+    // ── Interactive reply (button or list selection) ──────────────────────
+    if (message.type === 'interactive') {
+      const interactive = message.interactive;
+      let callbackData: string | null = null;
+      if (interactive?.type === 'button_reply') callbackData = interactive.button_reply?.id;
+      else if (interactive?.type === 'list_reply') callbackData = interactive.list_reply?.id;
+
+      if (!callbackData) return new Response('OK', { status: 200 });
+
+      const { data: applicant } = await supabase
+        .from('applicants').select('*').eq('whatsapp_phone', waUserId).maybeSingle();
+
+      if (applicant) {
+        await handleCallback(supabase, PHONE_NUMBER_ID, ACCESS_TOKEN, waUserId, applicant, callbackData);
+      }
+      return new Response('OK', { status: 200 });
+    }
+
+    // ── Text message ──────────────────────────────────────────────────────
+    if (message.type !== 'text') return new Response('OK', { status: 200 });
+
+    const text = message.text?.body?.trim() || '';
+    if (!text) return new Response('OK', { status: 200 });
+
+    // Check if this phone number belongs to a current tenant (post-contract concierge)
     const { data: tenantProperty } = await supabase
       .from('landlord_properties')
       .select('*')
-      .eq('tenant_telegram_user_id', telegramUserId)
+      .eq('tenant_whatsapp_phone', waUserId)
       .eq('status', 'rented')
       .maybeSingle();
 
     if (tenantProperty) {
-      // Always keep chat_id current
-      if (tenantProperty.tenant_telegram_chat_id !== chatId) {
-        await supabase.from('landlord_properties')
-          .update({ tenant_telegram_chat_id: chatId }).eq('id', tenantProperty.id);
+      if (text.toLowerCase().startsWith('start')) {
+        const firstName = (tenantProperty.tenant_name || 'there').split(' ')[0];
+        await sendText(PHONE_NUMBER_ID, ACCESS_TOKEN, waUserId,
+          `Hey ${firstName}! I'm your assistant for ${tenantProperty.address}. Ask me anything about the place — wifi, heating, waste schedule, contract terms, maintenance contacts, you name it.`);
+        return new Response('OK', { status: 200 });
       }
-      if (text.startsWith('/start')) {
-        await sendMessage(BOT_TOKEN, chatId,
-          `Hey ${(tenantProperty.tenant_name || firstName).split(' ')[0]}! I'm your assistant for ${tenantProperty.address}. Ask me anything about the place — wifi, heating, waste schedule, contract terms, maintenance contacts, you name it.`);
-        return new Response('OK');
-      }
-      await handleTenantConcierge(supabase, BOT_TOKEN, chatId, tenantProperty, text);
-      return new Response('OK');
+      await handleTenantConcierge(supabase, PHONE_NUMBER_ID, ACCESS_TOKEN, waUserId, tenantProperty, text);
+      return new Response('OK', { status: 200 });
     }
 
+    // Check for existing applicant
+    const { data: applicant } = await supabase
+      .from('applicants').select('*').eq('whatsapp_phone', waUserId).maybeSingle();
+
     if (!applicant) {
-      if (text.startsWith('/start')) {
-        const parts = text.split(' ');
+      // New user — expect "start {propertyId}" (wa.me link sends "start+ID" which WhatsApp
+      // delivers as "start ID" after URL-decoding, but handle the literal "start+ID" form too)
+      const normalised = text.trim().replace(/^start\+/i, 'start ');
+      const parts = normalised.toLowerCase().trim().split(/\s+/);
+      if (parts[0] === 'start' && parts[1]) {
         const propertyId = parts[1];
-        if (!propertyId) {
-          await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! You'll need a link from your landlord to get started. Ask them for it.`);
-          return new Response('OK');
-        }
         const { data: property } = await supabase
-          .from('landlord_properties').select('id, address, landlord_id, status, tenant_name, tenant_phone, tenant_telegram_user_id').eq('id', propertyId).maybeSingle();
+          .from('landlord_properties')
+          .select('id, address, landlord_id, status, tenant_name, tenant_whatsapp_phone')
+          .eq('id', propertyId).maybeSingle();
+
         if (!property) {
-          await sendMessage(BOT_TOKEN, chatId, `Hmm, that link doesn't seem to work ${firstName}. Could you double-check with your landlord?`);
-          return new Response('OK');
+          await sendText(PHONE_NUMBER_ID, ACCESS_TOKEN, waUserId,
+            `Hmm, that link doesn't seem to work. Could you double-check with your landlord?`);
+          return new Response('OK', { status: 200 });
         }
 
-        // If property is already rented and has no tenant claimed yet, claim this user as the tenant.
-        if (property.status === 'rented' && !property.tenant_telegram_user_id) {
+        // Rented property with no tenant claimed yet — register as the tenant
+        if (property.status === 'rented' && !property.tenant_whatsapp_phone) {
           await supabase.from('landlord_properties').update({
-            tenant_telegram_user_id: telegramUserId,
-            tenant_telegram_chat_id: chatId,
-            tenant_name: property.tenant_name || (message.from?.first_name && message.from?.last_name ? `${message.from.first_name} ${message.from.last_name}` : firstName),
+            tenant_whatsapp_phone: waUserId,
           }).eq('id', property.id);
-          await sendMessage(BOT_TOKEN, chatId,
-            `Hey ${firstName}! I'm your assistant for ${property.address}. Hope you enjoy your stay! Ask me anything about the place — wifi, heating, waste schedule, contract terms, maintenance contacts, you name it.`);
-          return new Response('OK');
+          await sendText(PHONE_NUMBER_ID, ACCESS_TOKEN, waUserId,
+            `Hey! I'm your assistant for ${property.address}. Hope you enjoy your stay! Ask me anything about the place — wifi, heating, waste schedule, contract terms, maintenance contacts, you name it.`);
+          return new Response('OK', { status: 200 });
         }
 
-        // If property is rented and already has a different tenant, decline.
         if (property.status === 'rented') {
-          await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! This property is already occupied. If you're the tenant and this is wrong, please ask your landlord to update your contact details.`);
-          return new Response('OK');
+          await sendText(PHONE_NUMBER_ID, ACCESS_TOKEN, waUserId,
+            `Hey! This property is already occupied. If you're the tenant and this is wrong, please ask your landlord to update your contact details.`);
+          return new Response('OK', { status: 200 });
         }
 
         // Create applicant and ask for language
         await supabase.from('applicants').insert({
-          telegram_user_id: telegramUserId,
-          telegram_chat_id: chatId,
+          whatsapp_phone: waUserId,
           property_id: propertyId,
           stage: 'lang_select',
           preferred_language: 'en',
         });
 
-        await sendMessage(BOT_TOKEN, chatId,
-          `Hey ${firstName}! Before we begin, which language do you prefer?\n\nHoi ${firstName}! In welke taal wil je verdergaan?`,
-          { reply_markup: { inline_keyboard: [
-            [{ text: "English", callback_data: 'lang_en' }],
-            [{ text: "Nederlands", callback_data: 'lang_nl' }],
-            [{ text: "Other / Anders", callback_data: 'lang_other' }],
-          ] } }
+        await sendButtons(PHONE_NUMBER_ID, ACCESS_TOKEN, waUserId,
+          `Hey! Before we begin, which language do you prefer?\n\nHoi! In welke taal wil je verdergaan?`,
+          [
+            { id: 'lang_en', title: 'English' },
+            { id: 'lang_nl', title: 'Nederlands' },
+            { id: 'lang_other', title: 'Other / Anders' },
+          ]
         );
       } else {
-        await sendMessage(BOT_TOKEN, chatId, `Hey ${firstName}! You'll need a screening link from your landlord to get started. Ask them for it.`);
+        await sendText(PHONE_NUMBER_ID, ACCESS_TOKEN, waUserId,
+          `Hey! You need a screening link from your landlord to get started. Ask them for it.`);
       }
-      return new Response('OK');
+      return new Response('OK', { status: 200 });
     }
 
-    // Update chat_id if missing
-    if (!applicant.telegram_chat_id) {
-      await supabase.from('applicants').update({ telegram_chat_id: chatId }).eq('id', applicant.id);
-    }
-
-    // Handle language typing for "other"
+    // Handle lang_other_input stage (typed language preference)
     if (applicant.stage === 'lang_other_input') {
-      // They typed their language — store it and use English as fallback, proceed
       await supabase.from('applicants').update({ preferred_language: text.toLowerCase(), stage: 'welcome' }).eq('id', applicant.id);
-      // Continue with welcome in English as fallback
       const { data: property } = await supabase.from('landlord_properties').select('address, landlord_id').eq('id', applicant.property_id).single();
       const { data: landlord } = await supabase.from('landlords').select('full_name').eq('id', property?.landlord_id).maybeSingle();
       const landlordName = landlord?.full_name?.split(' ')[0] || 'your landlord';
-      await sendMessage(BOT_TOKEN, chatId,
-        tr('en', 'welcome', firstName, landlordName, property?.address || 'the property'),
-        { reply_markup: { inline_keyboard: [[
-          { text: tr('en', 'start_yes'), callback_data: 'start_yes' },
-          { text: tr('en', 'start_info'), callback_data: 'start_info' },
-        ]] } }
+      await sendButtons(PHONE_NUMBER_ID, ACCESS_TOKEN, waUserId,
+        tr('en', 'welcome', 'there', landlordName, property?.address || 'the property'),
+        [
+          { id: 'start_yes', title: "Let's do it!" },
+          { id: 'start_info', title: 'What is this?' },
+        ]
       );
-      return new Response('OK');
+      return new Response('OK', { status: 200 });
     }
 
-    await handleTextMessage(supabase, BOT_TOKEN, chatId, applicant, text);
-    return new Response('OK');
+    await handleTextMessage(supabase, PHONE_NUMBER_ID, ACCESS_TOKEN, waUserId, applicant, text);
+    return new Response('OK', { status: 200 });
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('whatsapp-screener error:', error);
     return new Response('OK', { status: 200 });
   }
 });
 
 // ═══════════════════════════════════════════
-// CALLBACK HANDLER
+// CALLBACK / INTERACTIVE REPLY HANDLER
 // ═══════════════════════════════════════════
-async function handleCallback(supabase: any, token: string, chatId: number, telegramUserId: string, applicant: any, data: string) {
+async function handleCallback(supabase: any, phoneNumberId: string, token: string, waTo: string, applicant: any, data: string) {
   const firstName = (applicant.full_name || 'there').split(' ')[0];
   const lang = applicant.preferred_language || 'en';
   const useLang = (lang === 'en' || lang === 'nl') ? lang : 'en';
@@ -578,46 +697,48 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
     const { data: property } = await supabase.from('landlord_properties').select('address, landlord_id').eq('id', applicant.property_id).single();
     const { data: landlord } = await supabase.from('landlords').select('full_name').eq('id', property?.landlord_id).maybeSingle();
     const landlordName = landlord?.full_name?.split(' ')[0] || 'your landlord';
-    const tgFirstName = firstName !== 'there' ? firstName : 'there';
-    await sendMessage(token, chatId,
-      tr('en', 'welcome', tgFirstName, landlordName, property?.address || 'the property'),
-      { reply_markup: { inline_keyboard: [[
-        { text: tr('en', 'start_yes'), callback_data: 'start_yes' },
-        { text: tr('en', 'start_info'), callback_data: 'start_info' },
-      ]] } }
+    await sendButtons(phoneNumberId, token, waTo,
+      tr('en', 'welcome', firstName, landlordName, property?.address || 'the property'),
+      [
+        { id: 'start_yes', title: "Let's do it!" },
+        { id: 'start_info', title: 'What is this?' },
+      ]
     );
     return;
   }
+
   if (data === 'lang_nl' && applicant.stage === 'lang_select') {
     await supabase.from('applicants').update({ preferred_language: 'nl', stage: 'welcome' }).eq('id', applicant.id);
     const { data: property } = await supabase.from('landlord_properties').select('address, landlord_id').eq('id', applicant.property_id).single();
     const { data: landlord } = await supabase.from('landlords').select('full_name').eq('id', property?.landlord_id).maybeSingle();
     const landlordName = landlord?.full_name?.split(' ')[0] || 'je verhuurder';
-    const tgFirstName = firstName !== 'there' ? firstName : 'daar';
-    await sendMessage(token, chatId,
-      tr('nl', 'welcome', tgFirstName, landlordName, property?.address || 'de woning'),
-      { reply_markup: { inline_keyboard: [[
-        { text: tr('nl', 'start_yes'), callback_data: 'start_yes' },
-        { text: tr('nl', 'start_info'), callback_data: 'start_info' },
-      ]] } }
+    await sendButtons(phoneNumberId, token, waTo,
+      tr('nl', 'welcome', firstName, landlordName, property?.address || 'de woning'),
+      [
+        { id: 'start_yes', title: 'Beginnen!' },
+        { id: 'start_info', title: 'Wat is dit?' },
+      ]
     );
     return;
   }
+
   if (data === 'lang_other' && applicant.stage === 'lang_select') {
     await supabase.from('applicants').update({ stage: 'lang_other_input' }).eq('id', applicant.id);
-    await sendMessage(token, chatId, `Please type your preferred language (e.g. "Spanish", "German", "Arabic").\n\nNote: we'll do our best, but the screening will continue in English.`);
+    await sendText(phoneNumberId, token, waTo,
+      `Please type your preferred language (e.g. "Spanish", "German", "Arabic").\n\nNote: we'll do our best, but the screening will continue in English.`);
     return;
   }
 
   if (data === 'start_yes') {
     await supabase.from('applicants').update({ stage: 'name' }).eq('id', applicant.id);
-    await sendMessage(token, chatId, tr(useLang, 'ask_name'));
+    await sendText(phoneNumberId, token, waTo, tr(useLang, 'ask_name'));
     return;
   }
+
   if (data === 'start_info') {
-    await sendMessage(token, chatId,
+    await sendButtons(phoneNumberId, token, waTo,
       tr(useLang, 'info_reply'),
-      { reply_markup: { inline_keyboard: [[ { text: tr(useLang, 'lets_go'), callback_data: 'start_yes' } ]] } }
+      [{ id: 'start_yes', title: tr(useLang, 'lets_go') }]
     );
     return;
   }
@@ -645,11 +766,11 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
       const nextQ = SCREENING_QUESTIONS.find(nq => nq.stage === q.nextStage);
       if (nextQ) {
         const question = nextQ.questionNeedsName ? tr(useLang, nextQ.questionKey, firstName) : tr(useLang, nextQ.questionKey);
-        await sendMessage(token, chatId, question, {
-          reply_markup: { inline_keyboard: nextQ.options.map(o => [{ text: tr(useLang, o.textKey), callback_data: o.callback }]) }
-        });
+        await sendWA(phoneNumberId, token, waTo, question,
+          nextQ.options.map(o => ({ id: o.callback, title: tr(useLang, o.textKey) }))
+        );
       } else if (q.nextStage === 'consent') {
-        await sendMessage(token, chatId, tr(useLang, 'consent_msg', firstName));
+        await sendText(phoneNumberId, token, waTo, tr(useLang, 'consent_msg', firstName));
       }
       return;
     }
@@ -659,9 +780,8 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
   if (data === 'skip_social') {
     await supabase.from('applicants').update({ stage: 'screening_complete' }).eq('id', applicant.id);
     await runMatchScoring(supabase, applicant.id);
-    await sendMessage(token, chatId, tr(useLang, 'done_msg', firstName));
+    await sendText(phoneNumberId, token, waTo, tr(useLang, 'done_msg', firstName));
 
-    // Still trigger scrape (name-based search even without handle)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     fetch(`${supabaseUrl}/functions/v1/social-media-scrape`, {
@@ -679,7 +799,8 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
     try { availableSlots = JSON.parse(applicant.pending_viewing_slots || '[]'); } catch {}
     const selectedSlot = availableSlots[slotIndex];
     if (!selectedSlot) {
-      await sendMessage(token, chatId, `Hmm, that time doesn't seem available anymore ${firstName}. The landlord will send you fresh options soon.`);
+      await sendText(phoneNumberId, token, waTo,
+        `Hmm, that time doesn't seem available anymore ${firstName}. The landlord will send you fresh options soon.`);
       return;
     }
 
@@ -694,17 +815,20 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
       .maybeSingle();
 
     if (existingBooking) {
-      await sendMessage(token, chatId, `Oh no, someone just grabbed that slot. Let me check what else is available...`);
+      await sendText(phoneNumberId, token, waTo, `Oh no, someone just grabbed that slot. Let me check what else is available...`);
       const { data: schedule } = await supabase.from('viewing_schedule').select('*').eq('landlord_id', property.landlord_id);
       const { data: bookings } = await supabase.from('viewing_bookings').select('*').eq('landlord_id', property.landlord_id);
       const freshSlots = generateAvailableSlots(schedule || [], bookings || []);
       if (freshSlots.length > 0) {
         const display = freshSlots.slice(0, 6);
         await supabase.from('applicants').update({ pending_viewing_slots: JSON.stringify(display) }).eq('id', applicant.id);
-        const buttons = display.map((s, i) => [{ text: s.label, callback_data: `vslot_${i}` }]);
-        await sendMessage(token, chatId, `Here are the available times — pick one that works for you:`, { reply_markup: { inline_keyboard: buttons } });
+        await sendList(phoneNumberId, token, waTo,
+          `Here are the available times — pick one that works for you:`,
+          display.map((s, i) => ({ id: `vslot_${i}`, title: s.label })),
+          'Pick a time'
+        );
       } else {
-        await sendMessage(token, chatId, `All slots are taken right now. I'll message you when new ones open up.`);
+        await sendText(phoneNumberId, token, waTo, `All slots are taken right now. I'll message you when new ones open up.`);
       }
       return;
     }
@@ -720,7 +844,7 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
 
     if (bookingError) {
       console.error('Booking insert error:', bookingError);
-      await sendMessage(token, chatId, `Something went wrong booking that slot. The landlord will send new times shortly.`);
+      await sendText(phoneNumberId, token, waTo, `Something went wrong booking that slot. The landlord will send new times shortly.`);
       return;
     }
 
@@ -739,16 +863,15 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
     });
 
     const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address)}`;
-    await sendMessage(token, chatId,
-      `Nice choice, ${firstName}!\n\nYou picked <b>${selectedSlot.label}</b> at <b>${property.address}</b>.\n\n<a href="${mapsLink}">Open in Google Maps</a>\n\nI've sent this to the landlord for approval — you'll get a confirmation as soon as they say yes. Hang tight.`
+    await sendText(phoneNumberId, token, waTo,
+      `Nice choice, ${firstName}!\n\nYou picked *${selectedSlot.label}* at *${property.address}*.\n${mapsLink}\n\nI've sent this to the landlord for approval — you'll get a confirmation as soon as they say yes. Hang tight.`
     );
     await runMatchScoring(supabase, applicant.id);
     return;
   }
 
-  // Reminder: tenant confirms
+  // Reminder: tenant confirms attendance
   if (data === 'remind_yes') {
-    // Mark 24h response
     const { data: bk } = await supabase.from('viewing_bookings')
       .select('id, slot_start, property_id')
       .eq('applicant_id', applicant.id)
@@ -760,9 +883,10 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
       const { data: prop } = await supabase.from('landlord_properties').select('address').eq('id', bk.property_id).single();
       const dt = new Date(bk.slot_start);
       const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-      await sendMessage(token, chatId, `Perfect, see you tomorrow at ${timeStr}. The address is ${prop?.address || 'the property'}. Good luck!`);
+      await sendText(phoneNumberId, token, waTo,
+        `Perfect, see you tomorrow at ${timeStr}. The address is ${prop?.address || 'the property'}. Good luck!`);
     } else {
-      await sendMessage(token, chatId, `Great, see you there ${firstName}!`);
+      await sendText(phoneNumberId, token, waTo, `Great, see you there ${firstName}!`);
     }
     return;
   }
@@ -776,7 +900,6 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
       .limit(1).maybeSingle();
 
     if (booking) {
-      // Apply cancellation penalty
       const cancCount = (applicant.cancellation_count || 0) + 1;
       const newScore = Math.max(0, (applicant.match_score || 0) - 5);
       const flags = applicant.match_flags || [];
@@ -790,7 +913,6 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
         match_flags: flags,
       }).eq('id', applicant.id);
 
-      // Determine if this is a late cancel (2h) — use 5 min timeout, else 10 min
       const hoursUntil = (new Date(booking.slot_start).getTime() - Date.now()) / 3600_000;
       const timeoutMin = hoursUntil <= 3 ? 5 : 10;
 
@@ -809,39 +931,35 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
         related_applicant_id: applicant.id,
       });
 
-      await sendMessage(token, chatId, `No problem ${firstName}, your viewing has been cancelled. I hope you find a great place.`);
-
-      // Trigger cascade
-      await triggerCascade(supabase, token, booking, timeoutMin);
+      await sendText(phoneNumberId, token, waTo,
+        `No problem ${firstName}, your viewing has been cancelled. I hope you find a great place.`);
+      await triggerCascade(supabase, phoneNumberId, token, booking, timeoutMin);
     }
     return;
   }
 
-  // Cascade: candidate claims slot
+  // Cascade: candidate claims the slot
   if (data.startsWith('cascade_yes_')) {
     const bookingId = data.replace('cascade_yes_', '');
     const { data: booking } = await supabase.from('viewing_bookings').select('*').eq('id', bookingId).single();
     if (!booking || booking.cascade_state !== 'active') {
-      await sendMessage(token, chatId, `Sorry ${firstName}, that slot has already been taken.`);
+      await sendText(phoneNumberId, token, waTo, `Sorry ${firstName}, that slot has already been taken.`);
       return;
     }
 
     const cascadeData = booking.cascade_data || {};
     const candidates = cascadeData.candidates || [];
-
-    // Check if someone already claimed it
     const alreadyClaimed = candidates.some((c: any) => c.response === 'yes');
     if (alreadyClaimed) {
-      await sendMessage(token, chatId, `Sorry ${firstName}, someone else just claimed that slot. We will keep you posted on future viewings.`);
+      await sendText(phoneNumberId, token, waTo,
+        `Sorry ${firstName}, someone else just claimed that slot. We will keep you posted on future viewings.`);
       return;
     }
 
-    // Mark this candidate as winner
     const updatedCandidates = candidates.map((c: any) =>
       c.applicant_id === applicant.id ? { ...c, response: 'yes' } : c
     );
 
-    // Create new booking for this applicant
     await supabase.from('viewing_bookings').insert({
       landlord_id: booking.landlord_id,
       property_id: booking.property_id,
@@ -868,20 +986,17 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
     const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
 
-    await sendMessage(token, chatId,
-      `You got it ${firstName}! Your viewing is confirmed:\n\n<b>${dateStr} at ${timeStr}</b>\n<b>${addr}</b>\n<a href="${mapsLink}">Open in Google Maps</a>\n\nI will send you a reminder beforehand.`
+    await sendText(phoneNumberId, token, waTo,
+      `You got it ${firstName}! Your viewing is confirmed:\n\n*${dateStr} at ${timeStr}*\n*${addr}*\n${mapsLink}\n\nI will send you a reminder beforehand.`
     );
 
-    // Notify other candidates
     for (const c of updatedCandidates) {
-      if (c.applicant_id !== applicant.id && c.chat_id && c.response !== 'no') {
-        await sendMessage(token, c.chat_id,
-          `Thanks, the slot has just been filled. We will keep you posted on future viewings.`
-        );
+      if (c.applicant_id !== applicant.id && c.wa_to && c.response !== 'no') {
+        await sendText(phoneNumberId, token, c.wa_to,
+          `Thanks, the slot has just been filled. We will keep you posted on future viewings.`);
       }
     }
 
-    // Notify landlord
     await supabase.from('notifications').insert({
       landlord_id: booking.landlord_id,
       type: 'cascade_filled',
@@ -906,10 +1021,8 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
         cascade_data: { ...cascadeData, candidates: updatedCandidates },
       }).eq('id', bookingId);
 
-      // Check if all have responded NO
       const allDeclined = updatedCandidates.every((c: any) => c.response === 'no');
       if (allDeclined) {
-        // Notify landlord immediately
         await supabase.from('viewing_bookings').update({ cascade_state: 'landlord_notified' }).eq('id', bookingId);
         const { data: prop } = await supabase.from('landlord_properties').select('address').eq('id', booking.property_id).single();
         const dt = new Date(booking.slot_start);
@@ -924,7 +1037,8 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
         });
       }
     }
-    await sendMessage(token, chatId, `No worries ${firstName}. We will let you know about future viewing opportunities.`);
+    await sendText(phoneNumberId, token, waTo,
+      `No worries ${firstName}. We will let you know about future viewing opportunities.`);
     return;
   }
 }
@@ -932,16 +1046,11 @@ async function handleCallback(supabase: any, token: string, chatId: number, tele
 // ═══════════════════════════════════════════
 // TEXT MESSAGE HANDLER
 // ═══════════════════════════════════════════
-// NAME EXTRACTION — strip conversational filler so we don't store
-// "my name is John" as the full name.
-// ═══════════════════════════════════════════
 function extractName(raw: string): string | null {
   let s = (raw || '').trim().replace(/[.!?,;:"']+$/g, '').trim();
   if (!s) return null;
-
-  // Try common intro patterns first (EN + NL).
   const patterns = [
-    /^(?:my\s+name\s+is|i\s*am|i'm|im|this\s+is|name['’]?s|call\s+me|they\s+call\s+me)\s+(.+)$/i,
+    /^(?:my\s+name\s+is|i\s*am|i'm|im|this\s+is|name['']?s|call\s+me|they\s+call\s+me)\s+(.+)$/i,
     /^(?:mijn\s+naam\s+is|ik\s+ben|ik\s+heet|men\s+noemt\s+mij|noem\s+mij)\s+(.+)$/i,
     /^(?:hi|hello|hey|hoi|hallo)[,!\s]+(?:my\s+name\s+is|i\s*am|i'm|im|mijn\s+naam\s+is|ik\s+ben|ik\s+heet)\s+(.+)$/i,
   ];
@@ -949,13 +1058,8 @@ function extractName(raw: string): string | null {
     const m = s.match(p);
     if (m && m[1]) { s = m[1].trim().replace(/[.!?,;:"']+$/g, '').trim(); break; }
   }
-
-  // Drop trailing filler like "and i'm 25", "uit Amsterdam"
   s = s.split(/\s+(?:and|en)\s+/i)[0].trim();
-
-  // Keep only the first 4 word-tokens that look like name parts.
   const tokens = s.split(/\s+/).filter(Boolean).slice(0, 4);
-  // Reject if it's clearly not a name (numbers, urls, very long single token)
   if (!tokens.length) return null;
   if (tokens.some(t => /https?:\/\/|@|\d/.test(t))) return null;
   const cleaned = tokens
@@ -968,8 +1072,7 @@ function extractName(raw: string): string | null {
   return joined;
 }
 
-// ═══════════════════════════════════════════
-async function handleTextMessage(supabase: any, token: string, chatId: number, applicant: any, text: string) {
+async function handleTextMessage(supabase: any, phoneNumberId: string, token: string, waTo: string, applicant: any, text: string) {
   const stage = applicant.stage;
   const firstName = (applicant.full_name || 'there').split(' ')[0];
   const lang = applicant.preferred_language || 'en';
@@ -978,7 +1081,7 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
   if (stage === 'name') {
     const name = extractName(text);
     if (!name) {
-      await sendMessage(token, chatId, useLang === 'nl'
+      await sendText(phoneNumberId, token, waTo, useLang === 'nl'
         ? "Sorry, ik kon je naam niet herkennen. Kun je alleen je volledige naam typen? Bijvoorbeeld: Jan de Vries"
         : "Sorry, I couldn't catch your name. Could you just type your full name? For example: John Smith");
       return;
@@ -987,33 +1090,32 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
     await supabase.from('applicants').update({ full_name: name, stage: 'q_occupants' }).eq('id', applicant.id);
     const firstQ = SCREENING_QUESTIONS[0];
     const question = tr(useLang, firstQ.questionKey, first);
-    await sendMessage(token, chatId, `${tr(useLang, 'nice_to_meet', first)}\n\n${question}`, {
-      reply_markup: { inline_keyboard: firstQ.options.map(o => [{ text: tr(useLang, o.textKey), callback_data: o.callback }]) }
-    });
+    await sendWA(phoneNumberId, token, waTo,
+      `${tr(useLang, 'nice_to_meet', first)}\n\n${question}`,
+      firstQ.options.map(o => ({ id: o.callback, title: tr(useLang, o.textKey) }))
+    );
     return;
   }
 
   if (stage === 'consent') {
     if (text.toLowerCase().includes('agree') || text.toLowerCase().includes('akkoord')) {
       await supabase.from('applicants').update({ consent_given: true, stage: 'socials' }).eq('id', applicant.id);
-      await sendMessage(token, chatId,
+      await sendButtons(phoneNumberId, token, waTo,
         tr(useLang, 'social_ask', firstName),
-        { reply_markup: { inline_keyboard: [[ { text: tr(useLang, 'skip_social'), callback_data: 'skip_social' } ]] } }
+        [{ id: 'skip_social', title: tr(useLang, 'skip_social') }]
       );
     } else {
-      await sendMessage(token, chatId, tr(useLang, 'consent_remind', firstName));
+      await sendText(phoneNumberId, token, waTo, tr(useLang, 'consent_remind', firstName));
     }
     return;
   }
 
   if (stage === 'socials') {
-    // Accept any LinkedIn / Instagram / Facebook URL or handle. Store the raw text — the scrape function detects platform.
     const handle = text.trim();
     await supabase.from('applicants').update({ social_handle: handle, stage: 'screening_complete' }).eq('id', applicant.id);
     await runMatchScoring(supabase, applicant.id);
-    await sendMessage(token, chatId, tr(useLang, 'done_msg', firstName));
+    await sendText(phoneNumberId, token, waTo, tr(useLang, 'done_msg', firstName));
 
-    // Trigger social media scrape in background
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     fetch(`${supabaseUrl}/functions/v1/social-media-scrape`, {
@@ -1025,7 +1127,6 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
   }
 
   if (stage === 'done' || stage === 'screening_complete' || stage === 'viewing_pending' || stage === 'approved' || stage === 'viewing_booked') {
-    // Check for YES/NO replies to reminders
     const lower = text.toLowerCase().trim();
     if (lower === 'yes' || lower === 'ja') {
       const { data: bk } = await supabase.from('viewing_bookings')
@@ -1038,7 +1139,8 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
         const { data: prop } = await supabase.from('landlord_properties').select('address').eq('id', bk.property_id).single();
         const dt = new Date(bk.slot_start);
         const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        await sendMessage(token, chatId, `Perfect, see you tomorrow at ${timeStr}. The address is ${prop?.address || 'the property'}. Good luck!`);
+        await sendText(phoneNumberId, token, waTo,
+          `Perfect, see you tomorrow at ${timeStr}. The address is ${prop?.address || 'the property'}. Good luck!`);
         return;
       }
     }
@@ -1048,36 +1150,34 @@ async function handleTextMessage(supabase: any, token: string, chatId: number, a
         .not('reminder_24h_sent_at', 'is', null).is('reminder_24h_response', null)
         .order('slot_start', { ascending: true }).limit(1).maybeSingle();
       if (bk) {
-        // Treat as cancellation via remind_cancel flow
-        await sendMessage(token, chatId,
+        await sendButtons(phoneNumberId, token, waTo,
           `Got it ${firstName}, would you like me to cancel your viewing?`,
-          { reply_markup: { inline_keyboard: [
-            [{ text: "Yes, cancel it", callback_data: 'remind_cancel' }],
-            [{ text: "No, keep it", callback_data: 'remind_yes' }],
-          ] } }
+          [
+            { id: 'remind_cancel', title: 'Yes, cancel it' },
+            { id: 'remind_yes', title: 'No, keep it' },
+          ]
         );
         return;
       }
     }
-
-    await handleAIResponse(supabase, token, chatId, applicant, text);
+    await handleAIResponse(supabase, phoneNumberId, token, waTo, applicant, text);
     return;
   }
 
   if (stage?.startsWith('q_')) {
-    await sendMessage(token, chatId, tr(useLang, 'use_buttons', firstName));
+    await sendText(phoneNumberId, token, waTo, tr(useLang, 'use_buttons', firstName));
     return;
   }
 
-  await handleAIResponse(supabase, token, chatId, applicant, text);
+  await handleAIResponse(supabase, phoneNumberId, token, waTo, applicant, text);
 }
 
 // ═══════════════════════════════════════════
-// CASCADE TRIGGER (called from callback handler)
+// CASCADE TRIGGER
 // ═══════════════════════════════════════════
-async function triggerCascade(supabase: any, token: string, booking: any, timeoutMinutes: number) {
+async function triggerCascade(supabase: any, phoneNumberId: string, token: string, booking: any, timeoutMinutes: number) {
   const { data: candidates } = await supabase.from('applicants')
-    .select('id, telegram_chat_id, telegram_user_id, full_name, match_score')
+    .select('id, whatsapp_phone, full_name, match_score')
     .eq('property_id', booking.property_id)
     .in('stage', ['approved', 'screening_complete'])
     .is('viewing_booked_at', null)
@@ -1087,7 +1187,6 @@ async function triggerCascade(supabase: any, token: string, booking: any, timeou
     .limit(3);
 
   if (!candidates || candidates.length === 0) {
-    // No candidates — notify landlord directly
     const { data: prop } = await supabase.from('landlord_properties').select('address').eq('id', booking.property_id).single();
     const dt = new Date(booking.slot_start);
     const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
@@ -1096,7 +1195,7 @@ async function triggerCascade(supabase: any, token: string, booking: any, timeou
       landlord_id: booking.landlord_id,
       type: 'cancellation_no_replacement',
       title: `Viewing cancelled — no replacement found`,
-      message: `Your viewing on ${dateStr} at ${timeStr} for ${prop?.address || 'the property'} was cancelled and no replacement was found from your current applicant list.`,
+      message: `Your viewing on ${dateStr} at ${timeStr} for ${prop?.address || 'the property'} was cancelled and no replacement was found.`,
       related_booking_id: booking.id,
     });
     await supabase.from('viewing_bookings').update({ cascade_state: 'landlord_notified' }).eq('id', booking.id);
@@ -1112,17 +1211,17 @@ async function triggerCascade(supabase: any, token: string, booking: any, timeou
   const cascadeCandidates: any[] = [];
 
   for (const c of candidates) {
-    const chatId = c.telegram_chat_id || (c.telegram_user_id ? parseInt(c.telegram_user_id) : null);
-    if (!chatId) continue;
-    const firstName = (c.full_name || 'there').split(' ')[0];
-    await sendMessage(token, chatId,
-      `Hi ${firstName}, a viewing slot just opened up at ${addr} on ${dateStr} at ${timeStr}. Are you available? Reply YES to claim it or NO if not. First to confirm gets the slot.`,
-      { reply_markup: { inline_keyboard: [
-        [{ text: 'YES, I want it', callback_data: `cascade_yes_${booking.id}` }],
-        [{ text: 'NO, not available', callback_data: `cascade_no_${booking.id}` }],
-      ] } }
+    const waTo = c.whatsapp_phone;
+    if (!waTo) continue;
+    const cFirstName = (c.full_name || 'there').split(' ')[0];
+    await sendButtons(phoneNumberId, token, waTo,
+      `Hi ${cFirstName}, a viewing slot just opened up at ${addr} on ${dateStr} at ${timeStr}. Are you available? First to confirm gets the slot.`,
+      [
+        { id: `cascade_yes_${booking.id}`, title: 'YES, I want it' },
+        { id: `cascade_no_${booking.id}`, title: 'No, not available' },
+      ]
     );
-    cascadeCandidates.push({ applicant_id: c.id, chat_id: chatId, full_name: c.full_name, response: null });
+    cascadeCandidates.push({ applicant_id: c.id, wa_to: waTo, full_name: c.full_name, response: null });
   }
 
   await supabase.from('viewing_bookings').update({
@@ -1164,42 +1263,40 @@ async function runMatchScoring(supabase: any, applicantId: string) {
 }
 
 // ═══════════════════════════════════════════
-// AI-POWERED RESPONSE HANDLER
+// AI RESPONSE HANDLER
 // ═══════════════════════════════════════════
-async function handleAIResponse(supabase: any, token: string, chatId: number, applicant: any, userText: string) {
+async function handleAIResponse(supabase: any, phoneNumberId: string, token: string, waTo: string, applicant: any, userText: string) {
   const firstName = (applicant.full_name || 'there').split(' ')[0];
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
   if (!LOVABLE_API_KEY) {
-    await sendMessage(token, chatId, `Hey ${firstName}! Your application is with the landlord — I'll message you as soon as there's an update. Hang tight.`);
+    await sendText(phoneNumberId, token, waTo,
+      `Hey ${firstName}! Your application is with the landlord — I'll message you as soon as there's an update. Hang tight.`);
     return;
   }
 
   try {
     const cancelWords = ['cancel', 'annuleren', 'afzeggen', "can't make it", 'cant make it', 'not coming', 'cancel viewing', 'cancel my viewing'];
     const lowerText = userText.toLowerCase();
-    const wantsCancellation = cancelWords.some(w => lowerText.includes(w));
-
-    if (wantsCancellation) {
+    if (cancelWords.some(w => lowerText.includes(w))) {
       const { data: booking } = await supabase.from('viewing_bookings')
         .select('*').eq('applicant_id', applicant.id)
         .in('status', ['confirmed', 'pending_landlord'])
         .order('slot_start', { ascending: true })
         .limit(1).maybeSingle();
-
       if (booking) {
-        await sendMessage(token, chatId,
+        await sendButtons(phoneNumberId, token, waTo,
           `Got it ${firstName}, would you like me to cancel your viewing?`,
-          { reply_markup: { inline_keyboard: [
-            [{ text: "Yes, cancel it", callback_data: 'remind_cancel' }],
-            [{ text: "No, keep it", callback_data: 'remind_yes' }],
-          ] } }
+          [
+            { id: 'remind_cancel', title: 'Yes, cancel it' },
+            { id: 'remind_yes', title: 'No, keep it' },
+          ]
         );
-        return;
       } else {
-        await sendMessage(token, chatId, `Hey ${firstName}, I don't see any upcoming viewings to cancel. If you think this is wrong, just let me know.`);
-        return;
+        await sendText(phoneNumberId, token, waTo,
+          `Hey ${firstName}, I don't see any upcoming viewings to cancel. If you think this is wrong, just let me know.`);
       }
+      return;
     }
 
     const { data: property } = await supabase.from('landlord_properties')
@@ -1222,8 +1319,6 @@ async function handleAIResponse(supabase: any, token: string, chatId: number, ap
       if (property.rent_amount) details.push(`Rent: \u20AC${property.rent_amount}/month`);
       if (property.surface_m2) details.push(`Surface: ${property.surface_m2}m\u00B2`);
       if (property.num_rooms) details.push(`Rooms: ${property.num_rooms}`);
-      if (property.property_type) details.push(`Type: ${property.property_type}`);
-      if (property.accommodation_type) details.push(`Accommodation: ${property.accommodation_type}`);
       if (property.building_year) details.push(`Built: ${property.building_year}`);
       if (property.energy_label) details.push(`Energy label: ${property.energy_label}`);
       if (property.furnished_status) details.push(`Furnished: ${property.furnished_status}`);
@@ -1251,12 +1346,12 @@ async function handleAIResponse(supabase: any, token: string, chatId: number, ap
       ? `The tenant prefers ${prefLang}. Reply in that language if you can, otherwise English.`
       : 'Reply in the same language the tenant writes in (Dutch or English).';
 
-    const systemPrompt = `You are a friendly, helpful rental assistant for FairKamer. You chat with tenants via Telegram about their rental application.
+    const systemPrompt = `You are a friendly, helpful rental assistant for FairKamer. You chat with tenants via WhatsApp about their rental application.
 
 Your personality:
 - Warm, casual, helpful — like texting a friend who works in real estate
 - Use the tenant's first name (${firstName})
-- Keep responses SHORT (2-4 sentences max) — this is Telegram, not email
+- Keep responses SHORT (2-4 sentences max) — this is WhatsApp, not email
 - Do NOT use emojis at all. Keep it professional and clean.
 - Always be encouraging and supportive
 
@@ -1279,14 +1374,11 @@ RULES:
 - If they ask about their application status, use the tenant status above
 - NEVER make up property details you don't have
 - NEVER discuss other applicants
-- Keep it to plain text with minimal HTML`;
+- Plain text only. No markdown.`;
 
     const response = await fetch(AI_GATEWAY, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash-lite',
         messages: [
@@ -1298,47 +1390,48 @@ RULES:
 
     if (!response.ok) {
       console.error('[AI] Gateway error:', response.status, await response.text());
-      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back from the landlord. Hang tight.`);
+      await sendText(phoneNumberId, token, waTo,
+        `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back from the landlord. Hang tight.`);
       return;
     }
 
     const result = await response.json();
     const aiReply = result.choices?.[0]?.message?.content;
-
-    if (aiReply && aiReply.trim()) {
-      await sendMessage(token, chatId, aiReply.trim());
+    if (aiReply?.trim()) {
+      await sendText(phoneNumberId, token, waTo, aiReply.trim());
     } else {
-      await sendMessage(token, chatId, `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back. Sit tight.`);
+      await sendText(phoneNumberId, token, waTo,
+        `Hey ${firstName}! Your application is being reviewed — I'll update you as soon as I hear back. Sit tight.`);
     }
   } catch (err) {
     console.error('[AI] Error:', err);
-    await sendMessage(token, chatId, `Hey ${firstName}! I'm here if you need anything. Your application is with the landlord — I'll let you know as soon as there's news.`);
+    await sendText(phoneNumberId, token, waTo,
+      `Hey ${firstName}! I'm here if you need anything. Your application is with the landlord — I'll let you know as soon as there's news.`);
   }
 }
 
 // ═══════════════════════════════════════════
 // TENANT CONCIERGE (post-contract)
 // ═══════════════════════════════════════════
-async function handleTenantConcierge(supabase: any, token: string, chatId: number, property: any, userText: string) {
+async function handleTenantConcierge(supabase: any, phoneNumberId: string, token: string, waTo: string, property: any, userText: string) {
   const tenantFirst = (property.tenant_name || 'there').split(' ')[0];
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
   if (!LOVABLE_API_KEY) {
-    await sendMessage(token, chatId, `Hey ${tenantFirst}! I'm temporarily offline — please reach out to your landlord directly.`);
+    await sendText(phoneNumberId, token, waTo,
+      `Hey ${tenantFirst}! I'm temporarily offline — please reach out to your landlord directly.`);
     return;
   }
 
-  // Issue / maintenance keywords → log a tenant_issue so the landlord sees it.
   const issueWords = ['broken', 'leak', 'leaking', 'not working', "doesn't work", 'doesnt work', 'no hot water', 'no heating', 'mold', 'mould', 'urgent', 'emergency', 'kapot', 'lekt', 'werkt niet', 'storing'];
   const lower = userText.toLowerCase();
-  const looksLikeIssue = issueWords.some(w => lower.includes(w));
-  if (looksLikeIssue) {
+  if (issueWords.some(w => lower.includes(w))) {
     try {
       await supabase.from('tenant_issues').insert({
         property_id: property.id,
         message: userText,
         tenant_name: property.tenant_name || null,
-        telegram_user_id: property.tenant_telegram_user_id || null,
+        whatsapp_phone: property.tenant_whatsapp_phone || null,
         category: 'needs_attention',
       });
     } catch (e) {
@@ -1357,15 +1450,13 @@ async function handleTenantConcierge(supabase: any, token: string, chatId: numbe
   if (property.building_year) details.push(`Building year: ${property.building_year}`);
   if (property.energy_label) details.push(`Energy label: ${property.energy_label}`);
   if (property.num_rooms) details.push(`Rooms: ${property.num_rooms}`);
-  if (property.accommodation_type) details.push(`Type: ${property.accommodation_type}`);
-  if (property.bag_verified) details.push(`BAG verified: yes (official Dutch property register)`);
 
-  const systemPrompt = `You are the post-contract concierge assistant for a tenant who is currently living at this property. You speak with them via Telegram.
+  const systemPrompt = `You are the post-contract concierge assistant for a tenant who is currently living at this property. You speak with them via WhatsApp.
 
 Your personality:
 - Warm, casual, helpful — like texting a friend who knows the building inside out
 - Use the tenant's first name (${tenantFirst})
-- Keep responses SHORT (2-4 sentences). This is Telegram, not email.
+- Keep responses SHORT (2-4 sentences). This is WhatsApp, not email.
 - Do NOT use emojis. Keep it professional and clean.
 
 PROPERTY (the tenant lives here):
@@ -1373,15 +1464,15 @@ ${details.join('\n')}
 
 ${property.knowledge_base_text ? `PROPERTY KNOWLEDGE BASE (uploaded by the landlord — house rules, wifi, appliances, contract terms, contacts, etc.):
 ${property.knowledge_base_text}
-` : 'NOTE: No knowledge base has been uploaded yet. If asked something specific, tell them honestly you don\'t have that detail and suggest contacting the landlord.'}
+` : "NOTE: No knowledge base has been uploaded yet. If asked something specific, tell them honestly you don't have that detail and suggest contacting the landlord."}
 
 RULES:
-- This person is the CURRENT TENANT, not an applicant. Never ask screening questions, never mention "applications" or "viewings".
+- This person is the CURRENT TENANT, not an applicant. Never ask screening questions.
 - Quote specifics verbatim (wifi passwords, codes, contact numbers) — never paraphrase.
-- For maintenance issues (leaks, broken things, no heating, etc.) acknowledge it warmly, tell them you've logged it for the landlord, and share any relevant emergency contact from the knowledge base.
+- For maintenance issues acknowledge it warmly, tell them you've logged it for the landlord, and share any relevant emergency contact from the knowledge base.
 - If you don't have info, say so honestly and suggest contacting the landlord.
 - Reply in the language the tenant writes in (English or Dutch).
-- Plain text only. No markdown headers.`;
+- Plain text only.`;
 
   try {
     const response = await fetch(AI_GATEWAY, {
@@ -1397,24 +1488,16 @@ RULES:
     });
     if (!response.ok) {
       console.error('[tenant-concierge] AI error', response.status, await response.text());
-      await sendMessage(token, chatId, `Hey ${tenantFirst}! I'm having a hiccup — please try again in a moment, or reach out to your landlord directly.`);
+      await sendText(phoneNumberId, token, waTo,
+        `Hey ${tenantFirst}! I'm having a hiccup — please try again in a moment, or reach out to your landlord directly.`);
       return;
     }
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content?.trim();
-    await sendMessage(token, chatId, reply || `Hey ${tenantFirst}! I'm here — could you rephrase that?`);
+    await sendText(phoneNumberId, token, waTo, reply || `Hey ${tenantFirst}! I'm here — could you rephrase that?`);
   } catch (err) {
     console.error('[tenant-concierge] error', err);
-    await sendMessage(token, chatId, `Hey ${tenantFirst}! I'm having trouble reaching the system. Please try again shortly.`);
+    await sendText(phoneNumberId, token, waTo,
+      `Hey ${tenantFirst}! I'm having trouble reaching the system. Please try again shortly.`);
   }
-}
-
-// ═══════════════════════════════════════════
-// TELEGRAM HELPERS
-// ═══════════════════════════════════════════
-async function sendMessage(token: string, chatId: number, text: string, extra?: any) {
-  await fetch(`${TELEGRAM_API}${token}/sendMessage`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', ...extra }),
-  });
 }

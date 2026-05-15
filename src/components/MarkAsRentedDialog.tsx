@@ -16,10 +16,10 @@ interface Props {
   onMarked?: () => void;
 }
 
-const BOT_USERNAME = 'fairkamer_screen_bot';
+const WA_NUMBER = import.meta.env.VITE_WHATSAPP_BUSINESS_NUMBER || '3197010227583';
 
 function buildBotLink(propertyId: string) {
-  return `https://t.me/${BOT_USERNAME}?start=${propertyId}`;
+  return `https://wa.me/${WA_NUMBER}?text=start%20${propertyId}`;
 }
 
 function buildWelcomeMessage(name: string, address: string, link: string) {
@@ -63,9 +63,8 @@ export default function MarkAsRentedDialog({ open, onOpenChange, propertyId, pro
       tenant_contract_start: contractStart || null,
       tenant_monthly_rent: monthlyRent ? parseFloat(monthlyRent) : null,
       tenant_deposit: deposit ? parseFloat(deposit) : null,
-      // Reset bot identity so the new tenant can claim it via /start
-      tenant_telegram_user_id: null,
-      tenant_telegram_chat_id: null,
+      // Reset bot identity so the new tenant can claim it via start
+      tenant_whatsapp_phone: null,
     }).eq('id', propertyId);
     setSaving(false);
 
