@@ -28,9 +28,7 @@ const DUMMY_SPECIALISTS: Specialist[] = [
 ];
 
 const MOCK_PROPERTIES: Property[] = [
-  { id: 'dev-prop-1', address: 'Prinsengracht 112', city: 'Amsterdam' },
-  { id: 'dev-prop-2', address: 'Westerstraat 45B',  city: 'Amsterdam' },
-  { id: 'dev-prop-3', address: 'Vondelstraat 23',   city: 'Amsterdam' },
+  { id: 'demo-hague-studio-01', address: 'Laan van Meerdervoort 57A', city: 'Den Haag' },
 ];
 
 function StarRating({ rating }: { rating: number }) {

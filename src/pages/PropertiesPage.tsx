@@ -25,47 +25,23 @@ interface Property {
 
 const MOCK_PROPERTIES: Property[] = [
   {
-    id: 'dev-prop-1',
-    address: 'Prinsengracht 112',
-    city: 'Amsterdam',
-    rent_amount: 1650,
-    surface_m2: 68,
-    tenant_name: 'Lars Bakker',
-    accommodation_type: 'independent',
-    status: 'rented',
-    knowledge_base_urls: ['house-manual.pdf'],
-    bag_verified: true,
-  },
-  {
-    id: 'dev-prop-2',
-    address: 'Westerstraat 45B',
-    city: 'Amsterdam',
-    rent_amount: 1200,
-    surface_m2: 42,
+    id: 'demo-hague-studio-01',
+    address: 'Laan van Meerdervoort 57A',
+    city: 'Den Haag',
+    rent_amount: 895,
+    surface_m2: 32,
     tenant_name: null,
     accommodation_type: 'independent',
     status: 'seeking',
     knowledge_base_urls: [],
     bag_verified: true,
   },
-  {
-    id: 'dev-prop-3',
-    address: 'Vondelstraat 23',
-    city: 'Amsterdam',
-    rent_amount: 1850,
-    surface_m2: 85,
-    tenant_name: null,
-    accommodation_type: 'independent',
-    status: 'seeking',
-    knowledge_base_urls: ['rental-agreement.pdf', 'house-rules.pdf'],
-    bag_verified: false,
-  },
 ];
 
 const MOCK_APPLICANTS = [
-  { id: 'dev-app-1', property_id: 'dev-prop-2', full_name: 'Sophie van den Berg', stage: 'screening_complete', match_score: 7.8, match_label: 'Good match', hard_disqualified: false },
-  { id: 'dev-app-2', property_id: 'dev-prop-2', full_name: 'Daan Jansen', stage: 'screening_complete', match_score: 5.9, match_label: 'Moderate', hard_disqualified: false },
-  { id: 'dev-app-3', property_id: 'dev-prop-3', full_name: 'Emma de Vries', stage: 'done', match_score: 8.6, match_label: 'Strong match', hard_disqualified: false },
+  { id: 'demo-app-01', property_id: 'demo-hague-studio-01', full_name: 'Sophie Vermeer', stage: 'screening_complete', match_score: 8.8, match_label: 'Strong match', hard_disqualified: false },
+  { id: 'demo-app-02', property_id: 'demo-hague-studio-01', full_name: 'Julien Bakker', stage: 'screening_complete', match_score: 6.2, match_label: 'Good match', hard_disqualified: false },
+  { id: 'demo-app-03', property_id: 'demo-hague-studio-01', full_name: 'Karim el-Amrani', stage: 'screening_complete', match_score: 2.9, match_label: 'Weak match', hard_disqualified: false },
 ];
 
 function scoreColor(score: number, disqualified: boolean): string {

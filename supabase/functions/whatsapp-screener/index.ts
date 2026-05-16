@@ -833,14 +833,14 @@ async function handleCallback(supabase: any, phoneNumberId: string, token: strin
       return;
     }
 
-    const { error: bookingError } = await supabase.from('viewing_bookings').insert({
+    const { data: newBooking, error: bookingError } = await supabase.from('viewing_bookings').insert({
       landlord_id: property.landlord_id,
       property_id: applicant.property_id,
       applicant_id: applicant.id,
       slot_start: selectedSlot.start,
       slot_end: selectedSlot.end,
       status: 'pending_landlord',
-    });
+    }).select('id').single();
 
     if (bookingError) {
       console.error('Booking insert error:', bookingError);
@@ -858,8 +858,9 @@ async function handleCallback(supabase: any, phoneNumberId: string, token: strin
       landlord_id: property.landlord_id,
       type: 'booking_request',
       title: `${firstName} picked a viewing time`,
-      message: `${applicant.full_name || firstName} wants to view ${property.address} on ${selectedSlot.label}. Check the Applicants tab to confirm or decline.`,
+      message: `${applicant.full_name || firstName} wants to view ${property.address} on ${selectedSlot.label}. Confirm or decline below.`,
       related_applicant_id: applicant.id,
+      related_booking_id: newBooking?.id ?? null,
     });
 
     const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address)}`;

@@ -10,71 +10,69 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
 const MOCK_PROPERTIES = [
-  { id: 'dev-prop-1', address: 'Prinsengracht 112', rent_amount: 1650, landlord_id: 'dev' },
-  { id: 'dev-prop-2', address: 'Westerstraat 45B', rent_amount: 1200, landlord_id: 'dev' },
-  { id: 'dev-prop-3', address: 'Vondelstraat 23', rent_amount: 1850, landlord_id: 'dev' },
+  { id: 'demo-hague-studio-01', address: 'Laan van Meerdervoort 57A', rent_amount: 895, landlord_id: 'dev' },
 ];
 
 const MOCK_APPLICANTS = [
   {
-    id: 'dev-app-1',
-    property_id: 'dev-prop-2',
-    full_name: 'Sophie van den Berg',
-    employment_type: 'Employed',
-    monthly_income: 3200,
-    num_occupants: '1',
-    desired_move_in: '2026-06-01',
+    id: 'demo-app-01',
+    property_id: 'demo-hague-studio-01',
+    full_name: 'Sophie Vermeer',
+    employment_type: 'Loondienst (employed)',
+    monthly_income: 2800,
+    num_occupants: 'Just me',
+    desired_move_in: 'Next month',
     stage: 'screening_complete',
-    match_score: 7.8,
-    match_label: 'Good match',
-    hard_disqualified: false,
-    hard_disqualify_reason: null,
-    match_flags: [],
-    lifestyle_answers: { smoking: 'No', pets: 'No' },
-    social_scrape_data: null,
-    cancellation_count: 0,
-    no_response_count: 0,
-    created_at: '2026-04-20T10:00:00Z',
-  },
-  {
-    id: 'dev-app-2',
-    property_id: 'dev-prop-2',
-    full_name: 'Daan Jansen',
-    employment_type: 'Freelancer',
-    monthly_income: 2600,
-    num_occupants: '2',
-    desired_move_in: '2026-05-15',
-    stage: 'screening_complete',
-    match_score: 5.9,
-    match_label: 'Moderate',
-    hard_disqualified: false,
-    hard_disqualify_reason: null,
-    match_flags: ['Income slightly below 3x rent'],
-    lifestyle_answers: { smoking: 'No', pets: 'Yes' },
-    social_scrape_data: null,
-    cancellation_count: 1,
-    no_response_count: 0,
-    created_at: '2026-04-19T14:30:00Z',
-  },
-  {
-    id: 'dev-app-3',
-    property_id: 'dev-prop-3',
-    full_name: 'Emma de Vries',
-    employment_type: 'Employed',
-    monthly_income: 4100,
-    num_occupants: '1',
-    desired_move_in: '2026-06-01',
-    stage: 'done',
-    match_score: 8.6,
+    match_score: 8.8,
     match_label: 'Strong match',
     hard_disqualified: false,
     hard_disqualify_reason: null,
     match_flags: [],
-    lifestyle_answers: { smoking: 'No', pets: 'No' },
+    lifestyle_answers: { smoking: 'No', pets: 'No pets' },
     social_scrape_data: null,
     cancellation_count: 0,
     no_response_count: 0,
-    created_at: '2026-04-21T09:00:00Z',
+    created_at: '2026-05-13T09:15:00Z',
+  },
+  {
+    id: 'demo-app-02',
+    property_id: 'demo-hague-studio-01',
+    full_name: 'Julien Bakker',
+    employment_type: 'ZZP (self-employed)',
+    monthly_income: 2200,
+    num_occupants: 'Just me',
+    desired_move_in: 'Flexible',
+    stage: 'screening_complete',
+    match_score: 6.2,
+    match_label: 'Good match',
+    hard_disqualified: false,
+    hard_disqualify_reason: null,
+    match_flags: ['Smoking preference mismatch'],
+    lifestyle_answers: { smoking: 'Outside only', pets: 'Cat' },
+    social_scrape_data: null,
+    cancellation_count: 0,
+    no_response_count: 0,
+    created_at: '2026-05-13T14:40:00Z',
+  },
+  {
+    id: 'demo-app-03',
+    property_id: 'demo-hague-studio-01',
+    full_name: 'Karim el-Amrani',
+    employment_type: 'Student',
+    monthly_income: 1100,
+    num_occupants: '2 people',
+    desired_move_in: 'In 2-3 months',
+    stage: 'screening_complete',
+    match_score: 2.9,
+    match_label: 'Weak match',
+    hard_disqualified: false,
+    hard_disqualify_reason: null,
+    match_flags: ['Too many occupants', 'Move-in date may not align', 'Employment type: limited financial stability'],
+    lifestyle_answers: { smoking: 'No', pets: 'Dog' },
+    social_scrape_data: null,
+    cancellation_count: 0,
+    no_response_count: 0,
+    created_at: '2026-05-14T08:20:00Z',
   },
 ];
 
@@ -203,7 +201,13 @@ export default function ApplicantsPage() {
     try {
       await supabase.from('viewing_bookings').update({ status: 'cancelled_landlord' } as any).eq('id', booking.id);
       await supabase.from('applicants').update({ stage: 'approved' } as any).eq('id', applicant.id);
-      toast({ title: `Bezichtigingstijd geweigerd. ${applicant.full_name || 'Kandidaat'} kan een nieuw moment kiezen.` });
+
+      // Offer the tenant new viewing slots via WhatsApp
+      await supabase.functions.invoke('whatsapp-screener', {
+        body: { action: 'send_slots', applicant_id: applicant.id, property_id: applicant.property_id, landlord_id: user?.id },
+      });
+
+      toast({ title: 'Declined — tenant offered new slots' });
     } catch (e: any) {
       toast({ title: 'Fout', description: e.message, variant: 'destructive' as any });
     }
