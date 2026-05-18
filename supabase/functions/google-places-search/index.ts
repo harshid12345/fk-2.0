@@ -5,47 +5,147 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Allowed categories with aliases for fuzzy matching
-const CATEGORIES: { label: string; aliases: string[] }[] = [
-  { label: 'Plumbers',      aliases: ['plumber', 'loodgieter', 'plumbing', 'pipe', 'leak', 'lekkage'] },
-  { label: 'Electricians',  aliases: ['electrician', 'elektricien', 'electric', 'electrical', 'wiring', 'elektra', 'stroom'] },
-  { label: 'Cleaners',      aliases: ['cleaner', 'schoonmaker', 'cleaning', 'schoonmaak', 'housekeeping'] },
-  { label: 'Painters',      aliases: ['painter', 'schilder', 'painting', 'schilderwerk', 'verf'] },
-  { label: 'Handymen',      aliases: ['handyman', 'klusjesman', 'handyman service', 'klussen', 'odd jobs', 'klusser'] },
-  { label: 'HVAC/Heating',  aliases: ['hvac', 'heating', 'verwarming', 'cv', 'airco', 'air conditioning', 'boiler', 'warmtepomp', 'heat pump', 'cv ketel'] },
-  { label: 'Locksmiths',    aliases: ['locksmith', 'slotenmaker', 'lock', 'slot', 'deur', 'sleutel'] },
-  { label: 'Roofers',       aliases: ['roofer', 'dakdekker', 'roofing', 'dak', 'roof', 'dakwerk'] },
-  { label: 'Carpenters',    aliases: ['carpenter', 'timmerman', 'carpentry', 'timmerwerk', 'wood', 'hout', 'joiner'] },
-  { label: 'Tilers',        aliases: ['tiler', 'tegelzetter', 'tiling', 'tegels', 'tile', 'bathroom tiles'] },
-  { label: 'Glaziers',      aliases: ['glazier', 'glaszetter', 'glass', 'glas', 'window', 'raam', 'ruit'] },
-  { label: 'Pest Control',  aliases: ['pest control', 'ongediertebestrijding', 'pest', 'ongedierte', 'rat', 'muis', 'insect', 'bug', 'kakkerlak'] },
-  { label: 'Gardeners',     aliases: ['gardener', 'hovenier', 'garden', 'tuin', 'lawn', 'gras', 'hedge', 'haag'] },
-  { label: 'Movers',        aliases: ['mover', 'verhuizer', 'moving', 'verhuizing', 'transport', 'removal'] },
+interface Category {
+  label: string
+  dutchTerm: string
+  englishTerm: string
+  dutchAliases: string[]
+  englishAliases: string[]
+}
+
+const CATEGORIES: Category[] = [
+  {
+    label: 'Plumber',
+    dutchTerm: 'loodgieter',
+    englishTerm: 'plumber',
+    dutchAliases: ['loodgieter', 'loodgieters', 'lekkage', 'pijp', 'riool', 'waterleiding'],
+    englishAliases: ['plumber', 'plumbers', 'plumbing', 'pipe', 'leak', 'drain'],
+  },
+  {
+    label: 'Electrician',
+    dutchTerm: 'elektricien',
+    englishTerm: 'electrician',
+    dutchAliases: ['elektricien', 'elektra', 'stroom', 'bedrading', 'elektriciteit', 'schakelaar'],
+    englishAliases: ['electrician', 'electricians', 'electric', 'electrical', 'wiring', 'electricity'],
+  },
+  {
+    label: 'Cleaner',
+    dutchTerm: 'schoonmaakbedrijf',
+    englishTerm: 'cleaning service',
+    dutchAliases: ['schoonmaakbedrijf', 'schoonmaker', 'schoonmaak', 'reinigingsbedrijf', 'poets'],
+    englishAliases: ['cleaner', 'cleaners', 'cleaning', 'housekeeping', 'maid'],
+  },
+  {
+    label: 'Painter & Decorator',
+    dutchTerm: 'schilder',
+    englishTerm: 'painter',
+    dutchAliases: ['schilder', 'schilders', 'schilderwerk', 'verf', 'behang', 'schildersbedrijf'],
+    englishAliases: ['painter', 'painters', 'painting', 'decorator', 'decorating', 'wallpaper'],
+  },
+  {
+    label: 'Handyman',
+    dutchTerm: 'klusbedrijf',
+    englishTerm: 'handyman',
+    dutchAliases: ['klusbedrijf', 'klusjesman', 'klusser', 'klussen', 'klusdienst', 'alles'],
+    englishAliases: ['handyman', 'handymen', 'odd jobs', 'fix it', 'general repairs'],
+  },
+  {
+    label: 'Heating & Air Conditioning',
+    dutchTerm: 'cv installateur',
+    englishTerm: 'HVAC',
+    dutchAliases: ['cv installateur', 'cv', 'verwarming', 'airco', 'warmtepomp', 'cv ketel', 'boiler', 'verwarmingsbedrijf'],
+    englishAliases: ['hvac', 'heating', 'air conditioning', 'heat pump', 'boiler', 'furnace', 'ac', 'ac repair'],
+  },
+  {
+    label: 'Locksmith',
+    dutchTerm: 'slotenmaker',
+    englishTerm: 'locksmith',
+    dutchAliases: ['slotenmaker', 'slotenmakers', 'slot', 'sloten', 'sleutel', 'deurslot', 'inbraak'],
+    englishAliases: ['locksmith', 'locksmiths', 'lock', 'locks', 'key', 'door lock', 'break in'],
+  },
+  {
+    label: 'Roofer',
+    dutchTerm: 'dakdekker',
+    englishTerm: 'roofer',
+    dutchAliases: ['dakdekker', 'dakdekkers', 'dakwerk', 'dak', 'dakraam', 'daklekkage', 'dakbedekking'],
+    englishAliases: ['roofer', 'roofers', 'roofing', 'roof', 'roof repair', 'roof leak'],
+  },
+  {
+    label: 'Carpenter',
+    dutchTerm: 'timmerman',
+    englishTerm: 'carpenter',
+    dutchAliases: ['timmerman', 'timmerlui', 'timmerwerk', 'hout', 'timmerbedrijf', 'schrijnwerker'],
+    englishAliases: ['carpenter', 'carpenters', 'carpentry', 'joiner', 'woodwork', 'cabinetmaker'],
+  },
+  {
+    label: 'Tiler',
+    dutchTerm: 'tegelzetter',
+    englishTerm: 'tiler',
+    dutchAliases: ['tegelzetter', 'tegelzetters', 'tegels', 'tegel', 'tegelwerk', 'vloertegels'],
+    englishAliases: ['tiler', 'tilers', 'tiling', 'tile', 'tiles', 'floor tiles', 'bathroom tiles'],
+  },
+  {
+    label: 'Pest Control',
+    dutchTerm: 'ongediertebestrijding',
+    englishTerm: 'pest control',
+    dutchAliases: ['ongediertebestrijding', 'ongedierte', 'rattenbestrijding', 'kakkerlak', 'muis', 'muizen', 'vlooien'],
+    englishAliases: ['pest control', 'pest', 'exterminator', 'rat', 'mice', 'cockroach', 'termite', 'bug'],
+  },
+  {
+    label: 'Gardener',
+    dutchTerm: 'hovenier',
+    englishTerm: 'gardener',
+    dutchAliases: ['hovenier', 'hoveniers', 'tuin', 'tuinman', 'tuinaanleg', 'grasmaaien', 'haag', 'tuinonderhoud'],
+    englishAliases: ['gardener', 'gardeners', 'garden', 'lawn', 'landscaping', 'hedge', 'grass cutting'],
+  },
+  {
+    label: 'Mover',
+    dutchTerm: 'verhuisbedrijf',
+    englishTerm: 'moving company',
+    dutchAliases: ['verhuisbedrijf', 'verhuizer', 'verhuizers', 'verhuizing', 'verhuisdienst', 'transport'],
+    englishAliases: ['mover', 'movers', 'moving', 'moving company', 'removal', 'removals', 'van hire'],
+  },
 ]
 
 const PROFANITY = ['fuck', 'shit', 'ass', 'dick', 'bitch', 'cunt', 'bastard', 'kut', 'klote', 'godverdomme', 'tering', 'kanker']
 
-function sanitizeQuery(raw: string): { category: string } | { error: string } {
+function sanitizeQuery(raw: string): { googleQuery: string; label: string } | { error: string } {
   const input = raw.trim().toLowerCase()
+
+  // Reject empty, purely numeric, or symbol-only input
+  if (!input || /^[\d\s\W]+$/.test(input)) {
+    return { error: 'Please search for a home service (e.g. Plumber, Electrician, Cleaner)' }
+  }
 
   // Profanity / irrelevant check
   if (PROFANITY.some(w => input.includes(w))) {
-    return { error: 'Please search for a home service category (e.g. Plumber, Electrician, Cleaner)' }
+    return { error: 'Please search for a home service (e.g. Plumber, Electrician, Cleaner)' }
   }
 
-  // Exact or alias match
   for (const cat of CATEGORIES) {
-    if (
-      input === cat.label.toLowerCase() ||
-      cat.aliases.some(a => input === a || input.includes(a))
-    ) {
-      return { category: cat.label }
+    const isDutch = cat.dutchAliases.some(a => input === a || input.includes(a))
+    const isEnglish = cat.englishAliases.some(a => input === a || input.includes(a))
+    const isLabel = input === cat.label.toLowerCase()
+
+    if (isDutch || isEnglish || isLabel) {
+      let googleQuery: string
+      if (isDutch && !isEnglish) {
+        googleQuery = cat.dutchTerm
+      } else if (isEnglish && !isDutch) {
+        googleQuery = cat.englishTerm
+      } else {
+        // label match or ambiguous — send both for maximum coverage
+        googleQuery = `${cat.dutchTerm} ${cat.englishTerm}`
+      }
+      console.log(`[google-places-search] matched "${input}" -> "${cat.label}" (${isDutch ? 'nl' : isEnglish ? 'en' : 'both'}) -> "${googleQuery}"`)
+      return { googleQuery, label: cat.label }
     }
   }
 
-  // No match — reject
-  return { error: 'Please search for a home service category (e.g. Plumber, Electrician, Cleaner)' }
+  return { error: 'Please search for a home service (e.g. Plumber, Electrician, Cleaner)' }
 }
+
+const VALID_RADII = new Set([1000, 2000, 5000, 10000, 20000])
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -53,7 +153,7 @@ serve(async (req) => {
   }
 
   try {
-    const { query, location } = await req.json()
+    const { query, location, radiusMeters } = await req.json()
 
     if (!query || !location) {
       return new Response(
@@ -70,8 +170,10 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-    const safeQuery = sanitized.category
-    console.log('[google-places-search] sanitized query:', query, '->', safeQuery)
+
+    const { googleQuery } = sanitized
+    const radius = VALID_RADII.has(radiusMeters) ? radiusMeters : 5000
+    console.log('[google-places-search] radius:', radius)
 
     const PLACES_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY')
     if (!PLACES_KEY) {
@@ -108,12 +210,12 @@ serve(async (req) => {
         'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.internationalPhoneNumber,places.primaryTypeDisplayName',
       },
       body: JSON.stringify({
-        textQuery: safeQuery,
+        textQuery: googleQuery,
         languageCode: 'nl',
         locationBias: {
           circle: {
             center: { latitude: lat, longitude: lng },
-            radius: 5000.0,
+            radius: radius,
           },
         },
       }),

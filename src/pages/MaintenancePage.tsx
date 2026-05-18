@@ -6,9 +6,17 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
 const ALLOWED_CATEGORIES = [
-  'Plumbers', 'Electricians', 'Cleaners', 'Painters', 'Handymen',
-  'HVAC/Heating', 'Locksmiths', 'Roofers', 'Carpenters', 'Tilers',
-  'Glaziers', 'Pest Control', 'Gardeners', 'Movers',
+  'Plumber', 'Electrician', 'Cleaner', 'Painter & Decorator', 'Handyman',
+  'Heating & Air Conditioning', 'Locksmith', 'Roofer', 'Carpenter', 'Tiler',
+  'Pest Control', 'Gardener', 'Mover',
+];
+
+const RADIUS_OPTIONS = [
+  { label: '1 km',  value: 1000 },
+  { label: '2 km',  value: 2000 },
+  { label: '5 km',  value: 5000 },
+  { label: '10 km', value: 10000 },
+  { label: '20 km', value: 20000 },
 ];
 
 interface Property {
@@ -69,6 +77,7 @@ export default function MaintenancePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [radius, setRadius] = useState<number>(5000);
   const [results, setResults] = useState<Specialist[] | null>(null);
   const [searching, setSearching] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -122,7 +131,7 @@ export default function MaintenancePage() {
 
     try {
       const { data, error } = await supabase.functions.invoke('google-places-search', {
-        body: { query: searchTerm, location: selectedProperty },
+        body: { query: searchTerm, location: selectedProperty, radiusMeters: radius },
       });
 
       if (error) {
@@ -214,49 +223,65 @@ export default function MaintenancePage() {
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="flex gap-2 mb-6"
+        className="mb-4"
         ref={searchRef}
       >
-        <div className="flex-1 relative">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={e => handleSearchTermChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            placeholder="Bijv. Plumbers, Electricians…"
-            className="w-full glass-card rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground bg-transparent outline-none border border-border focus:border-primary/50 transition-colors"
-          />
-          <AnimatePresence>
-            {showSuggestions && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.12 }}
-                className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl overflow-hidden border border-border"
-                style={{ background: 'hsl(var(--card))' }}
-              >
-                {suggestions.map(cat => (
-                  <button
-                    key={cat}
-                    onMouseDown={() => selectSuggestion(cat)}
-                    className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className="flex gap-2 mb-2">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => handleSearchTermChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              placeholder="Bijv. Plumber, Electrician…"
+              className="w-full glass-card rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground bg-transparent outline-none border border-border focus:border-primary/50 transition-colors"
+            />
+            <AnimatePresence>
+              {showSuggestions && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl overflow-hidden border border-border"
+                  style={{ background: 'hsl(var(--card))' }}
+                >
+                  {suggestions.map(cat => (
+                    <button
+                      key={cat}
+                      onMouseDown={() => selectSuggestion(cat)}
+                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={handleSearch}
+            className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center shrink-0 self-center"
+          >
+            <Search className="w-4 h-4 text-primary-foreground" />
+          </motion.button>
         </div>
-        <motion.button
-          whileTap={{ scale: 0.92 }}
-          onClick={handleSearch}
-          className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center shrink-0 self-center"
-        >
-          <Search className="w-4 h-4 text-primary-foreground" />
-        </motion.button>
+
+        {/* Radius selector */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted-foreground whitespace-nowrap">Zoekradius:</label>
+          <select
+            value={radius}
+            onChange={e => setRadius(Number(e.target.value))}
+            className="glass-card rounded-lg px-3 py-1.5 text-xs text-foreground bg-transparent outline-none border border-border focus:border-primary/50 transition-colors cursor-pointer"
+          >
+            {RADIUS_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </motion.div>
 
       {/* Results */}
