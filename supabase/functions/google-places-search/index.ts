@@ -109,6 +109,46 @@ const CATEGORIES: Category[] = [
 
 const PROFANITY = ['fuck', 'shit', 'ass', 'dick', 'bitch', 'cunt', 'bastard', 'kut', 'klote', 'godverdomme', 'tering', 'kanker']
 
+// Descriptive / niche phrases that don't match category names directly.
+// Checked before category aliases so intent wins over keyword coincidences.
+const INTENT_MAP: { categoryLabel: string; dutchTriggers: string[]; englishTriggers: string[] }[] = [
+  {
+    categoryLabel: 'Pest Control',
+    dutchTriggers: ['ongedierte', 'wespen', 'muizen', 'ratten', 'kakkerlak', 'schimmel', 'vlooien', 'mieren'],
+    englishTriggers: ['beehive', 'wasp nest', 'ant infestation', 'mice', 'rats', 'rodents', 'cockroach', 'bed bug', 'mold removal', 'mould removal', 'insect', 'spider', 'flea', 'termite'],
+  },
+  {
+    categoryLabel: 'Plumber',
+    dutchTriggers: ['waterlek', 'lekkage', 'verstopt', 'afvoer', 'kraan', 'rioolverstopping', 'waterleiding'],
+    englishTriggers: ['leaking pipe', 'burst pipe', 'blocked drain', 'no hot water', 'toilet overflow', 'water leak', 'clogged drain'],
+  },
+  {
+    categoryLabel: 'Electrician',
+    dutchTriggers: ['stroomstoring', 'stopcontact', 'zekering', 'groep', 'meterkast'],
+    englishTriggers: ['no power', 'power outage', 'broken outlet', 'fuse box', 'short circuit', 'tripped fuse', 'no electricity'],
+  },
+  {
+    categoryLabel: 'Locksmith',
+    dutchTriggers: ['buitengesloten', 'sleutel kwijt', 'slot kapot', 'nieuwe sleutel', 'deurslot'],
+    englishTriggers: ['locked out', 'broken lock', 'key stuck', 'new keys', 'cant get in', "can't get in", 'lost key'],
+  },
+  {
+    categoryLabel: 'Handyman',
+    dutchTriggers: ['kapotte deur', 'vastgezet raam', 'krakende vloer', 'losse tegel', 'plank ophangen', 'deur klemt', 'raam klemt'],
+    englishTriggers: ['broken door', 'stuck window', 'squeaky floor', 'loose tile', 'shelf installation', 'door wont close', "door won't close", 'cabinet repair'],
+  },
+  {
+    categoryLabel: 'Heating & Air Conditioning',
+    dutchTriggers: ['geen verwarming', 'cv ketel kapot', 'radiator koud', 'warmtepomp storing', 'cv storing'],
+    englishTriggers: ['no heating', 'broken boiler', 'radiator cold', 'boiler broken', 'no hot water heating', 'heating not working'],
+  },
+  {
+    categoryLabel: 'Cleaner',
+    dutchTriggers: ['eindschoonmaak', 'opleverschoonmaak', 'diepte reiniging', 'huurder vertrokken'],
+    englishTriggers: ['deep clean', 'end of tenancy', 'move out clean', 'deep cleaning', 'post tenancy', 'vacate clean'],
+  },
+]
+
 function sanitizeQuery(raw: string): { googleQuery: string; label: string } | { error: string } {
   const input = raw.trim().toLowerCase()
 
@@ -122,6 +162,23 @@ function sanitizeQuery(raw: string): { googleQuery: string; label: string } | { 
     return { error: 'Please search for a home service (e.g. Plumber, Electrician, Cleaner)' }
   }
 
+  // Intent map: descriptive phrases → correct category (checked before short-keyword aliases)
+  for (const intent of INTENT_MAP) {
+    const isDutch = intent.dutchTriggers.some(t => input.includes(t))
+    const isEnglish = intent.englishTriggers.some(t => input.includes(t))
+    if (isDutch || isEnglish) {
+      const cat = CATEGORIES.find(c => c.label === intent.categoryLabel)!
+      const googleQuery = isDutch && !isEnglish
+        ? cat.dutchTerm
+        : !isDutch && isEnglish
+          ? cat.englishTerm
+          : `${cat.dutchTerm} ${cat.englishTerm}`
+      console.log(`[google-places-search] intent matched "${input}" -> "${cat.label}" (${isDutch && !isEnglish ? 'nl' : !isDutch ? 'en' : 'both'}) -> "${googleQuery}"`)
+      return { googleQuery, label: cat.label }
+    }
+  }
+
+  // Category alias match (direct keyword / category name)
   for (const cat of CATEGORIES) {
     const isDutch = cat.dutchAliases.some(a => input === a || input.includes(a))
     const isEnglish = cat.englishAliases.some(a => input === a || input.includes(a))
@@ -137,7 +194,7 @@ function sanitizeQuery(raw: string): { googleQuery: string; label: string } | { 
         // label match or ambiguous — send both for maximum coverage
         googleQuery = `${cat.dutchTerm} ${cat.englishTerm}`
       }
-      console.log(`[google-places-search] matched "${input}" -> "${cat.label}" (${isDutch ? 'nl' : isEnglish ? 'en' : 'both'}) -> "${googleQuery}"`)
+      console.log(`[google-places-search] alias matched "${input}" -> "${cat.label}" (${isDutch ? 'nl' : isEnglish ? 'en' : 'both'}) -> "${googleQuery}"`)
       return { googleQuery, label: cat.label }
     }
   }
