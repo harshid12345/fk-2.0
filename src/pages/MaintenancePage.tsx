@@ -1,8 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Star, Phone, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+
+const ALLOWED_CATEGORIES = [
+  'Plumber', 'Electrician', 'Cleaner', 'Painter & Decorator', 'Handyman',
+  'Heating & Air Conditioning', 'Locksmith', 'Roofer', 'Carpenter', 'Tiler',
+  'Pest Control', 'Gardener', 'Mover',
+];
+
+const RADIUS_OPTIONS = [
+  { label: '1 km',  value: 1000 },
+  { label: '2 km',  value: 2000 },
+  { label: '5 km',  value: 5000 },
+  { label: '10 km', value: 10000 },
+  { label: '20 km', value: 20000 },
+];
 
 interface Property {
   id: string;
@@ -19,13 +34,6 @@ interface Specialist {
   phone: string;
 }
 
-const DUMMY_SPECIALISTS: Specialist[] = [
-  { id: 1, name: 'Jan de Vries Loodgietersbedrijf', specialty: 'Loodgieter',         rating: 4.8, address: 'Hofweg 12 Den Haag',       phone: '070 123 4567' },
-  { id: 2, name: 'ElektroFix Den Haag',              specialty: 'Elektricien',         rating: 4.6, address: 'Spui 44 Den Haag',          phone: '070 234 5678' },
-  { id: 3, name: 'Slotenmaker Hofstad',               specialty: 'Slotenmaker',         rating: 4.9, address: 'Binnenhof 3 Den Haag',      phone: '070 345 6789' },
-  { id: 4, name: 'ReparatieFast',                     specialty: 'Algemeen monteur',    rating: 4.5, address: 'Lange Poten 22 Den Haag',   phone: '070 456 7890' },
-  { id: 5, name: 'CV Ketel Specialist',               specialty: 'Verwarmingsmonteur',  rating: 4.7, address: 'Plein 15 Den Haag',         phone: '070 567 8901' },
-];
 
 const MOCK_PROPERTIES: Property[] = [
   { id: 'demo-hague-studio-01', address: 'Laan van Meerdervoort 57A', city: 'Den Haag' },
@@ -62,12 +70,17 @@ function SkeletonCard() {
 
 export default function MaintenancePage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [radius, setRadius] = useState<number>(5000);
   const [results, setResults] = useState<Specialist[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   const fetchProperties = useCallback(async () => {
     if (!user) return;
@@ -80,23 +93,67 @@ export default function MaintenancePage() {
 
   useEffect(() => { fetchProperties(); }, [fetchProperties]);
 
-  const handleSearch = () => {
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleSearchTermChange = (value: string) => {
+    setSearchTerm(value);
+    if (value.trim().length === 0) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const lower = value.toLowerCase();
+    const matches = ALLOWED_CATEGORIES.filter(c => c.toLowerCase().includes(lower));
+    setSuggestions(matches);
+    setShowSuggestions(matches.length > 0);
+  };
+
+  const selectSuggestion = (category: string) => {
+    setSearchTerm(category);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  const handleSearch = async () => {
     if (!searchTerm.trim()) return;
+    setShowSuggestions(false);
     setSearching(true);
     setResults(null);
 
-    // TODO: replace dummy data with Google Places API call
-    // POST to supabase function google-places-search
-    // body: { query: searchTerm, location: selectedPropertyAddress }
+    try {
+      const { data, error } = await supabase.functions.invoke('google-places-search', {
+        body: { query: searchTerm, location: selectedProperty, radiusMeters: radius },
+      });
 
-    setTimeout(() => {
-      setResults(DUMMY_SPECIALISTS);
+      if (error) {
+        toast({ title: 'Zoekopdracht mislukt', description: 'Networkfout. Probeer het opnieuw.', variant: 'destructive' as any });
+        setResults([]);
+      } else if (data?.error) {
+        toast({ title: 'Ongeldige zoekopdracht', description: data.error, variant: 'destructive' as any });
+        setResults([]);
+      } else {
+        setResults((data?.specialists ?? []) as Specialist[]);
+      }
+    } catch {
+      toast({ title: 'Zoekopdracht mislukt', description: 'Networkfout. Probeer het opnieuw.', variant: 'destructive' as any });
+      setResults([]);
+    } finally {
       setSearching(false);
-    }, 900);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') handleSearch();
+    if (e.key === 'Escape') setShowSuggestions(false);
   };
 
   const selectedProp = properties.find(p => {
@@ -166,23 +223,65 @@ export default function MaintenancePage() {
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="flex gap-2 mb-6"
+        className="mb-4"
+        ref={searchRef}
       >
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Beschrijf uw probleem..."
-          className="flex-1 glass-card rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground bg-transparent outline-none border border-border focus:border-primary/50 transition-colors"
-        />
-        <motion.button
-          whileTap={{ scale: 0.92 }}
-          onClick={handleSearch}
-          className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center shrink-0 self-center"
-        >
-          <Search className="w-4 h-4 text-primary-foreground" />
-        </motion.button>
+        <div className="flex gap-2 mb-2">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => handleSearchTermChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              placeholder="Bijv. Plumber, Electrician…"
+              className="w-full glass-card rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground bg-transparent outline-none border border-border focus:border-primary/50 transition-colors"
+            />
+            <AnimatePresence>
+              {showSuggestions && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl overflow-hidden border border-border"
+                  style={{ background: 'hsl(var(--card))' }}
+                >
+                  {suggestions.map(cat => (
+                    <button
+                      key={cat}
+                      onMouseDown={() => selectSuggestion(cat)}
+                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={handleSearch}
+            className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center shrink-0 self-center"
+          >
+            <Search className="w-4 h-4 text-primary-foreground" />
+          </motion.button>
+        </div>
+
+        {/* Radius selector */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted-foreground whitespace-nowrap">Zoekradius:</label>
+          <select
+            value={radius}
+            onChange={e => setRadius(Number(e.target.value))}
+            className="glass-card rounded-lg px-3 py-1.5 text-xs text-foreground bg-transparent outline-none border border-border focus:border-primary/50 transition-colors cursor-pointer"
+          >
+            {RADIUS_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </motion.div>
 
       {/* Results */}
@@ -203,6 +302,11 @@ export default function MaintenancePage() {
         </motion.div>
       ) : (
         <div className="space-y-3">
+          {results.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Geen vakmensen gevonden in de buurt.
+            </p>
+          )}
           {results.map((s, i) => (
             <motion.div
               key={s.id}
