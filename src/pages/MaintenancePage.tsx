@@ -1,9 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Star, Phone, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+
+const ALLOWED_CATEGORIES = [
+  'Plumbers', 'Electricians', 'Cleaners', 'Painters', 'Handymen',
+  'HVAC/Heating', 'Locksmiths', 'Roofers', 'Carpenters', 'Tilers',
+  'Glaziers', 'Pest Control', 'Gardeners', 'Movers',
+];
 
 interface Property {
   id: string;
@@ -61,8 +67,11 @@ export default function MaintenancePage() {
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [results, setResults] = useState<Specialist[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   const fetchProperties = useCallback(async () => {
     if (!user) return;
@@ -75,8 +84,39 @@ export default function MaintenancePage() {
 
   useEffect(() => { fetchProperties(); }, [fetchProperties]);
 
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleSearchTermChange = (value: string) => {
+    setSearchTerm(value);
+    if (value.trim().length === 0) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const lower = value.toLowerCase();
+    const matches = ALLOWED_CATEGORIES.filter(c => c.toLowerCase().includes(lower));
+    setSuggestions(matches);
+    setShowSuggestions(matches.length > 0);
+  };
+
+  const selectSuggestion = (category: string) => {
+    setSearchTerm(category);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
+    setShowSuggestions(false);
     setSearching(true);
     setResults(null);
 
@@ -85,8 +125,11 @@ export default function MaintenancePage() {
         body: { query: searchTerm, location: selectedProperty },
       });
 
-      if (error || data?.error) {
-        toast({ title: 'Zoekopdracht mislukt', description: 'Kon geen vakmensen ophalen. Probeer het opnieuw.', variant: 'destructive' as any });
+      if (error) {
+        toast({ title: 'Zoekopdracht mislukt', description: 'Networkfout. Probeer het opnieuw.', variant: 'destructive' as any });
+        setResults([]);
+      } else if (data?.error) {
+        toast({ title: 'Ongeldige zoekopdracht', description: data.error, variant: 'destructive' as any });
         setResults([]);
       } else {
         setResults((data?.specialists ?? []) as Specialist[]);
@@ -101,6 +144,7 @@ export default function MaintenancePage() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') handleSearch();
+    if (e.key === 'Escape') setShowSuggestions(false);
   };
 
   const selectedProp = properties.find(p => {
@@ -171,15 +215,41 @@ export default function MaintenancePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
         className="flex gap-2 mb-6"
+        ref={searchRef}
       >
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Beschrijf uw probleem..."
-          className="flex-1 glass-card rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground bg-transparent outline-none border border-border focus:border-primary/50 transition-colors"
-        />
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => handleSearchTermChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            placeholder="Bijv. Plumbers, Electricians…"
+            className="w-full glass-card rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground bg-transparent outline-none border border-border focus:border-primary/50 transition-colors"
+          />
+          <AnimatePresence>
+            {showSuggestions && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.12 }}
+                className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl overflow-hidden border border-border"
+                style={{ background: 'hsl(var(--card))' }}
+              >
+                {suggestions.map(cat => (
+                  <button
+                    key={cat}
+                    onMouseDown={() => selectSuggestion(cat)}
+                    className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         <motion.button
           whileTap={{ scale: 0.92 }}
           onClick={handleSearch}

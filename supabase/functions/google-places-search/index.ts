@@ -5,6 +5,48 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Allowed categories with aliases for fuzzy matching
+const CATEGORIES: { label: string; aliases: string[] }[] = [
+  { label: 'Plumbers',      aliases: ['plumber', 'loodgieter', 'plumbing', 'pipe', 'leak', 'lekkage'] },
+  { label: 'Electricians',  aliases: ['electrician', 'elektricien', 'electric', 'electrical', 'wiring', 'elektra', 'stroom'] },
+  { label: 'Cleaners',      aliases: ['cleaner', 'schoonmaker', 'cleaning', 'schoonmaak', 'housekeeping'] },
+  { label: 'Painters',      aliases: ['painter', 'schilder', 'painting', 'schilderwerk', 'verf'] },
+  { label: 'Handymen',      aliases: ['handyman', 'klusjesman', 'handyman service', 'klussen', 'odd jobs', 'klusser'] },
+  { label: 'HVAC/Heating',  aliases: ['hvac', 'heating', 'verwarming', 'cv', 'airco', 'air conditioning', 'boiler', 'warmtepomp', 'heat pump', 'cv ketel'] },
+  { label: 'Locksmiths',    aliases: ['locksmith', 'slotenmaker', 'lock', 'slot', 'deur', 'sleutel'] },
+  { label: 'Roofers',       aliases: ['roofer', 'dakdekker', 'roofing', 'dak', 'roof', 'dakwerk'] },
+  { label: 'Carpenters',    aliases: ['carpenter', 'timmerman', 'carpentry', 'timmerwerk', 'wood', 'hout', 'joiner'] },
+  { label: 'Tilers',        aliases: ['tiler', 'tegelzetter', 'tiling', 'tegels', 'tile', 'bathroom tiles'] },
+  { label: 'Glaziers',      aliases: ['glazier', 'glaszetter', 'glass', 'glas', 'window', 'raam', 'ruit'] },
+  { label: 'Pest Control',  aliases: ['pest control', 'ongediertebestrijding', 'pest', 'ongedierte', 'rat', 'muis', 'insect', 'bug', 'kakkerlak'] },
+  { label: 'Gardeners',     aliases: ['gardener', 'hovenier', 'garden', 'tuin', 'lawn', 'gras', 'hedge', 'haag'] },
+  { label: 'Movers',        aliases: ['mover', 'verhuizer', 'moving', 'verhuizing', 'transport', 'removal'] },
+]
+
+const PROFANITY = ['fuck', 'shit', 'ass', 'dick', 'bitch', 'cunt', 'bastard', 'kut', 'klote', 'godverdomme', 'tering', 'kanker']
+
+function sanitizeQuery(raw: string): { category: string } | { error: string } {
+  const input = raw.trim().toLowerCase()
+
+  // Profanity / irrelevant check
+  if (PROFANITY.some(w => input.includes(w))) {
+    return { error: 'Please search for a home service category (e.g. Plumber, Electrician, Cleaner)' }
+  }
+
+  // Exact or alias match
+  for (const cat of CATEGORIES) {
+    if (
+      input === cat.label.toLowerCase() ||
+      cat.aliases.some(a => input === a || input.includes(a))
+    ) {
+      return { category: cat.label }
+    }
+  }
+
+  // No match — reject
+  return { error: 'Please search for a home service category (e.g. Plumber, Electrician, Cleaner)' }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -19,6 +61,17 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // Validate and sanitize query against whitelist
+    const sanitized = sanitizeQuery(query)
+    if ('error' in sanitized) {
+      return new Response(
+        JSON.stringify({ error: sanitized.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const safeQuery = sanitized.category
+    console.log('[google-places-search] sanitized query:', query, '->', safeQuery)
 
     const PLACES_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY')
     if (!PLACES_KEY) {
@@ -55,7 +108,7 @@ serve(async (req) => {
         'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.internationalPhoneNumber,places.primaryTypeDisplayName',
       },
       body: JSON.stringify({
-        textQuery: query,
+        textQuery: safeQuery,
         languageCode: 'nl',
         locationBias: {
           circle: {
