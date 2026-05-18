@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Search, Star, Phone, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 interface Property {
   id: string;
@@ -19,13 +20,6 @@ interface Specialist {
   phone: string;
 }
 
-const DUMMY_SPECIALISTS: Specialist[] = [
-  { id: 1, name: 'Jan de Vries Loodgietersbedrijf', specialty: 'Loodgieter',         rating: 4.8, address: 'Hofweg 12 Den Haag',       phone: '070 123 4567' },
-  { id: 2, name: 'ElektroFix Den Haag',              specialty: 'Elektricien',         rating: 4.6, address: 'Spui 44 Den Haag',          phone: '070 234 5678' },
-  { id: 3, name: 'Slotenmaker Hofstad',               specialty: 'Slotenmaker',         rating: 4.9, address: 'Binnenhof 3 Den Haag',      phone: '070 345 6789' },
-  { id: 4, name: 'ReparatieFast',                     specialty: 'Algemeen monteur',    rating: 4.5, address: 'Lange Poten 22 Den Haag',   phone: '070 456 7890' },
-  { id: 5, name: 'CV Ketel Specialist',               specialty: 'Verwarmingsmonteur',  rating: 4.7, address: 'Plein 15 Den Haag',         phone: '070 567 8901' },
-];
 
 const MOCK_PROPERTIES: Property[] = [
   { id: 'demo-hague-studio-01', address: 'Laan van Meerdervoort 57A', city: 'Den Haag' },
@@ -62,6 +56,7 @@ function SkeletonCard() {
 
 export default function MaintenancePage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [selectorOpen, setSelectorOpen] = useState(false);
@@ -80,19 +75,28 @@ export default function MaintenancePage() {
 
   useEffect(() => { fetchProperties(); }, [fetchProperties]);
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchTerm.trim()) return;
     setSearching(true);
     setResults(null);
 
-    // TODO: replace dummy data with Google Places API call
-    // POST to supabase function google-places-search
-    // body: { query: searchTerm, location: selectedPropertyAddress }
+    try {
+      const { data, error } = await supabase.functions.invoke('google-places-search', {
+        body: { query: searchTerm, location: selectedProperty },
+      });
 
-    setTimeout(() => {
-      setResults(DUMMY_SPECIALISTS);
+      if (error || data?.error) {
+        toast({ title: 'Zoekopdracht mislukt', description: 'Kon geen vakmensen ophalen. Probeer het opnieuw.', variant: 'destructive' as any });
+        setResults([]);
+      } else {
+        setResults((data?.specialists ?? []) as Specialist[]);
+      }
+    } catch {
+      toast({ title: 'Zoekopdracht mislukt', description: 'Networkfout. Probeer het opnieuw.', variant: 'destructive' as any });
+      setResults([]);
+    } finally {
       setSearching(false);
-    }, 900);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -203,6 +207,11 @@ export default function MaintenancePage() {
         </motion.div>
       ) : (
         <div className="space-y-3">
+          {results.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Geen vakmensen gevonden in de buurt.
+            </p>
+          )}
           {results.map((s, i) => (
             <motion.div
               key={s.id}
