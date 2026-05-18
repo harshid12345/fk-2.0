@@ -18,7 +18,10 @@ interface Booking {
   property?: { address: string | null };
 }
 
-const DAY_NAMES_NL = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
+const DAY_KEYS = [
+  'calendar.day_mon', 'calendar.day_tue', 'calendar.day_wed', 'calendar.day_thu',
+  'calendar.day_fri', 'calendar.day_sat', 'calendar.day_sun',
+];
 
 // Status styles are looked up by key; labels are set via t() in JSX
 const STATUS_BG: Record<string, { bg: string; color: string; key: string }> = {
@@ -29,7 +32,8 @@ const STATUS_BG: Record<string, { bg: string; color: string; key: string }> = {
 
 export default function CalendarPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'nl' ? 'nl-NL' : 'en-GB';
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -83,8 +87,8 @@ export default function CalendarPage() {
   const grouped: Record<string, { label: string; sortKey: string; items: Booking[] }> = {};
   bookings.forEach(b => {
     const d = new Date(b.slot_start);
-    const dayName = DAY_NAMES_NL[(d.getDay() + 6) % 7];
-    const dateLabel = `${dayName} ${d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })}`;
+    const dayName = t(DAY_KEYS[(d.getDay() + 6) % 7]);
+    const dateLabel = `${dayName} ${d.toLocaleDateString(locale, { day: 'numeric', month: 'long' })}`;
     const key = d.toDateString();
     if (!grouped[key]) grouped[key] = { label: dateLabel, sortKey: d.toISOString().slice(0, 10), items: [] };
     grouped[key].items.push(b);
@@ -159,8 +163,8 @@ export default function CalendarPage() {
                 {group.items.map(b => {
                   const start = new Date(b.slot_start);
                   const end = new Date(b.slot_end);
-                  const time = `${start.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`;
-                  const name = b.applicant?.full_name || 'Kandidaat';
+                  const time = `${start.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}`;
+                  const name = b.applicant?.full_name || t('calendar.unknown_candidate');
                   const addr = b.property?.address || '';
                   const statusDef = STATUS_BG[b.status];
                   const status = statusDef ? { ...statusDef, label: t(statusDef.key) } : null;

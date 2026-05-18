@@ -23,7 +23,7 @@ interface Issue {
 
 export default function IssuesPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { toast } = useToast();
   const [issues, setIssues] = useState<Issue[]>([]);
   const [properties, setProperties] = useState<Record<string, string>>({});
@@ -48,7 +48,7 @@ export default function IssuesPage() {
   const markResolved = async (id: string) => {
     await supabase.from('tenant_issues').update({ landlord_resolved: true }).eq('id', id);
     setIssues(prev => prev.map(i => i.id === id ? { ...i, landlord_resolved: true } : i));
-    toast({ title: 'Issue resolved' });
+    toast({ title: t('issues.resolved_toast') });
   };
 
   const filteredIssues = issues.filter(i => !i.landlord_resolved && (activeFilter === 'all' || i.category === activeFilter));
@@ -61,10 +61,10 @@ export default function IssuesPage() {
   };
 
   const filters = [
-    { key: 'all' as const, label: 'All', count: counts.all },
-    { key: 'urgent' as const, label: t('issues.urgent'), count: counts.urgent, color: 'text-destructive' },
-    { key: 'needs_attention' as const, label: 'Action', count: counts.needs_attention, color: 'text-[hsl(38,92%,50%)]' },
-    { key: 'trivial' as const, label: 'AI handled', count: counts.trivial, color: 'text-muted-foreground' },
+    { key: 'all' as const, label: t('issues.filter_all'), count: counts.all },
+    { key: 'urgent' as const, label: t('issues.category_urgent'), count: counts.urgent, color: 'text-destructive' },
+    { key: 'needs_attention' as const, label: t('issues.filter_action'), count: counts.needs_attention, color: 'text-[hsl(38,92%,50%)]' },
+    { key: 'trivial' as const, label: t('issues.filter_ai'), count: counts.trivial, color: 'text-muted-foreground' },
   ];
 
   if (loading) return (
@@ -135,23 +135,23 @@ export default function IssuesPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-foreground">{issue.tenant_name || 'Unknown'}</span>
+                        <span className="text-sm font-medium text-foreground">{issue.tenant_name || t('issues.unknown_tenant')}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
                           issue.category === 'urgent' ? 'bg-destructive/15 text-destructive' :
                           issue.category === 'needs_attention' ? 'bg-[hsl(38,92%,50%)]/15 text-[hsl(38,92%,50%)]' :
                           'bg-primary/10 text-primary'
                         }`}>
-                          {issue.category === 'trivial' ? 'AI' : issue.category === 'urgent' ? 'Urgent' : 'Action'}
+                          {issue.category === 'trivial' ? t('issues.category_ai') : issue.category === 'urgent' ? t('issues.category_urgent') : t('issues.category_action')}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground truncate pr-4">{issue.message}</p>
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <Building2 className="w-3 h-3" /> {issue.property_address || 'Unknown'}
+                          <Building2 className="w-3 h-3" /> {issue.property_address || t('issues.unknown_property')}
                         </span>
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {new Date(issue.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                          {new Date(issue.created_at).toLocaleDateString(lang === 'nl' ? 'nl-NL' : 'en-GB', { day: 'numeric', month: 'short' })}
                         </span>
                       </div>
                     </div>

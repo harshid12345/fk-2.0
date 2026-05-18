@@ -4,11 +4,24 @@ import { Search, Star, Phone, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/hooks/useLanguage';
 
-const ALLOWED_CATEGORIES = [
-  'Plumber', 'Electrician', 'Cleaner', 'Painter & Decorator', 'Handyman',
-  'Heating & Air Conditioning', 'Locksmith', 'Roofer', 'Carpenter', 'Tiler',
-  'Pest Control', 'Gardener', 'Mover',
+// English category labels — used as canonical keys for fuzzy-matching on the backend.
+// The frontend shows translated labels via CATEGORY_KEYS + t().
+const CATEGORY_KEYS = [
+  { key: 'maintenance.cat_plumber',     canonical: 'Plumber' },
+  { key: 'maintenance.cat_electrician', canonical: 'Electrician' },
+  { key: 'maintenance.cat_cleaner',     canonical: 'Cleaner' },
+  { key: 'maintenance.cat_painter',     canonical: 'Painter & Decorator' },
+  { key: 'maintenance.cat_handyman',    canonical: 'Handyman' },
+  { key: 'maintenance.cat_hvac',        canonical: 'Heating & Air Conditioning' },
+  { key: 'maintenance.cat_locksmith',   canonical: 'Locksmith' },
+  { key: 'maintenance.cat_roofer',      canonical: 'Roofer' },
+  { key: 'maintenance.cat_carpenter',   canonical: 'Carpenter' },
+  { key: 'maintenance.cat_tiler',       canonical: 'Tiler' },
+  { key: 'maintenance.cat_pest',        canonical: 'Pest Control' },
+  { key: 'maintenance.cat_gardener',    canonical: 'Gardener' },
+  { key: 'maintenance.cat_mover',       canonical: 'Mover' },
 ];
 
 const RADIUS_OPTIONS = [
@@ -71,11 +84,12 @@ function SkeletonCard() {
 export default function MaintenancePage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t, lang } = useLanguage();
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<{ label: string; canonical: string }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [radius, setRadius] = useState<number>(5000);
   const [results, setResults] = useState<Specialist[] | null>(null);
@@ -112,13 +126,14 @@ export default function MaintenancePage() {
       return;
     }
     const lower = value.toLowerCase();
-    const matches = ALLOWED_CATEGORIES.filter(c => c.toLowerCase().includes(lower));
+    const matches = CATEGORY_KEYS.filter(c => t(c.key).toLowerCase().includes(lower) || c.canonical.toLowerCase().includes(lower))
+      .map(c => ({ label: t(c.key), canonical: c.canonical }));
     setSuggestions(matches);
     setShowSuggestions(matches.length > 0);
   };
 
-  const selectSuggestion = (category: string) => {
-    setSearchTerm(category);
+  const selectSuggestion = (canonical: string) => {
+    setSearchTerm(canonical);
     setSuggestions([]);
     setShowSuggestions(false);
   };
@@ -131,20 +146,20 @@ export default function MaintenancePage() {
 
     try {
       const { data, error } = await supabase.functions.invoke('google-places-search', {
-        body: { query: searchTerm, location: selectedProperty, radiusMeters: radius },
+        body: { query: searchTerm, location: selectedProperty, radiusMeters: radius, lang },
       });
 
       if (error) {
-        toast({ title: 'Zoekopdracht mislukt', description: 'Networkfout. Probeer het opnieuw.', variant: 'destructive' as any });
+        toast({ title: t('maintenance.search_failed'), description: t('maintenance.network_error'), variant: 'destructive' as any });
         setResults([]);
       } else if (data?.error) {
-        toast({ title: 'Ongeldige zoekopdracht', description: data.error, variant: 'destructive' as any });
+        toast({ title: t('maintenance.invalid_search'), description: data.error, variant: 'destructive' as any });
         setResults([]);
       } else {
         setResults((data?.specialists ?? []) as Specialist[]);
       }
     } catch {
-      toast({ title: 'Zoekopdracht mislukt', description: 'Networkfout. Probeer het opnieuw.', variant: 'destructive' as any });
+      toast({ title: t('maintenance.search_failed'), description: t('maintenance.network_error'), variant: 'destructive' as any });
       setResults([]);
     } finally {
       setSearching(false);
@@ -169,7 +184,7 @@ export default function MaintenancePage() {
         animate={{ opacity: 1, y: 0 }}
         className="text-3xl font-serif text-foreground leading-tight mb-6"
       >
-        Onderhoud
+        {t('maintenance.title')}
       </motion.h1>
 
       {/* Property selector */}
@@ -180,14 +195,14 @@ export default function MaintenancePage() {
         className="mb-4"
       >
         <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-          Voor welk pand?
+          {t('maintenance.for_property')}
         </label>
         <div className="relative">
           <button
             onClick={() => setSelectorOpen(v => !v)}
             className="w-full glass-card rounded-xl px-4 py-3 flex items-center justify-between text-sm text-foreground"
           >
-            <span className="truncate">{selectedProperty || 'Kies een pand…'}</span>
+            <span className="truncate">{selectedProperty || t('maintenance.choose_property')}</span>
             <ChevronDown
               className={`w-4 h-4 text-muted-foreground shrink-0 ml-2 transition-transform duration-150 ${selectorOpen ? 'rotate-180' : ''}`}
             />
@@ -234,7 +249,7 @@ export default function MaintenancePage() {
               onChange={e => handleSearchTermChange(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              placeholder="Bijv. Plumber, Electrician…"
+              placeholder={t('maintenance.search_placeholder')}
               className="w-full glass-card rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground bg-transparent outline-none border border-border focus:border-primary/50 transition-colors"
             />
             <AnimatePresence>
@@ -249,11 +264,11 @@ export default function MaintenancePage() {
                 >
                   {suggestions.map(cat => (
                     <button
-                      key={cat}
-                      onMouseDown={() => selectSuggestion(cat)}
+                      key={cat.canonical}
+                      onMouseDown={() => selectSuggestion(cat.canonical)}
                       className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
                     >
-                      {cat}
+                      {cat.label}
                     </button>
                   ))}
                 </motion.div>
@@ -271,7 +286,7 @@ export default function MaintenancePage() {
 
         {/* Radius selector */}
         <div className="flex items-center gap-2">
-          <label className="text-xs text-muted-foreground whitespace-nowrap">Zoekradius:</label>
+          <label className="text-xs text-muted-foreground whitespace-nowrap">{t('maintenance.search_radius')}</label>
           <select
             value={radius}
             onChange={e => setRadius(Number(e.target.value))}
@@ -298,13 +313,13 @@ export default function MaintenancePage() {
           className="glass-card rounded-xl py-14 px-6 text-center"
         >
           <Search className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Typ een probleem om vakmensen te vinden</p>
+          <p className="text-sm text-muted-foreground">{t('maintenance.empty_hint')}</p>
         </motion.div>
       ) : (
         <div className="space-y-3">
           {results.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-8">
-              Geen vakmensen gevonden in de buurt.
+              {t('maintenance.no_results')}
             </p>
           )}
           {results.map((s, i) => (
@@ -316,7 +331,7 @@ export default function MaintenancePage() {
               className="glass-card rounded-xl p-4"
             >
               <div className="flex items-start justify-between gap-3 mb-1.5">
-                <p className="text-sm font-semibold text-foreground leading-snug">{s.name}</p>
+                <p className="text-sm font-semibold text-foreground leading-snug">{s.name || t('maintenance.unknown_specialist')}</p>
                 <span
                   className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-md"
                   style={{ background: 'hsl(var(--accent))', color: 'hsl(var(--muted-foreground))' }}
@@ -336,7 +351,7 @@ export default function MaintenancePage() {
                   whileTap={{ scale: 0.92 }}
                   className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold"
                 >
-                  Bellen
+                  {t('maintenance.call_btn')}
                 </motion.a>
               </div>
             </motion.div>

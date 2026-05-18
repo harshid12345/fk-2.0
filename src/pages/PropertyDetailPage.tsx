@@ -16,7 +16,8 @@ import { toast as sonnerToast } from 'sonner';
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'nl' ? 'nl-NL' : 'en-GB';
   const navigate = useNavigate();
   const { toast } = useToast();
   const [property, setProperty] = useState<any>(null);
@@ -184,7 +185,7 @@ export default function PropertyDetailPage() {
             <div className="pr-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t('detail.rent_stat')}</p>
               <p className="text-lg font-semibold text-foreground leading-none">
-                €{property.rent_amount ? Math.round(property.rent_amount).toLocaleString('nl-NL') : '—'}
+                €{property.rent_amount ? Math.round(property.rent_amount).toLocaleString(locale) : '—'}
               </p>
             </div>
             <div className="px-3">
@@ -397,9 +398,9 @@ export default function PropertyDetailPage() {
                   className="glass-card rounded-xl p-4 flex items-center gap-3"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{a.full_name || 'Onbekend'}</p>
+                    <p className="text-sm font-semibold text-foreground">{a.full_name || t('applicants.unknown')}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {a.employment_type || '—'} · €{a.monthly_income ? a.monthly_income.toLocaleString('nl-NL') : '—'}/mnd
+                      {a.employment_type || '—'} · €{a.monthly_income ? a.monthly_income.toLocaleString(locale) : '—'}/mnd
                     </p>
                     <span className="inline-flex items-center mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-accent text-muted-foreground capitalize">
                       {a.stage || 'nieuw'}

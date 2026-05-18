@@ -91,7 +91,8 @@ function DutchHouseIllustration() {
 
 export default function PropertiesPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'nl' ? 'nl-NL' : 'en-GB';
   const navigate = useNavigate();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,9 +148,9 @@ export default function PropertiesPage() {
     setApplicantActionLoading(applicant.id);
     try {
       await supabase.functions.invoke('whatsapp-notify-tenant', { body: { applicantId: applicant.id, action: 'approve' } });
-      sonnerToast.success(`${applicant.full_name || 'Kandidaat'} goedgekeurd.`);
+      sonnerToast.success(t('applicants.approved_name', { name: applicant.full_name || t('applicants.unknown') }));
     } catch {
-      sonnerToast.error('Fout bij goedkeuren');
+      sonnerToast.error(t('applicants.error_approve'));
     }
     setApplicantActionLoading(null);
     fetchApplicants();
@@ -159,9 +160,9 @@ export default function PropertiesPage() {
     setApplicantActionLoading(applicant.id);
     try {
       await supabase.functions.invoke('whatsapp-notify-tenant', { body: { applicantId: applicant.id, action: 'reject' } });
-      sonnerToast.success(`${applicant.full_name || 'Kandidaat'} afgewezen.`);
+      sonnerToast.success(t('applicants.rejected_name', { name: applicant.full_name || t('applicants.unknown') }));
     } catch {
-      sonnerToast.error('Fout bij afwijzen');
+      sonnerToast.error(t('applicants.error_reject'));
     }
     setApplicantActionLoading(null);
     fetchApplicants();
@@ -203,7 +204,7 @@ export default function PropertiesPage() {
               </span>
             </div>
             <p className="text-xl font-semibold text-foreground leading-none">
-              €{totalRent.toLocaleString('nl-NL')}
+              €{totalRent.toLocaleString(locale)}
             </p>
           </div>
           <div className="glass-card rounded-xl p-4">
@@ -309,7 +310,7 @@ export default function PropertiesPage() {
                       </h2>
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3" />
-                        {p.city || 'Onbekend'}
+                        {p.city || t('issues.unknown_property')}
                       </p>
                     </div>
 
@@ -346,7 +347,7 @@ export default function PropertiesPage() {
                           {t('properties.rent')}
                         </p>
                         <p className="text-lg font-semibold text-foreground leading-none">
-                          €{p.rent_amount ? Math.round(p.rent_amount).toLocaleString('nl-NL') : '—'}
+                          €{p.rent_amount ? Math.round(p.rent_amount).toLocaleString(locale) : '—'}
                         </p>
                       </div>
                       <div className="px-3">
@@ -408,9 +409,9 @@ export default function PropertiesPage() {
         )}
       </div>
 
-      {/* Aanvragers section */}
+      {/* Applicants section */}
       <div className="px-5 mt-6 mb-4">
-        <h2 className="text-base font-semibold text-foreground mb-3">Aanvragers</h2>
+        <h2 className="text-base font-semibold text-foreground mb-3">{t('properties.applicants_section')}</h2>
         {applicantsLoading ? (
           <div className="space-y-2">
             {[...Array(2)].map((_, i) => (
@@ -420,7 +421,7 @@ export default function PropertiesPage() {
         ) : applicants.length === 0 ? (
           <div className="glass-card rounded-xl py-10 px-6 text-center">
             <Users className="w-7 h-7 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Geen aanvragers</p>
+            <p className="text-sm text-muted-foreground">{t('properties.no_applicants_short')}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -445,7 +446,7 @@ export default function PropertiesPage() {
                       <User className="w-4 h-4 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{a.full_name || 'Onbekend'}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{a.full_name || t('applicants.unknown')}</p>
                       <p className="text-[11px] text-muted-foreground truncate">{a.propertyAddress}</p>
                     </div>
                     {a.match_label && (

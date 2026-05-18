@@ -95,7 +95,8 @@ function stagePillStyle(hasBooking: boolean, isApproved: boolean, isDisqualified
 
 export default function ApplicantsPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'nl' ? 'nl-NL' : 'en-GB';
   const { toast } = useToast();
   const navigate = useNavigate();
   const [applicants, setApplicants] = useState<any[]>([]);
@@ -147,12 +148,12 @@ export default function ApplicantsPage() {
         body: { applicantId: applicant.id, action: 'approve' },
       });
       if (error) {
-        toast({ title: 'Melding mislukt', description: String(error.message || error), variant: 'destructive' as any });
+        toast({ title: t('applicants.error_notify'), description: String(error.message || error), variant: 'destructive' as any });
       } else {
-        toast({ title: `${applicant.full_name || t('applicants.header_count')} — ${t('applicants.filter_approved').toLowerCase()}. WhatsApp ✓` });
+        toast({ title: t('applicants.approved_name', { name: applicant.full_name || t('applicants.unknown') }) });
       }
     } catch (e: any) {
-      toast({ title: 'Fout bij goedkeuren', description: e.message, variant: 'destructive' as any });
+      toast({ title: t('applicants.error_approve'), description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
     load();
@@ -165,12 +166,12 @@ export default function ApplicantsPage() {
         body: { applicantId: applicant.id, action: 'reject' },
       });
       if (error) {
-        toast({ title: 'Melding mislukt', description: String(error.message || error), variant: 'destructive' as any });
+        toast({ title: t('applicants.error_notify'), description: String(error.message || error), variant: 'destructive' as any });
       } else {
-        toast({ title: `${applicant.full_name || 'Kandidaat'} afgewezen.` });
+        toast({ title: t('applicants.rejected_name', { name: applicant.full_name || t('applicants.unknown') }) });
       }
     } catch (e: any) {
-      toast({ title: 'Fout bij afwijzen', description: e.message, variant: 'destructive' as any });
+      toast({ title: t('applicants.error_reject'), description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
     load();
@@ -179,18 +180,18 @@ export default function ApplicantsPage() {
   const confirmViewing = async (applicant: any, booking: any) => {
     setActionLoading(applicant.id + '_confirm');
     try {
-      const slotLabel = new Date(booking.slot_start).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'short' }) +
-        ' om ' + new Date(booking.slot_start).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+      const slotLabel = new Date(booking.slot_start).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' }) +
+        ` ${t('calendar.at')} ` + new Date(booking.slot_start).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
       const { error } = await supabase.functions.invoke('whatsapp-notify-tenant', {
         body: { applicantId: applicant.id, action: 'confirm_booking', bookingId: booking.id, slotLabel },
       });
       if (error) {
-        toast({ title: 'Bevestiging mislukt', variant: 'destructive' as any });
+        toast({ title: t('applicants.confirm_failed'), variant: 'destructive' as any });
       } else {
-        toast({ title: `Bezichtiging bevestigd voor ${applicant.full_name || 'kandidaat'}. WhatsApp verstuurd.` });
+        toast({ title: t('applicants.viewing_confirmed_msg', { name: applicant.full_name || t('applicants.unknown') }) });
       }
     } catch (e: any) {
-      toast({ title: 'Fout', description: e.message, variant: 'destructive' as any });
+      toast({ title: t('applicants.error_generic'), description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
     load();
@@ -207,9 +208,9 @@ export default function ApplicantsPage() {
         body: { action: 'send_slots', applicant_id: applicant.id, property_id: applicant.property_id, landlord_id: user?.id },
       });
 
-      toast({ title: 'Declined — tenant offered new slots' });
+      toast({ title: t('applicants.declined_new_slots') });
     } catch (e: any) {
-      toast({ title: 'Fout', description: e.message, variant: 'destructive' as any });
+      toast({ title: t('applicants.error_generic'), description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
     load();
@@ -356,7 +357,7 @@ export default function ApplicantsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-semibold text-foreground truncate">
-                        {a.full_name || 'Onbekend'}
+                        {a.full_name || t('applicants.unknown')}
                       </p>
                       {pill && (
                         <span
@@ -413,9 +414,9 @@ export default function ApplicantsPage() {
                             <div className="flex items-center gap-2">
                               <Clock className="w-3.5 h-3.5 text-warning" />
                               <p className="text-xs font-semibold text-foreground">
-                                Bezichtigingsverzoek:{' '}
-                                {new Date(a.pendingBooking.slot_start).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
-                                om {new Date(a.pendingBooking.slot_start).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
+                                {t('applicants.viewing_request_label')}:{' '}
+                                {new Date(a.pendingBooking.slot_start).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
+                                {t('calendar.at')} {new Date(a.pendingBooking.slot_start).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                               </p>
                             </div>
                             <div className="flex gap-2">
@@ -462,10 +463,10 @@ export default function ApplicantsPage() {
                         {/* Key info grid */}
                         <div className="grid grid-cols-2 gap-2">
                           {[
-                            { label: 'Dienstverband', value: a.employment_type },
-                            { label: 'Inkomen', value: a.monthly_income ? `€${a.monthly_income.toLocaleString('nl-NL')}` : null },
-                            { label: 'Bewoners', value: a.num_occupants },
-                            { label: 'Gewenste datum', value: a.desired_move_in },
+                            { label: t('applicants.employment_label'), value: a.employment_type },
+                            { label: t('applicants.income_label'), value: a.monthly_income ? `€${a.monthly_income.toLocaleString(locale)}` : null },
+                            { label: t('applicants.occupants_label'), value: a.num_occupants },
+                            { label: t('applicants.movein_label'), value: a.desired_move_in },
                           ].map(({ label, value }) => (
                             <div key={label} className="bg-accent rounded-lg px-3 py-2.5">
                               <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{label}</p>

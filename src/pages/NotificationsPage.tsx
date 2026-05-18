@@ -17,7 +17,8 @@ const TYPE_CONFIG: Record<string, { icon: any; borderColor: string }> = {
 
 export default function NotificationsPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = lang === 'nl' ? 'nl-NL' : 'en-GB';
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,23 +61,23 @@ export default function NotificationsPage() {
       const { data: booking } = await query;
 
       if (!booking) {
-        toast({ title: 'Booking not found', description: 'It may have already been handled.', variant: 'destructive' as any });
+        toast({ title: t('notifications.booking_not_found'), description: t('notifications.booking_not_found_desc'), variant: 'destructive' as any });
         setResolved(prev => new Set([...prev, notification.id]));
         setActionLoading(null);
         return;
       }
 
-      const slotLabel = new Date(booking.slot_start).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'short' })
-        + ' om ' + new Date(booking.slot_start).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+      const slotLabel = new Date(booking.slot_start).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' })
+        + ` ${t('calendar.at')} ` + new Date(booking.slot_start).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 
       await supabase.functions.invoke('whatsapp-notify-tenant', {
         body: { applicantId: related_applicant_id, action: 'confirm_booking', bookingId: booking.id, slotLabel },
       });
 
       setResolved(prev => new Set([...prev, notification.id]));
-      toast({ title: 'Viewing confirmed — tenant notified' });
+      toast({ title: t('notifications.viewing_confirmed') });
     } catch (e: any) {
-      toast({ title: 'Error confirming', description: e.message, variant: 'destructive' as any });
+      toast({ title: t('notifications.error_confirming'), description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
   };
@@ -94,7 +95,7 @@ export default function NotificationsPage() {
       const { data: booking } = await query;
 
       if (!booking) {
-        toast({ title: 'Booking not found', description: 'It may have already been handled.', variant: 'destructive' as any });
+        toast({ title: t('notifications.booking_not_found'), description: t('notifications.booking_not_found_desc'), variant: 'destructive' as any });
         setResolved(prev => new Set([...prev, notification.id]));
         setActionLoading(null);
         return;
@@ -109,9 +110,9 @@ export default function NotificationsPage() {
       });
 
       setResolved(prev => new Set([...prev, notification.id]));
-      toast({ title: 'Declined — tenant offered new slots' });
+      toast({ title: t('notifications.declined_new_slots') });
     } catch (e: any) {
-      toast({ title: 'Error declining', description: e.message, variant: 'destructive' as any });
+      toast({ title: t('notifications.error_declining'), description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
   };
@@ -158,7 +159,7 @@ export default function NotificationsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground">{n.message || n.title}</p>
                     <p className="text-[10px] text-muted-foreground/60 mt-1">
-                      {new Date(n.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(n.created_at).toLocaleDateString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </p>
 
                     {isBookingRequest && n.related_applicant_id && (
@@ -172,7 +173,7 @@ export default function NotificationsPage() {
                           {isConfirming
                             ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
                             : <Check className="w-3.5 h-3.5 mr-1" />}
-                          Confirm
+                          {t('notifications.confirm_btn')}
                         </Button>
                         <Button
                           size="sm"
@@ -184,7 +185,7 @@ export default function NotificationsPage() {
                           {isDeclining
                             ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
                             : <X className="w-3.5 h-3.5 mr-1" />}
-                          Decline
+                          {t('notifications.decline_btn')}
                         </Button>
                       </div>
                     )}

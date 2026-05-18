@@ -109,6 +109,11 @@ const CATEGORIES: Category[] = [
 
 const PROFANITY = ['fuck', 'shit', 'ass', 'dick', 'bitch', 'cunt', 'bastard', 'kut', 'klote', 'godverdomme', 'tering', 'kanker']
 
+const SEARCH_ERROR: Record<string, string> = {
+  en: 'Please search for a home service (e.g. Plumber, Electrician, Cleaner)',
+  nl: 'Zoek op een thuisdienst (bijv. Loodgieter, Elektricien, Schoonmaker)',
+}
+
 // Descriptive / niche phrases that don't match category names directly.
 // Checked before category aliases so intent wins over keyword coincidences.
 const INTENT_MAP: { categoryLabel: string; dutchTriggers: string[]; englishTriggers: string[] }[] = [
@@ -149,17 +154,18 @@ const INTENT_MAP: { categoryLabel: string; dutchTriggers: string[]; englishTrigg
   },
 ]
 
-function sanitizeQuery(raw: string): { googleQuery: string; label: string } | { error: string } {
+function sanitizeQuery(raw: string, lang: string): { googleQuery: string; label: string } | { error: string } {
   const input = raw.trim().toLowerCase()
+  const errorMsg = SEARCH_ERROR[lang] ?? SEARCH_ERROR['en']
 
   // Reject empty, purely numeric, or symbol-only input
   if (!input || /^[\d\s\W]+$/.test(input)) {
-    return { error: 'Please search for a home service (e.g. Plumber, Electrician, Cleaner)' }
+    return { error: errorMsg }
   }
 
   // Profanity / irrelevant check
   if (PROFANITY.some(w => input.includes(w))) {
-    return { error: 'Please search for a home service (e.g. Plumber, Electrician, Cleaner)' }
+    return { error: errorMsg }
   }
 
   // Intent map: descriptive phrases → correct category (checked before short-keyword aliases)
@@ -199,7 +205,7 @@ function sanitizeQuery(raw: string): { googleQuery: string; label: string } | { 
     }
   }
 
-  return { error: 'Please search for a home service (e.g. Plumber, Electrician, Cleaner)' }
+  return { error: errorMsg }
 }
 
 const VALID_RADII = new Set([1000, 2000, 5000, 10000, 20000])
@@ -210,7 +216,8 @@ serve(async (req) => {
   }
 
   try {
-    const { query, location, radiusMeters } = await req.json()
+    const { query, location, radiusMeters, lang } = await req.json()
+    const activeLang: string = lang === 'nl' ? 'nl' : 'en'
 
     if (!query || !location) {
       return new Response(
@@ -220,7 +227,7 @@ serve(async (req) => {
     }
 
     // Validate and sanitize query against whitelist
-    const sanitized = sanitizeQuery(query)
+    const sanitized = sanitizeQuery(query, activeLang)
     if ('error' in sanitized) {
       return new Response(
         JSON.stringify({ error: sanitized.error }),
@@ -268,7 +275,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         textQuery: googleQuery,
-        languageCode: 'nl',
+        languageCode: activeLang,
         locationBias: {
           circle: {
             center: { latitude: lat, longitude: lng },
