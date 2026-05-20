@@ -173,7 +173,7 @@ export default function PropertiesPage() {
   const pendingKb = properties.filter(p => !p.knowledge_base_urls || p.knowledge_base_urls.length === 0);
 
   return (
-    <div className="pb-24">
+    <div className="pb-36">
       {/* Page header */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
@@ -515,7 +515,7 @@ export default function PropertiesPage() {
         transition={{ delay: 0.25, type: 'spring', damping: 16, stiffness: 220 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setDialogOpen(true)}
-        className="fixed bottom-6 right-6 w-13 h-13 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center z-20"
+        className="fixed bottom-24 right-6 w-13 h-13 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center z-20"
         style={{ width: 52, height: 52 }}
       >
         <Plus className="w-5 h-5" />
