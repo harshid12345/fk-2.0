@@ -205,11 +205,11 @@ serve(async (req) => {
         pets: payload.pets,
         income_range: payload.monthly_income_range,
       },
-      match_score: scoreResult.score,
+      match_score: Math.round(scoreResult.score),
       match_label: scoreResult.label,
       match_flags: scoreResult.flags,
       hard_disqualified: scoreResult.hardDisqualified,
-      hard_disqualify_reason: scoreResult.hardDisqualifyReason,
+      hard_disqualify_reason: scoreResult.hardDisqualifyReason ?? null,
     };
 
     const { data: applicant, error: insertErr } = await supabase
@@ -221,7 +221,7 @@ serve(async (req) => {
     if (insertErr || !applicant) {
       console.error("[submit-application] Insert error:", insertErr);
       return new Response(
-        JSON.stringify({ success: false, error: "Failed to save application" }),
+        JSON.stringify({ success: false, error: insertErr?.message ?? "Failed to save application" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
