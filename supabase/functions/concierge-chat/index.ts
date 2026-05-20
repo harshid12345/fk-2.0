@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
+const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,26 +51,23 @@ ${knowledgeBase || "No knowledge base available."}
 
 Respond ONLY as JSON: {"category": "trivial"|"needs_attention"|"urgent", "ai_response": "<your response>"}`;
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: message },
-      ],
-      response_format: { type: "json_object" },
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 400,
+      system: systemPrompt,
+      messages: [{ role: "user", content: message }],
     }),
   });
 
   if (!res.ok) {
-    console.error("[concierge-chat] AI API error:", res.status, await res.text());
-    // Fallback
+    console.error("[concierge-chat] Anthropic API error:", res.status, await res.text());
     return {
       category: "needs_attention",
       ai_response: lang === "nl"
@@ -80,10 +77,12 @@ Respond ONLY as JSON: {"category": "trivial"|"needs_attention"|"urgent", "ai_res
   }
 
   const data = await res.json();
-  const raw = data.choices?.[0]?.message?.content ?? "{}";
+  const raw = data.content?.[0]?.text ?? "{}";
 
   try {
-    const parsed = JSON.parse(raw);
+    // Extract JSON from the response (Claude may wrap it in markdown)
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
     return {
       category: ["trivial", "needs_attention", "urgent"].includes(parsed.category)
         ? parsed.category
