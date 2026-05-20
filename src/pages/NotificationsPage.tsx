@@ -70,7 +70,7 @@ export default function NotificationsPage() {
       const slotLabel = new Date(booking.slot_start).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' })
         + ` ${t('calendar.at')} ` + new Date(booking.slot_start).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 
-      await supabase.functions.invoke('whatsapp-notify-tenant', {
+      await supabase.functions.invoke('sms-notify-tenant', {
         body: { applicantId: related_applicant_id, action: 'confirm_booking', bookingId: booking.id, slotLabel },
       });
 

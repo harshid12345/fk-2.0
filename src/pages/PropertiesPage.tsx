@@ -374,15 +374,22 @@ export default function PropertiesPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        const waNum = import.meta.env.VITE_WHATSAPP_BUSINESS_NUMBER || '3197010227583';
-                        const link = `https://wa.me/${waNum}?text=start%20${p.id}`;
+                        const baseUrl = window.location.origin;
                         if (isRented) {
+                          const conciergeToken = (p as any).concierge_token;
+                          const link = conciergeToken ? `${baseUrl}/support/${conciergeToken}` : '';
                           const tenantFirst = (p.tenant_name || 'there').split(' ')[0];
-                          const msg = `Hey ${tenantFirst}! Je AI-assistent voor ${p.address} staat klaar voor al je vragen over wifi, verwarming, huisregels en het contract.\n\nStart hier:\n${link}`;
+                          const msg = link
+                            ? `Hey ${tenantFirst}! Je hebt vragen over ${p.address}? Gebruik dit als je hulp nodig hebt:\n\n${link}`
+                            : `Geen concierge-link beschikbaar voor dit pand.`;
                           navigator.clipboard.writeText(msg);
                           sonnerToast.success(t('properties.copied_concierge'));
                         } else {
-                          const msg = `Hoi! Ik gebruik FairKamer om kandidaten te screenen voor ${p.address}.\n\nHet duurt ongeveer 5 minuten. Klik op de link om te beginnen:\n\n${link}`;
+                          const appToken = (p as any).application_token;
+                          const link = appToken ? `${baseUrl}/apply/${appToken}` : '';
+                          const msg = link
+                            ? `Hoi! Ik verhuur ${p.address}. Aanmelden duurt 5 minuten:\n\n${link}`
+                            : `Geen aanmeldlink beschikbaar.`;
                           navigator.clipboard.writeText(msg);
                           sonnerToast.success(t('properties.copied_screening'));
                         }

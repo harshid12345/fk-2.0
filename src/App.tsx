@@ -17,6 +17,9 @@ import NotificationsPage from "./pages/NotificationsPage";
 import CalendarPage from "./pages/CalendarPage";
 import MaintenancePage from "./pages/MaintenancePage";
 import NotFound from "./pages/NotFound";
+import ApplyPage from "./pages/ApplyPage";
+import SchedulePage from "./pages/SchedulePage";
+import ConciergeWebPage from "./pages/ConciergeWebPage";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +65,10 @@ const App = () => (
                 <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
                 <Route path="/issues" element={<ProtectedRoute><IssuesPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                {/* Public tenant-facing routes — no auth required */}
+                <Route path="/apply/:token" element={<ApplyPage />} />
+                <Route path="/schedule/:token" element={<SchedulePage />} />
+                <Route path="/support/:token" element={<ConciergeWebPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthProvider>

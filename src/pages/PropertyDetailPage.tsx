@@ -63,24 +63,18 @@ export default function PropertyDetailPage() {
     toast({ title: t('detail.tenant_saved') });
     await fetchData();
     if (phoneChanged && tenantPhone.trim() && property?.address) {
-      sendWhatsAppIntro(tenantPhone, tenantName, property.address, id);
+      sendConciergeIntro(tenantPhone, tenantName, property.address, property?.concierge_token ?? null);
     }
   };
 
-  const waNum = import.meta.env.VITE_WHATSAPP_BUSINESS_NUMBER || '3197010227583';
-
-  const sendWhatsAppIntro = (phone: string, name: string, address: string, propId: string) => {
-    const link = `https://wa.me/${waNum}?text=start%20${propId}`;
+  const sendConciergeIntro = (phone: string, name: string, address: string, conciergeToken: string | null) => {
+    const link = conciergeToken ? `${window.location.origin}/support/${conciergeToken}` : null;
     const first = (name || 'huurder').split(' ')[0];
-    const msg = `Hey ${first}! Je verhuurder heeft FairKamer ingesteld voor ${address}. Ik ben je AI-assistent — ik kan helpen met wifi, verwarming, huisregels, contractvragen, onderhoudsmonteurs en alles over de woning.\n\nStart hier op WhatsApp:\n${link}`;
-    const cleaned = phone.replace(/[^\d]/g, '');
+    const msg = link
+      ? `Hey ${first}! Je verhuurder heeft FairKamer ingesteld voor ${address}. Heb je vragen? Gebruik deze link:\n\n${link}`
+      : `FairKamer ondersteuning voor ${address} wordt binnenkort beschikbaar gesteld.`;
     navigator.clipboard.writeText(msg).catch(() => {});
-    if (cleaned) {
-      window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
-      sonnerToast.success('WhatsApp geopend met intro voor huurder');
-    } else {
-      sonnerToast.success('Introbericht gekopieerd');
-    }
+    sonnerToast.success('Introbericht gekopieerd');
   };
 
   const simulateScreenerMessage = async () => {
@@ -216,18 +210,14 @@ export default function PropertyDetailPage() {
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => {
-              const link = `https://wa.me/${waNum}?text=start%20${property.id}`;
+              const conciergeToken = property?.concierge_token;
+              const link = conciergeToken ? `${window.location.origin}/support/${conciergeToken}` : null;
               const tenantFirst = (property.tenant_name || 'huurder').split(' ')[0];
-              const msg = `Hey ${tenantFirst}! Je AI-assistent voor ${property.address} staat klaar voor al je vragen.\n\nStart hier:\n${link}`;
-              if (property.tenant_phone) {
-                const cleaned = String(property.tenant_phone).replace(/[^\d]/g, '');
-                navigator.clipboard.writeText(msg).catch(() => {});
-                window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
-                sonnerToast.success('WhatsApp geopend');
-              } else {
-                navigator.clipboard.writeText(msg);
-                sonnerToast.success('Concierge bericht gekopieerd');
-              }
+              const msg = link
+                ? `Hey ${tenantFirst}! Heb je vragen over ${property.address}? Gebruik dit:\n\n${link}`
+                : 'Geen concierge-link beschikbaar.';
+              navigator.clipboard.writeText(msg);
+              sonnerToast.success('Concierge bericht gekopieerd');
             }}
             className="w-full h-10 flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold"
           >
@@ -339,7 +329,7 @@ export default function PropertyDetailPage() {
                     toast({ title: 'Voeg eerst een telefoonnummer toe', variant: 'destructive' });
                     return;
                   }
-                  sendWhatsAppIntro(tenantPhone, tenantName, property.address, property.id);
+                  sendConciergeIntro(tenantPhone, tenantName, property.address, property?.concierge_token ?? null);
                 }}
                 className="w-full h-10 rounded-lg text-sm font-semibold gap-2"
               >
@@ -369,8 +359,11 @@ export default function PropertyDetailPage() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
-                    const link = `https://wa.me/${waNum}?text=start%20${id}`;
-                    const msg = `Hoi! Ik gebruik FairKamer om kandidaten te screenen voor ${property.address}.\n\nHet duurt ongeveer 5 minuten. Klik op de link:\n\n${link}`;
+                    const appToken = property?.application_token;
+                    const link = appToken ? `${window.location.origin}/apply/${appToken}` : '';
+                    const msg = link
+                      ? `Hoi! Ik verhuur ${property.address}. Aanmelden duurt 5 minuten:\n\n${link}`
+                      : 'Aanmeldlink niet beschikbaar.';
                     navigator.clipboard.writeText(msg);
                     sonnerToast.success('Bericht gekopieerd! Plak het naar je kandidaten.');
                   }}
@@ -440,6 +433,7 @@ export default function PropertyDetailPage() {
         onOpenChange={setMarkRentedOpen}
         propertyId={property.id}
         propertyAddress={property.address}
+        conciergeToken={property.concierge_token ?? null}
         defaultName={property.tenant_name || ''}
         onMarked={fetchData}
       />
