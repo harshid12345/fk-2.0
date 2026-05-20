@@ -154,26 +154,27 @@ serve(async (req) => {
       .select("id")
       .single();
 
-    // 4. If urgent, send SMS to landlord
+    // 4. If urgent, email landlord
     if (result.category === "urgent") {
       const { data: landlord } = await supabase
         .from("landlords")
-        .select("phone")
+        .select("email")
         .eq("id", property.landlord_id)
         .single();
 
-      if (landlord?.phone) {
+      if (landlord?.email) {
         const address = `${property.address}, ${property.city}`;
-        const summary = message.length > 120 ? message.substring(0, 120) + "…" : message;
-        await fetch(`${SUPABASE_URL}/functions/v1/sms-send`, {
+        const summary = message.length > 300 ? message.substring(0, 300) + "…" : message;
+        await fetch(`${SUPABASE_URL}/functions/v1/email-send`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
           },
           body: JSON.stringify({
-            to: landlord.phone,
-            message: `URGENT issue at ${address}: "${summary}" — FairKamer`,
+            to: landlord.email,
+            subject: `URGENT issue at ${address} — FairKamer`,
+            html: `<p><strong>URGENT tenant issue reported at ${address}</strong></p><p>${summary}</p><p>Please follow up as soon as possible.</p><p>— FairKamer</p>`,
           }),
         });
       }

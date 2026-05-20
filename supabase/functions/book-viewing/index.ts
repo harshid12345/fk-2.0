@@ -15,18 +15,18 @@ interface BookViewingRequest {
   slot_end: string;   // ISO 8601
 }
 
-async function sendSms(to: string, message: string) {
+async function sendEmail(to: string, subject: string, html: string) {
   try {
-    await fetch(`${SUPABASE_URL}/functions/v1/sms-send`, {
+    await fetch(`${SUPABASE_URL}/functions/v1/email-send`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
       },
-      body: JSON.stringify({ to, message }),
+      body: JSON.stringify({ to, subject, html }),
     });
   } catch (err) {
-    console.error("[book-viewing] SMS failed:", err);
+    console.error("[book-viewing] Email failed:", err);
   }
 }
 
@@ -74,6 +74,13 @@ serve(async (req) => {
       .from("landlord_properties")
       .select("landlord_id, address, city")
       .eq("id", applicant.property_id)
+      .single();
+
+    // Also load applicant email (not selected above)
+    const { data: applicantFull } = await supabase
+      .from("applicants")
+      .select("email")
+      .eq("id", applicant.id)
       .single();
 
     if (!property) {
@@ -127,30 +134,32 @@ serve(async (req) => {
       .update({ stage: "viewing_booked", viewing_booked_at: new Date().toISOString() })
       .eq("id", applicant.id);
 
-    // 6. Send SMS to tenant
+    // 6. Send email to tenant
     const lang = applicant.preferred_language === "nl" ? "nl" : "en";
     const address = `${property.address}, ${property.city}`;
     const slotLabel = formatSlot(slot_start);
     const firstName = applicant.full_name?.split(" ")[0] ?? "there";
 
-    const tenantMsg = lang === "nl"
-      ? `Je bezichtiging is bevestigd! 📍 ${address} op ${slotLabel}. Je ontvangt een herinnering de dag ervoor. — FairKamer`
-      : `Your viewing is confirmed! 📍 ${address} on ${slotLabel}. You'll get a reminder the day before. — FairKamer`;
-
-    if (applicant.phone) {
-      await sendSms(applicant.phone, tenantMsg);
+    if (applicantFull?.email) {
+      const tenantSubject = lang === "nl"
+        ? `Bezichtiging bevestigd — ${address}`
+        : `Viewing confirmed — ${address}`;
+      const tenantHtml = lang === "nl"
+        ? `<p>Hoi ${firstName},</p><p>Je bezichtiging bij <strong>${address}</strong> is bevestigd voor <strong>${slotLabel}</strong>. Je ontvangt een herinnering de dag ervoor.</p><p>— FairKamer</p>`
+        : `<p>Hi ${firstName},</p><p>Your viewing at <strong>${address}</strong> is confirmed for <strong>${slotLabel}</strong>. You'll get a reminder the day before.</p><p>— FairKamer</p>`;
+      await sendEmail(applicantFull.email, tenantSubject, tenantHtml);
     }
 
-    // 7. Load landlord phone and send SMS to landlord
+    // 7. Load landlord email and send notification
     const { data: landlord } = await supabase
       .from("landlords")
-      .select("phone, full_name")
+      .select("email, full_name")
       .eq("id", property.landlord_id)
       .single();
 
-    if (landlord?.phone) {
-      const landlordMsg = `New viewing booked: ${applicant.full_name} at ${address} on ${slotLabel}. — FairKamer`;
-      await sendSms(landlord.phone, landlordMsg);
+    if (landlord?.email) {
+      const landlordHtml = `<p>New viewing booked: <strong>${applicant.full_name}</strong> at ${address} on <strong>${slotLabel}</strong>.</p><p>— FairKamer</p>`;
+      await sendEmail(landlord.email, `Viewing booked: ${applicant.full_name}`, landlordHtml);
     }
 
     // 8. Create notification for landlord

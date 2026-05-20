@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -21,6 +20,7 @@ interface Property {
 
 interface FormState {
   phone: string;
+  email: string;
   full_name: string;
   age: string;
   gender: string;
@@ -38,6 +38,7 @@ interface FormState {
 
 const EMPTY_FORM: FormState = {
   phone: "",
+  email: "",
   full_name: "",
   age: "",
   gender: "",
@@ -97,20 +98,21 @@ export default function ApplyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
-  const TOTAL_STEPS = 14; // 0=phone … 13=consent
+  const TOTAL_STEPS = 15; // 0=phone, 1=email … 14=consent
 
   // ─── Load property from token ──────────────────────────────────────────────
 
   useEffect(() => {
     if (!token) { setLoadError(t("apply.invalid_link")); return; }
 
-    supabase
-      .from("landlord_properties")
-      .select("id, address, city, postcode, rent_amount, property_type, available_date")
-      .eq("application_token", token)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) {
+    fetch(`${SUPABASE_URL}/functions/v1/get-property`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ application_token: token }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data?.id) {
           setLoadError(t("apply.invalid_link"));
         } else {
           setProperty(data as Property);
@@ -127,7 +129,8 @@ export default function ApplyPage() {
             } catch { /* ignore */ }
           }
         }
-      });
+      })
+      .catch(() => setLoadError(t("apply.invalid_link")));
   }, [token]);
 
   // ─── Save progress to localStorage ────────────────────────────────────────
@@ -148,27 +151,33 @@ export default function ApplyPage() {
         return false;
       }
     }
-    if (step === 1 && !form.full_name.trim()) {
+    if (step === 1) {
+      if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+        setValidationError(t("apply.email_invalid") || "Please enter a valid email address");
+        return false;
+      }
+    }
+    if (step === 2 && !form.full_name.trim()) {
       setValidationError(t("apply.q_name"));
       return false;
     }
-    if (step === 2) {
+    if (step === 3) {
       const age = parseInt(form.age);
       if (!form.age || isNaN(age) || age < 18 || age > 99) {
         setValidationError(t("apply.age_invalid"));
         return false;
       }
     }
-    if (step === 3 && !form.gender) return false;
-    if (step === 4 && !form.num_occupants) return false;
-    if (step === 5 && !form.desired_move_in) return false;
-    if (step === 6 && !form.employment_type) return false;
-    if (step === 7 && !form.monthly_income_range) return false;
-    if (step === 8 && !form.desired_lease_length) return false;
-    if (step === 9 && !form.smoking) return false;
-    if (step === 10 && !form.pets) return false;
-    if (step === 11 && !form.bkr_status) return false;
-    if (step === 13) {
+    if (step === 4 && !form.gender) return false;
+    if (step === 5 && !form.num_occupants) return false;
+    if (step === 6 && !form.desired_move_in) return false;
+    if (step === 7 && !form.employment_type) return false;
+    if (step === 8 && !form.monthly_income_range) return false;
+    if (step === 9 && !form.desired_lease_length) return false;
+    if (step === 10 && !form.smoking) return false;
+    if (step === 11 && !form.pets) return false;
+    if (step === 12 && !form.bkr_status) return false;
+    if (step === 14) {
       if (!form.consent_given) {
         setValidationError(t("apply.consent_required"));
         return false;
@@ -179,7 +188,7 @@ export default function ApplyPage() {
 
   function next() {
     if (!validate()) return;
-    if (step === 12 && !form.social_handle) {
+    if (step === 13 && !form.social_handle) {
       // social is optional — allow skip
     }
     setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
@@ -205,6 +214,7 @@ export default function ApplyPage() {
         body: JSON.stringify({
           application_token: token,
           phone: form.phone.replace(/\s/g, ""),
+          email: form.email.trim(),
           full_name: form.full_name.trim(),
           age: parseInt(form.age),
           gender: form.gender,
@@ -425,6 +435,24 @@ function StepContent({
     case 1:
       return (
         <div>
+          <Q>{t("apply.q_email") || "What's your email address?"}</Q>
+          <p className="text-sm text-muted-foreground mb-4">{t("apply.q_email_hint") || "We'll send updates about your application here."}</p>
+          <Input
+            type="email"
+            inputMode="email"
+            value={form.email}
+            onChange={(e) => { setForm((f) => ({ ...f, email: e.target.value })); setValidationError(""); }}
+            placeholder="you@example.com"
+            className="text-lg h-12"
+            autoFocus
+          />
+          <Err />
+        </div>
+      );
+
+    case 2:
+      return (
+        <div>
           <Q>{t("apply.q_name")}</Q>
           <Input
             type="text"
@@ -438,7 +466,7 @@ function StepContent({
         </div>
       );
 
-    case 2:
+    case 3:
       return (
         <div>
           <Q>{t("apply.q_age")}</Q>
@@ -457,7 +485,7 @@ function StepContent({
         </div>
       );
 
-    case 3:
+    case 4:
       return (
         <div>
           <Q>{t("apply.q_gender")}</Q>
@@ -469,7 +497,7 @@ function StepContent({
         </div>
       );
 
-    case 4:
+    case 5:
       return (
         <div>
           <Q>{t("apply.q_occupants")}</Q>
@@ -481,7 +509,7 @@ function StepContent({
         </div>
       );
 
-    case 5:
+    case 6:
       return (
         <div>
           <Q>{t("apply.q_move_in")}</Q>
@@ -493,7 +521,7 @@ function StepContent({
         </div>
       );
 
-    case 6:
+    case 7:
       return (
         <div>
           <Q>{t("apply.q_employment")}</Q>
@@ -505,7 +533,7 @@ function StepContent({
         </div>
       );
 
-    case 7:
+    case 8:
       return (
         <div>
           <Q>{t("apply.q_income")}</Q>
@@ -517,7 +545,7 @@ function StepContent({
         </div>
       );
 
-    case 8:
+    case 9:
       return (
         <div>
           <Q>{t("apply.q_lease")}</Q>
@@ -529,7 +557,7 @@ function StepContent({
         </div>
       );
 
-    case 9:
+    case 10:
       return (
         <div>
           <Q>{t("apply.q_smoking")}</Q>
@@ -541,7 +569,7 @@ function StepContent({
         </div>
       );
 
-    case 10:
+    case 11:
       return (
         <div>
           <Q>{t("apply.q_pets")}</Q>
@@ -553,7 +581,7 @@ function StepContent({
         </div>
       );
 
-    case 11:
+    case 12:
       return (
         <div>
           <Q>{t("apply.q_bkr")}</Q>
@@ -565,7 +593,7 @@ function StepContent({
         </div>
       );
 
-    case 12:
+    case 13:
       return (
         <div>
           <Q>{t("apply.q_social")}</Q>
@@ -581,7 +609,7 @@ function StepContent({
         </div>
       );
 
-    case 13:
+    case 14:
       return (
         <div>
           <Q>{t("apply.q_consent")}</Q>

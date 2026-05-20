@@ -13,6 +13,7 @@ interface ApplicationPayload {
   application_token: string;
   // Tenant intake
   phone: string;
+  email?: string;
   full_name: string;
   age: number;
   gender: string;
@@ -133,18 +134,18 @@ function calculateInitialScore(payload: ApplicationPayload, criteria: any, rent:
   return { score: totalScore, label, hardDisqualified: false, hardDisqualifyReason: null, flags };
 }
 
-async function callSmsSend(to: string, message: string) {
+async function callEmailSend(to: string, subject: string, html: string) {
   try {
-    await fetch(`${SUPABASE_URL}/functions/v1/sms-send`, {
+    await fetch(`${SUPABASE_URL}/functions/v1/email-send`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
       },
-      body: JSON.stringify({ to, message }),
+      body: JSON.stringify({ to, subject, html }),
     });
   } catch (err) {
-    console.error("[submit-application] SMS send failed:", err);
+    console.error("[submit-application] Email send failed:", err);
   }
 }
 
@@ -186,6 +187,7 @@ serve(async (req) => {
     const applicantData = {
       property_id: property.id,
       phone: payload.phone,
+      email: payload.email || null,
       full_name: payload.full_name,
       age: payload.age,
       gender: payload.gender,
@@ -238,13 +240,18 @@ serve(async (req) => {
       body: JSON.stringify({ applicantId: applicant.id }),
     }).catch((err) => console.error("[submit-application] Scrape trigger failed:", err));
 
-    // 6. Send SMS confirmation to tenant
+    // 6. Send email confirmation to tenant
     const address = `${property.address}, ${property.city}`;
-    const confirmMsg = payload.preferred_language === "nl"
-      ? `Hallo ${payload.full_name}, we hebben je aanmelding voor ${address} ontvangen. Je hoort snel van ons. — FairKamer`
-      : `Hi ${payload.full_name}, we received your application for ${address}. We'll be in touch soon. — FairKamer`;
-
-    await callSmsSend(payload.phone, confirmMsg);
+    if (payload.email) {
+      const firstName = payload.full_name.split(" ")[0];
+      const subject = payload.preferred_language === "nl"
+        ? `Je aanmelding voor ${address} — FairKamer`
+        : `Your application for ${address} — FairKamer`;
+      const html = payload.preferred_language === "nl"
+        ? `<p>Hoi ${firstName},</p><p>We hebben je aanmelding voor <strong>${address}</strong> ontvangen. Je hoort snel van ons!</p><p>— FairKamer</p>`
+        : `<p>Hi ${firstName},</p><p>We received your application for <strong>${address}</strong>. We'll be in touch soon!</p><p>— FairKamer</p>`;
+      await callEmailSend(payload.email, subject, html);
+    }
 
     // 7. Create notification for landlord
     await supabase.from("notifications").insert({

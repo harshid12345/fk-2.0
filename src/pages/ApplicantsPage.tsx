@@ -144,7 +144,7 @@ export default function ApplicantsPage() {
   const approveApplicant = async (applicant: any) => {
     setActionLoading(applicant.id);
     try {
-      const { error } = await supabase.functions.invoke('sms-notify-tenant', {
+      const { error } = await supabase.functions.invoke('email-notify-tenant', {
         body: { applicantId: applicant.id, action: 'approve' },
       });
       if (error) {
@@ -162,7 +162,7 @@ export default function ApplicantsPage() {
   const rejectApplicant = async (applicant: any) => {
     setActionLoading(applicant.id);
     try {
-      const { error } = await supabase.functions.invoke('sms-notify-tenant', {
+      const { error } = await supabase.functions.invoke('email-notify-tenant', {
         body: { applicantId: applicant.id, action: 'reject' },
       });
       if (error) {
@@ -182,7 +182,7 @@ export default function ApplicantsPage() {
     try {
       const slotLabel = new Date(booking.slot_start).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' }) +
         ` ${t('calendar.at')} ` + new Date(booking.slot_start).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
-      const { error } = await supabase.functions.invoke('sms-notify-tenant', {
+      const { error } = await supabase.functions.invoke('email-notify-tenant', {
         body: { applicantId: applicant.id, action: 'confirm_booking', bookingId: booking.id, slotLabel },
       });
       if (error) {
