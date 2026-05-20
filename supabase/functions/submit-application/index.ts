@@ -210,20 +210,16 @@ serve(async (req) => {
       match_flags: scoreResult.flags,
       hard_disqualified: scoreResult.hardDisqualified,
       hard_disqualify_reason: scoreResult.hardDisqualifyReason,
-      form_progress: null,
     };
 
-    const { data: applicant, error: upsertErr } = await supabase
+    const { data: applicant, error: insertErr } = await supabase
       .from("applicants")
-      .upsert(applicantData, {
-        onConflict: "property_id,phone",
-        ignoreDuplicates: false,
-      })
+      .insert(applicantData)
       .select("id, schedule_token")
       .single();
 
-    if (upsertErr || !applicant) {
-      console.error("[submit-application] Upsert error:", upsertErr);
+    if (insertErr || !applicant) {
+      console.error("[submit-application] Insert error:", insertErr);
       return new Response(
         JSON.stringify({ success: false, error: "Failed to save application" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -613,14 +613,13 @@ function StepContent({
       return (
         <div>
           <Q>{t("apply.q_consent")}</Q>
-          <p className="text-sm text-muted-foreground mb-6">{t("apply.consent_text")}</p>
           <label className="flex items-start gap-3 cursor-pointer">
             <Checkbox
               checked={form.consent_given}
               onCheckedChange={(v) => setForm((f) => ({ ...f, consent_given: !!v }))}
               className="mt-0.5"
             />
-            <span className="text-sm text-foreground">
+            <span className="text-sm text-muted-foreground leading-relaxed">
               {t("apply.consent_text")}
             </span>
           </label>
