@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -239,11 +240,8 @@ export default function PropertiesPage() {
                     isRented ? 'property-card--rented' : 'property-card--seeking'
                   }`}
                 >
-                  {/* Clickable card body */}
-                  <div
-                    onClick={() => navigate(`/properties/${p.id}`)}
-                    className="cursor-pointer p-5"
-                  >
+                  {/* Card body */}
+                  <div className="p-5">
                     {/* Address + city */}
                     <div className="mb-3 pr-16">
                       <h2 className="text-base font-semibold text-foreground leading-snug">
@@ -261,6 +259,7 @@ export default function PropertiesPage() {
                         {isRented ? <Home className="w-3 h-3" /> : <Users className="w-3 h-3" />}
                         {isRented ? t('properties.rented') : t('properties.seeking')}
                       </span>
+                      {(() => { const cnt = applicants.filter((a: any) => a.property_id === p.id).length; return cnt > 0 ? (<span className="status-pill" style={{ background: 'hsl(var(--primary)/0.1)', color: 'hsl(var(--primary))' }}><Users className="w-3 h-3" />{cnt} aanmeld{cnt === 1 ? 'ing' : 'ingen'}</span>) : null; })()}
                       {bagOk && (
                         <span className="status-pill" style={{ background: 'hsl(142 52% 38% / 0.10)', color: 'hsl(142, 52%, 38%)' }}>
                           <ShieldCheck className="w-3 h-3" />
@@ -357,11 +356,11 @@ export default function PropertiesPage() {
         )}
       </div>
 
-      {/* Applicants summary — navigate to Applicants tab for full review */}
+      {/* Tenants summary banner */}
       {!applicantsLoading && applicants.length > 0 && (
         <div className="px-5 mt-4 mb-4">
           <button
-            onClick={() => navigate('/applicants')}
+            onClick={() => navigate('/tenants')}
             className="w-full glass-card rounded-xl p-4 flex items-center justify-between hover:bg-accent/60 transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -372,7 +371,7 @@ export default function PropertiesPage() {
                 <p className="text-sm font-semibold text-foreground">
                   {applicants.length} kandidaat{applicants.length === 1 ? '' : 'en'} wacht{applicants.length === 1 ? '' : 'en'}
                 </p>
-                <p className="text-xs text-muted-foreground">Ga naar Kandidaten om te beoordelen</p>
+                <p className="text-xs text-muted-foreground">Bekijk en vergelijk in Huurders tab</p>
               </div>
             </div>
             <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">

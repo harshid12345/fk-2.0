@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   ArrowRight, Check, RotateCcw, Building2, User, ChevronRight, Trash2, Shield,
-  LogOut, HelpCircle, Mail, PlayCircle, Info, UserCircle2, BookOpen, Bell,
+  LogOut, Mail, Info, UserCircle2,
 } from 'lucide-react';
 
 interface CriteriaState {
@@ -242,12 +242,8 @@ export default function SettingsPage() {
 
         {/* List rows */}
         <div className="pt-4 divide-y divide-border">
-          <ListRow icon={PlayCircle} title="How the app works" subtitle="Replay the intro tour" onClick={() => setOpenSheet('how')} />
-          <ListRow icon={BookOpen} title="FAQ" subtitle="Common questions" onClick={() => setOpenSheet('faq')} />
-          <ListRow icon={Mail} title="Contact us" subtitle="Get help or share feedback" onClick={() => setOpenSheet('contact')} />
-          <ListRow icon={Info} title="About & legal" subtitle="Version, terms, privacy" onClick={() => setOpenSheet('about')} />
-          <ListRow icon={Trash2} title="Developer tools" subtitle="Clear test data" onClick={() => setOpenSheet('dev')} danger />
-          <ListRow icon={LogOut} title="Sign out" onClick={async () => { await supabase.auth.signOut(); }} />
+          <ListRow icon={Mail} title="Contact" subtitle="support@fairkamer.nl" onClick={() => setOpenSheet('contact')} />
+          <ListRow icon={LogOut} title="Uitloggen" onClick={async () => { await supabase.auth.signOut(); }} />
         </div>
 
         <p className="text-[11px] text-center text-muted-foreground/60 pt-6">FairKamer v1.0 · Netherlands</p>
@@ -304,36 +300,6 @@ export default function SettingsPage() {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={openSheet === 'how'} onOpenChange={closeSheet}>
-        <SheetContent side="bottom" className="rounded-t-3xl">
-          <SheetHeader><SheetTitle>How the app works</SheetTitle></SheetHeader>
-          <p className="text-sm text-muted-foreground mt-3">Watch the same walkthrough that appeared the first time you opened FairKamer.</p>
-          <Button className="w-full h-11 rounded-xl mt-4" onClick={() => { localStorage.removeItem('fk_onboarding_completed_v1'); window.location.reload(); }}>
-            <PlayCircle className="w-4 h-4 mr-2" /> Replay intro tour
-          </Button>
-        </SheetContent>
-      </Sheet>
-
-      <Sheet open={openSheet === 'faq'} onOpenChange={closeSheet}>
-        <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto">
-          <SheetHeader><SheetTitle>FAQ</SheetTitle></SheetHeader>
-          <div className="space-y-3 text-sm mt-4">
-            {[
-              { q: 'How do applicants reach the screening bot?', a: 'Open any property, tap the link icon, and the message with your bot link is copied. Paste it into your Funda or Marktplaats reply.' },
-              { q: 'How are match scores calculated?', a: 'Each applicant is scored on tenant criteria, financial fit, and verifiable signals from socials.' },
-              { q: 'When are viewing reminders sent?', a: 'Tenants get an automatic Telegram reminder 48h, 24h, and 2h before their viewing.' },
-              { q: 'Where do I set my viewing availability?', a: 'Go to the Calendar tab and toggle days on with start/end times.' },
-              { q: 'Update criteria for one property?', a: 'Disable "Same for all" in Tenant criteria, then pick the property.' },
-            ].map((it, i) => (
-              <div key={i} className="rounded-xl bg-muted p-4">
-                <p className="font-medium text-foreground mb-1">{it.q}</p>
-                <p className="text-muted-foreground leading-relaxed text-[13px]">{it.a}</p>
-              </div>
-            ))}
-          </div>
-        </SheetContent>
-      </Sheet>
-
       <Sheet open={openSheet === 'contact'} onOpenChange={closeSheet}>
         <SheetContent side="bottom" className="rounded-t-3xl">
           <SheetHeader><SheetTitle>Contact us</SheetTitle></SheetHeader>
@@ -365,35 +331,6 @@ export default function SettingsPage() {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={openSheet === 'dev'} onOpenChange={closeSheet}>
-        <SheetContent side="bottom" className="rounded-t-3xl">
-          <SheetHeader><SheetTitle>Developer tools</SheetTitle></SheetHeader>
-          <p className="text-xs text-muted-foreground mt-3">Clear test data. Cannot be undone.</p>
-          <div className="flex gap-2 mt-4">
-            <Button variant="destructive" className="flex-1 h-11 rounded-xl"
-              onClick={async () => {
-                if (!user) return;
-                if (!window.confirm('Delete all notifications?')) return;
-                setLoading(true);
-                await supabase.from('notifications').delete().eq('landlord_id', user.id);
-                setLoading(false); toast({ title: 'Notifications cleared' });
-              }} disabled={loading}>Notifications</Button>
-            <Button variant="destructive" className="flex-1 h-11 rounded-xl"
-              onClick={async () => {
-                if (!user) return;
-                if (!window.confirm('Delete all applicants and bookings?')) return;
-                setLoading(true);
-                const { data: props } = await supabase.from('landlord_properties').select('id').eq('landlord_id', user.id);
-                if (props && props.length > 0) {
-                  const ids = props.map(p => p.id);
-                  await supabase.from('viewing_bookings').delete().in('property_id', ids);
-                  await supabase.from('applicants').delete().in('property_id', ids);
-                }
-                setLoading(false); toast({ title: 'Applicants cleared' });
-              }} disabled={loading}>Applicants</Button>
-          </div>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

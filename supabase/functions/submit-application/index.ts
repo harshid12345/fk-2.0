@@ -205,7 +205,7 @@ serve(async (req) => {
         pets: payload.pets,
         income_range: payload.monthly_income_range,
       },
-      match_score: Math.round(scoreResult.score),
+      match_score: Math.round(scoreResult.score * 10) / 10,
       match_label: scoreResult.label,
       match_flags: scoreResult.flags,
       hard_disqualified: scoreResult.hardDisqualified,

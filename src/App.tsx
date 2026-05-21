@@ -9,17 +9,10 @@ import { ThemeProvider } from "@/hooks/useTheme";
 import MobileLayout from "@/components/MobileLayout";
 import AuthPage from "./pages/AuthPage";
 import PropertiesPage from "./pages/PropertiesPage";
-import PropertyDetailPage from "./pages/PropertyDetailPage";
-import IssuesPage from "./pages/IssuesPage";
+import TenantsPage from "./pages/TenantsPage";
 import SettingsPage from "./pages/SettingsPage";
-import ApplicantsPage from "./pages/ApplicantsPage";
-import NotificationsPage from "./pages/NotificationsPage";
-import CalendarPage from "./pages/CalendarPage";
-import MaintenancePage from "./pages/MaintenancePage";
 import NotFound from "./pages/NotFound";
 import ApplyPage from "./pages/ApplyPage";
-import SchedulePage from "./pages/SchedulePage";
-import ConciergeWebPage from "./pages/ConciergeWebPage";
 
 const queryClient = new QueryClient();
 
@@ -58,17 +51,10 @@ const App = () => (
                 <Route path="/" element={<Navigate to="/properties" replace />} />
                 <Route path="/auth" element={<AuthRoute><AuthPage /></AuthRoute>} />
                 <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
-                <Route path="/properties/:id" element={<ProtectedRoute><PropertyDetailPage /></ProtectedRoute>} />
-                <Route path="/applicants" element={<ProtectedRoute><ApplicantsPage /></ProtectedRoute>} />
-                <Route path="/maintenance" element={<ProtectedRoute><MaintenancePage /></ProtectedRoute>} />
-                <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-                <Route path="/issues" element={<ProtectedRoute><IssuesPage /></ProtectedRoute>} />
+                <Route path="/tenants" element={<ProtectedRoute><TenantsPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                 {/* Public tenant-facing routes — no auth required */}
                 <Route path="/apply/:token" element={<ApplyPage />} />
-                <Route path="/schedule/:token" element={<SchedulePage />} />
-                <Route path="/support/:token" element={<ConciergeWebPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthProvider>
