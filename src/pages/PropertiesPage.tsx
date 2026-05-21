@@ -4,8 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Plus, MapPin, Home, Users, TrendingUp, Paperclip, AlertTriangle, BookOpen, Link2, ShieldCheck, User, Check, X, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Plus, MapPin, Home, Users, TrendingUp, Paperclip, AlertTriangle, BookOpen, Link2, ShieldCheck } from 'lucide-react';
 import AddPropertyDialog from '@/components/AddPropertyDialog';
 import PropertyKnowledgeBaseDialog from '@/components/PropertyKnowledgeBaseDialog';
 import { toast as sonnerToast } from 'sonner';
@@ -23,14 +22,6 @@ interface Property {
   bag_verified: boolean | null;
 }
 
-
-function scoreColor(score: number, disqualified: boolean): string {
-  if (disqualified) return 'hsl(var(--destructive))';
-  if (score >= 8.5) return 'hsl(142, 52%, 40%)';
-  if (score >= 6.5) return 'hsl(11, 62%, 48%)';
-  if (score >= 4.5) return 'hsl(38, 92%, 46%)';
-  return 'hsl(var(--muted-foreground))';
-}
 
 // Simple Dutch house outline for the empty state
 function DutchHouseIllustration() {
@@ -80,8 +71,6 @@ export default function PropertiesPage() {
   const [kbDialog, setKbDialog] = useState<{ id: string; address: string } | null>(null);
   const [applicants, setApplicants] = useState<any[]>([]);
   const [applicantsLoading, setApplicantsLoading] = useState(true);
-  const [applicantActionLoading, setApplicantActionLoading] = useState<string | null>(null);
-
   const fetchProperties = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
@@ -119,38 +108,6 @@ export default function PropertiesPage() {
   }, [user]);
 
   useEffect(() => { fetchApplicants(); }, [fetchApplicants]);
-
-  const handleApproveApplicant = async (applicant: any) => {
-    setApplicantActionLoading(applicant.id);
-    try {
-      const { error } = await supabase.functions.invoke('email-notify-tenant', { body: { applicantId: applicant.id, action: 'approve' } });
-      if (error) {
-        sonnerToast.error(`Failed: ${error.message || String(error)}`);
-      } else {
-        sonnerToast.success(t('applicants.approved_name', { name: applicant.full_name || t('applicants.unknown') }));
-      }
-    } catch (e: any) {
-      sonnerToast.error(e.message || t('applicants.error_approve'));
-    }
-    setApplicantActionLoading(null);
-    fetchApplicants();
-  };
-
-  const handleRejectApplicant = async (applicant: any) => {
-    setApplicantActionLoading(applicant.id);
-    try {
-      const { error } = await supabase.functions.invoke('email-notify-tenant', { body: { applicantId: applicant.id, action: 'reject' } });
-      if (error) {
-        sonnerToast.error(`Failed: ${error.message || String(error)}`);
-      } else {
-        sonnerToast.success(t('applicants.rejected_name', { name: applicant.full_name || t('applicants.unknown') }));
-      }
-    } catch (e: any) {
-      sonnerToast.error(e.message || t('applicants.error_reject'));
-    }
-    setApplicantActionLoading(null);
-    fetchApplicants();
-  };
 
   const totalRent = properties.reduce((sum, p) => sum + (p.rent_amount || 0), 0);
   const rentedCount = properties.filter(p => p.status === 'rented').length;
@@ -400,97 +357,30 @@ export default function PropertiesPage() {
         )}
       </div>
 
-      {/* Applicants section */}
-      <div className="px-5 mt-6 mb-4">
-        <h2 className="text-base font-semibold text-foreground mb-3">{t('properties.applicants_section')}</h2>
-        {applicantsLoading ? (
-          <div className="space-y-2">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="shimmer rounded-xl h-[100px]" />
-            ))}
-          </div>
-        ) : applicants.length === 0 ? (
-          <div className="glass-card rounded-xl py-10 px-6 text-center">
-            <Users className="w-7 h-7 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">{t('properties.no_applicants_short')}</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {applicants.map((a, i) => {
-              const score = a.score || 0;
-              const isFlagged = a.hard_disqualified || false;
-              const color = scoreColor(score, isFlagged);
-              const isPendingStage = !a.stage || a.stage === 'new' || a.stage === 'screening_complete' || a.stage === 'done';
-              const isLoading = applicantActionLoading === a.id;
-
-              return (
-                <motion.div
-                  key={a.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04, type: 'spring', damping: 28 }}
-                  className="glass-card rounded-xl p-4"
-                >
-                  {/* Name + address row */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center shrink-0 border border-border">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{a.full_name || t('applicants.unknown')}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">{a.propertyAddress}</p>
-                    </div>
-                    {a.match_label && (
-                      <span className="shrink-0 text-[10px] font-semibold" style={{ color }}>{a.match_label}</span>
-                    )}
-                  </div>
-
-                  {/* Match score bar */}
-                  {score > 0 && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex-1 score-track">
-                        <motion.div
-                          className="score-fill"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(score / 10) * 100}%` }}
-                          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: i * 0.04 }}
-                          style={{ backgroundColor: color }}
-                        />
-                      </div>
-                      <span className="text-[11px] font-semibold shrink-0" style={{ color }}>{score.toFixed(1)}</span>
-                    </div>
-                  )}
-
-                  {/* Approve / Reject buttons */}
-                  {isPendingStage && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleApproveApplicant(a)}
-                        disabled={isLoading}
-                        className="flex-1 h-8 rounded-lg text-xs"
-                      >
-                        {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
-                        Goedkeuren
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRejectApplicant(a)}
-                        disabled={isLoading}
-                        className="flex-1 h-8 rounded-lg text-xs border-destructive/30 text-destructive hover:bg-destructive/8"
-                      >
-                        {isLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <X className="w-3.5 h-3.5 mr-1" />}
-                        Afwijzen
-                      </Button>
-                    </div>
-                  )}
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* Applicants summary — navigate to Applicants tab for full review */}
+      {!applicantsLoading && applicants.length > 0 && (
+        <div className="px-5 mt-4 mb-4">
+          <button
+            onClick={() => navigate('/applicants')}
+            className="w-full glass-card rounded-xl p-4 flex items-center justify-between hover:bg-accent/60 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Users className="w-4 h-4 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-foreground">
+                  {applicants.length} kandidaat{applicants.length === 1 ? '' : 'en'} wacht{applicants.length === 1 ? '' : 'en'}
+                </p>
+                <p className="text-xs text-muted-foreground">Ga naar Kandidaten om te beoordelen</p>
+              </div>
+            </div>
+            <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* FAB */}
       <motion.button
