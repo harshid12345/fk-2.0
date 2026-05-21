@@ -9,6 +9,8 @@ import { Users, Check, X, Loader2, User, ChevronDown, Clock, Search } from 'luci
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+
 const MOCK_PROPERTIES = [
   { id: 'demo-hague-studio-01', address: 'Laan van Meerdervoort 57A', rent_amount: 895, landlord_id: 'dev' },
 ];
@@ -185,13 +187,22 @@ export default function ApplicantsPage() {
       supabase.from('viewing_schedule').select('*').eq('landlord_id', user!.id),
       supabase.from('viewing_bookings').select('slot_start')
         .eq('landlord_id', user!.id)
-        .not('status', 'in', '(cancelled_tenant,cancelled_landlord)')
+        .not('status', 'in', '("cancelled_tenant","cancelled_landlord")')
         .gte('slot_start', new Date().toISOString()),
     ]);
     const taken = new Set<string>((existing || []).map((b: any) => b.slot_start));
-    const slots = generateSlots(schedule || [], taken).slice(0, 12);
+
+    // Fallback: if landlord has no schedule set, use default Mon-Fri 09:00-18:00
+    const effectiveSchedule = (schedule && schedule.length > 0) ? schedule : [
+      { day_of_week: 0, start_time: '09:00', end_time: '18:00', enabled: true },
+      { day_of_week: 1, start_time: '09:00', end_time: '18:00', enabled: true },
+      { day_of_week: 2, start_time: '09:00', end_time: '18:00', enabled: true },
+      { day_of_week: 3, start_time: '09:00', end_time: '18:00', enabled: true },
+      { day_of_week: 4, start_time: '09:00', end_time: '18:00', enabled: true },
+    ];
+
+    const slots = generateSlots(effectiveSchedule, taken).slice(0, 12);
     setAvailableSlots(slots);
-    // Pre-select first 3
     setSelectedSlots(new Set(slots.slice(0, 3).map(s => s.start)));
     setLoadingSlots(false);
   };
@@ -200,20 +211,28 @@ export default function ApplicantsPage() {
     setActionLoading(applicant.id);
     const slots = availableSlots.filter(s => selectedSlots.has(s.start));
     try {
-      const { error } = await supabase.functions.invoke('email-notify-tenant', {
-        body: { applicantId: applicant.id, action: 'approve', proposedSlots: slots },
+      const session = await supabase.auth.getSession();
+      const jwt = session.data.session?.access_token ?? '';
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/email-notify-tenant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({ applicantId: applicant.id, action: 'approve', proposedSlots: slots }),
       });
-      if (error) {
-        toast({ title: 'Failed to send invite', description: String(error.message || error), variant: 'destructive' as any });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        toast({ title: 'Failed to send invite', description: data.error || `HTTP ${res.status}`, variant: 'destructive' as any });
       } else {
         toast({ title: `Invite sent to ${applicant.full_name || 'tenant'}` });
         setSlotPickerFor(null);
+        load();
       }
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' as any });
+      toast({ title: 'Error sending invite', description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
-    load();
   };
 
   const rejectApplicant = async (applicant: any) => {
