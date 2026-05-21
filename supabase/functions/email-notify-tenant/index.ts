@@ -10,11 +10,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, content-type",
 };
 
+interface ProposedSlot {
+  start: string;
+  end: string;
+  label: string;
+}
+
 interface NotifyRequest {
   applicantId: string;
   action: "approve" | "reject" | "confirm_booking" | "message";
   slotLabel?: string;
   customMessage?: string;
+  proposedSlots?: ProposedSlot[];
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
@@ -40,7 +47,7 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   try {
-    const { applicantId, action, slotLabel, customMessage } =
+    const { applicantId, action, slotLabel, customMessage, proposedSlots } =
       (await req.json()) as NotifyRequest;
 
     // Load applicant + property
@@ -76,11 +83,25 @@ serve(async (req) => {
       case "approve": {
         newStage = "approved";
         subject = lang === "nl"
-          ? `Goed nieuws over je aanmelding voor ${address}`
-          : `Good news about your application for ${address}`;
-        html = lang === "nl"
-          ? `<p>Hoi ${firstName},</p><p>Goed nieuws! Je bent uitgenodigd voor een bezichtiging van <strong>${address}</strong>.</p><p><a href="${scheduleUrl}" style="background:#C84B2F;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">Plan je bezichtiging</a></p><p>— FairKamer</p>`
-          : `<p>Hi ${firstName},</p><p>Great news! You're invited to schedule a viewing at <strong>${address}</strong>.</p><p><a href="${scheduleUrl}" style="background:#C84B2F;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">Book your viewing</a></p><p>— FairKamer</p>`;
+          ? `Goed nieuws — bezichtiging ${address}`
+          : `Good news — viewing at ${address}`;
+
+        if (proposedSlots && proposedSlots.length > 0) {
+          // Slot-picker email: show specific times the landlord selected
+          const slotButtons = proposedSlots.map(s => {
+            const bookUrl = `${scheduleUrl}?slot=${encodeURIComponent(s.start)}&end=${encodeURIComponent(s.end)}`;
+            return `<div style="margin:8px 0;"><a href="${bookUrl}" style="display:inline-block;background:#C84B2F;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">${s.label}</a></div>`;
+          }).join("");
+
+          html = lang === "nl"
+            ? `<p>Hoi ${firstName},</p><p>Goed nieuws! De verhuurder wil je uitnodigen voor een bezichtiging van <strong>${address}</strong>.</p><p><strong>Kies een moment dat jou uitkomt:</strong></p>${slotButtons}<p style="font-size:12px;color:#666;">Klik op een tijdstip om je bezichtiging direct te bevestigen.</p><p>— FairKamer</p>`
+            : `<p>Hi ${firstName},</p><p>Great news! The landlord would like to invite you to view <strong>${address}</strong>.</p><p><strong>Pick a time that works for you:</strong></p>${slotButtons}<p style="font-size:12px;color:#666;">Click a time to confirm your viewing instantly.</p><p>— FairKamer</p>`;
+        } else {
+          // Fallback: generic schedule link
+          html = lang === "nl"
+            ? `<p>Hoi ${firstName},</p><p>Goed nieuws! Je bent uitgenodigd voor een bezichtiging van <strong>${address}</strong>.</p><p><a href="${scheduleUrl}" style="background:#C84B2F;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">Plan je bezichtiging</a></p><p>— FairKamer</p>`
+            : `<p>Hi ${firstName},</p><p>Great news! You're invited to schedule a viewing at <strong>${address}</strong>.</p><p><a href="${scheduleUrl}" style="background:#C84B2F;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">Book your viewing</a></p><p>— FairKamer</p>`;
+        }
         break;
       }
       case "reject": {

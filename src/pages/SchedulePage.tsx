@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -71,7 +71,12 @@ function generateSlots(schedule: any[], takenStarts: Set<string>): TimeSlot[] {
 
 export default function SchedulePage() {
   const { token } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
   const { lang, setLang, t } = useLanguage();
+
+  // Pre-selected slot from email link (?slot=ISO&end=ISO)
+  const preSlotStart = searchParams.get("slot");
+  const preSlotEnd = searchParams.get("end");
 
   const [info, setInfo] = useState<SlotInfo | null>(null);
   const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -114,6 +119,16 @@ export default function SchedulePage() {
         city: property.city,
         landlord_id: property.landlord_id,
       });
+
+      // If a specific slot was pre-selected from email link, use it directly
+      if (preSlotStart && preSlotEnd) {
+        const label = new Date(preSlotStart).toLocaleString("nl-NL", {
+          weekday: "long", day: "numeric", month: "long",
+          hour: "2-digit", minute: "2-digit", timeZone: "Europe/Amsterdam",
+        });
+        setSelected({ start: preSlotStart, end: preSlotEnd, label });
+        return; // Skip loading all slots
+      }
 
       // 3. Load availability schedule
       const { data: schedule } = await supabase
@@ -205,6 +220,41 @@ export default function SchedulePage() {
           <p className="text-foreground font-medium mb-2">{doneLabel}</p>
           <p className="text-muted-foreground mb-6">{t("schedule.success_body")}</p>
           <p className="text-xs text-muted-foreground">Powered by FairKamer</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Pre-selected slot from email link ────────────────────────────────────
+
+  if (preSlotStart && selected && !done) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center max-w-sm w-full">
+          <div className="text-4xl mb-4">📅</div>
+          <h1 className="text-2xl font-serif font-bold text-foreground mb-2">
+            {lang === "nl" ? "Bezichtiging bevestigen" : "Confirm your viewing"}
+          </h1>
+          <p className="text-sm text-muted-foreground mb-1">{info.address}, {info.city}</p>
+          <div className="my-6 p-4 rounded-xl border-2 border-[#C84B2F] bg-[#C84B2F]/10">
+            <p className="font-semibold text-foreground capitalize">{selected.label}</p>
+          </div>
+          {bookingError && <p className="text-sm text-destructive mb-4">{bookingError}</p>}
+          <Button
+            className="w-full bg-[#C84B2F] hover:bg-[#b03f26] text-white h-12 text-base"
+            onClick={confirmBooking}
+            disabled={booking}
+          >
+            {booking
+              ? (lang === "nl" ? "Bevestigen…" : "Confirming…")
+              : (lang === "nl" ? "Bevestig dit moment" : "Confirm this time")}
+          </Button>
+          <button
+            className="mt-3 text-xs text-muted-foreground underline"
+            onClick={() => { setSelected(null); }}
+          >
+            {lang === "nl" ? "Andere tijd kiezen" : "Choose a different time"}
+          </button>
         </div>
       </div>
     );

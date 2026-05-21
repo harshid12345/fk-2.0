@@ -35,7 +35,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "FairKamer <noreply@fairkamer.nl>",
+        from: "FairKamer <onboarding@resend.dev>",
         to,
         subject,
         html,

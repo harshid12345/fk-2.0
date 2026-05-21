@@ -76,6 +76,37 @@ const MOCK_APPLICANTS = [
   },
 ];
 
+// ─── Slot generation (mirrors SchedulePage logic) ─────────────────────────────
+
+interface TimeSlot { start: string; end: string; label: string; }
+
+function generateSlots(schedule: any[], takenStarts: Set<string>): TimeSlot[] {
+  const slots: TimeSlot[] = [];
+  const now = new Date();
+  const cutoff = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  for (let d = new Date(now); d <= cutoff; d.setDate(d.getDate() + 1)) {
+    const dow = (d.getDay() + 6) % 7;
+    const entry = schedule.find((s: any) => s.day_of_week === dow && s.enabled);
+    if (!entry) continue;
+    const [startH, startM] = (entry.start_time as string).split(":").map(Number);
+    const [endH, endM] = (entry.end_time as string).split(":").map(Number);
+    let slotTime = new Date(d); slotTime.setHours(startH, startM, 0, 0);
+    const dayEnd = new Date(d); dayEnd.setHours(endH, endM, 0, 0);
+    while (slotTime < dayEnd) {
+      const slotEnd = new Date(slotTime.getTime() + 30 * 60 * 1000);
+      if (slotEnd > dayEnd) break;
+      if (slotTime > now) {
+        const iso = slotTime.toISOString();
+        if (!takenStarts.has(iso)) {
+          slots.push({ start: iso, end: slotEnd.toISOString(), label: slotTime.toLocaleString("nl-NL", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Amsterdam" }) });
+        }
+      }
+      slotTime = new Date(slotTime.getTime() + 40 * 60 * 1000);
+    }
+  }
+  return slots;
+}
+
 // Returns a CSS color string based on score 0-10
 function scoreColor(score: number, disqualified: boolean): string {
   if (disqualified) return 'hsl(var(--destructive))';
@@ -107,6 +138,10 @@ export default function ApplicantsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('all');
+  const [slotPickerFor, setSlotPickerFor] = useState<string | null>(null);
+  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -141,19 +176,41 @@ export default function ApplicantsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const approveApplicant = async (applicant: any) => {
+  const openSlotPicker = async (applicant: any) => {
+    setSlotPickerFor(applicant.id);
+    setLoadingSlots(true);
+    setSelectedSlots(new Set());
+    setAvailableSlots([]);
+    const [{ data: schedule }, { data: existing }] = await Promise.all([
+      supabase.from('viewing_schedule').select('*').eq('landlord_id', user!.id),
+      supabase.from('viewing_bookings').select('slot_start')
+        .eq('landlord_id', user!.id)
+        .not('status', 'in', '(cancelled_tenant,cancelled_landlord)')
+        .gte('slot_start', new Date().toISOString()),
+    ]);
+    const taken = new Set<string>((existing || []).map((b: any) => b.slot_start));
+    const slots = generateSlots(schedule || [], taken).slice(0, 12);
+    setAvailableSlots(slots);
+    // Pre-select first 3
+    setSelectedSlots(new Set(slots.slice(0, 3).map(s => s.start)));
+    setLoadingSlots(false);
+  };
+
+  const sendApprovalWithSlots = async (applicant: any) => {
     setActionLoading(applicant.id);
+    const slots = availableSlots.filter(s => selectedSlots.has(s.start));
     try {
       const { error } = await supabase.functions.invoke('email-notify-tenant', {
-        body: { applicantId: applicant.id, action: 'approve' },
+        body: { applicantId: applicant.id, action: 'approve', proposedSlots: slots },
       });
       if (error) {
-        toast({ title: t('applicants.error_notify'), description: String(error.message || error), variant: 'destructive' as any });
+        toast({ title: 'Failed to send invite', description: String(error.message || error), variant: 'destructive' as any });
       } else {
-        toast({ title: t('applicants.approved_name', { name: applicant.full_name || t('applicants.unknown') }) });
+        toast({ title: `Invite sent to ${applicant.full_name || 'tenant'}` });
+        setSlotPickerFor(null);
       }
     } catch (e: any) {
-      toast({ title: t('applicants.error_approve'), description: e.message, variant: 'destructive' as any });
+      toast({ title: 'Error', description: e.message, variant: 'destructive' as any });
     }
     setActionLoading(null);
     load();
@@ -491,18 +548,70 @@ export default function ApplicantsPage() {
                           </div>
                         )}
 
-                        {/* Approve / Reject */}
-                        {isPending && !hasBookingAction && (
+                        {/* Viewing booked state */}
+                        {a.stage === 'viewing_booked' && (
+                          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                            <Check className="w-4 h-4 text-green-600 shrink-0" />
+                            <p className="text-xs font-medium text-green-700 dark:text-green-400">Viewing booked ✓</p>
+                          </div>
+                        )}
+
+                        {/* Slot picker (shown after clicking Goedkeuren) */}
+                        {isPending && !hasBookingAction && slotPickerFor === a.id && (
+                          <div className="space-y-2 pt-0.5">
+                            <p className="text-xs font-semibold text-foreground">Select times to offer the tenant:</p>
+                            {loadingSlots ? (
+                              <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+                            ) : availableSlots.length === 0 ? (
+                              <p className="text-xs text-muted-foreground py-2">No availability found. Set your availability in the Calendar tab first.</p>
+                            ) : (
+                              <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                                {availableSlots.map(slot => (
+                                  <button
+                                    key={slot.start}
+                                    type="button"
+                                    onClick={() => setSelectedSlots(prev => {
+                                      const next = new Set(prev);
+                                      next.has(slot.start) ? next.delete(slot.start) : next.add(slot.start);
+                                      return next;
+                                    })}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium border transition-colors
+                                      ${selectedSlots.has(slot.start)
+                                        ? 'border-primary bg-primary/10 text-primary'
+                                        : 'border-border bg-background text-foreground'}`}
+                                  >
+                                    {slot.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex gap-2 pt-1">
+                              <Button
+                                size="sm"
+                                onClick={() => sendApprovalWithSlots(a)}
+                                disabled={isLoading || selectedSlots.size === 0 || loadingSlots}
+                                className="flex-1 h-9 rounded-lg text-xs"
+                              >
+                                {actionLoading === a.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
+                                Send invite ({selectedSlots.size})
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setSlotPickerFor(null)} className="h-9 rounded-lg text-xs">
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Approve / Reject (shown when slot picker is not open) */}
+                        {isPending && !hasBookingAction && slotPickerFor !== a.id && (
                           <div className="flex gap-2 pt-0.5">
                             <Button
                               size="sm"
-                              onClick={() => approveApplicant(a)}
+                              onClick={() => openSlotPicker(a)}
                               disabled={isLoading}
                               className="flex-1 h-9 rounded-lg text-xs"
                             >
-                              {actionLoading === a.id
-                                ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                                : <Check className="w-3.5 h-3.5 mr-1" />}
+                              <Check className="w-3.5 h-3.5 mr-1" />
                               Goedkeuren
                             </Button>
                             <Button
