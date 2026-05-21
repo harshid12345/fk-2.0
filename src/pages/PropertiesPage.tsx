@@ -5,9 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Plus, MapPin, Home, Users, TrendingUp, Paperclip, AlertTriangle, BookOpen, Link2, ShieldCheck } from 'lucide-react';
+import { Plus, MapPin, Home, Users, TrendingUp, Link2, ShieldCheck } from 'lucide-react';
 import AddPropertyDialog from '@/components/AddPropertyDialog';
-import PropertyKnowledgeBaseDialog from '@/components/PropertyKnowledgeBaseDialog';
 import { toast as sonnerToast } from 'sonner';
 
 interface Property {
@@ -19,7 +18,6 @@ interface Property {
   tenant_name: string | null;
   accommodation_type: string | null;
   status: string;
-  knowledge_base_urls: string[] | null;
   bag_verified: boolean | null;
 }
 
@@ -69,7 +67,6 @@ export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [kbDialog, setKbDialog] = useState<{ id: string; address: string } | null>(null);
   const [applicants, setApplicants] = useState<any[]>([]);
   const [applicantsLoading, setApplicantsLoading] = useState(true);
   const fetchProperties = useCallback(async () => {
@@ -112,7 +109,6 @@ export default function PropertiesPage() {
 
   const totalRent = properties.reduce((sum, p) => sum + (p.rent_amount || 0), 0);
   const rentedCount = properties.filter(p => p.status === 'rented').length;
-  const pendingKb = properties.filter(p => !p.knowledge_base_urls || p.knowledge_base_urls.length === 0);
 
   return (
     <div className="pb-36">
@@ -164,42 +160,6 @@ export default function PropertiesPage() {
         </motion.div>
       )}
 
-      {/* Pending tasks — missing house manuals */}
-      {!loading && pendingKb.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-          className="px-5 pb-4"
-        >
-          <div className="rounded-xl border border-warning/25 bg-warning/5 p-4 space-y-2.5">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 text-warning" />
-              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
-                {t('properties.pending_tasks')}
-              </p>
-            </div>
-            {pendingKb.map(p => (
-              <button
-                key={p.id}
-                onClick={() => setKbDialog({ id: p.id, address: p.address })}
-                className="w-full text-left flex items-start gap-2.5 p-2.5 rounded-lg bg-background/60 hover:bg-background transition-colors border border-border"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-foreground truncate">
-                    {p.address} {t('properties.kb_missing_text')}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {t('properties.kb_upload_hint')}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
       {/* Property list — 1 col on mobile, 2 col on desktop */}
       <div className="px-5 grid grid-cols-1 md:grid-cols-2 gap-3">
         {loading ? (
@@ -224,8 +184,6 @@ export default function PropertiesPage() {
         ) : (
           <AnimatePresence>
             {properties.map((p, index) => {
-              const kbCount = p.knowledge_base_urls?.length || 0;
-              const kbMissing = kbCount === 0;
               const bagOk = !!p.bag_verified;
               const isRented = p.status === 'rented';
 
@@ -266,18 +224,6 @@ export default function PropertiesPage() {
                           BAG
                         </span>
                       )}
-                      {kbMissing && (
-                        <span className="status-pill status-pill--warning">
-                          <AlertTriangle className="w-3 h-3" />
-                          {t('properties.no_manual_badge')}
-                        </span>
-                      )}
-                      {kbCount > 0 && (
-                        <span className="status-pill" style={{ background: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))' }}>
-                          <BookOpen className="w-3 h-3" />
-                          {kbCount} doc{kbCount === 1 ? '' : 's'}
-                        </span>
-                      )}
                     </div>
 
                     {/* Key metrics */}
@@ -309,44 +255,24 @@ export default function PropertiesPage() {
                     </div>
                   </div>
 
-                  {/* Top-right action icons */}
-                  <div className="absolute top-4 right-4 flex items-center gap-0.5">
+                  {/* Top-right: copy apply link */}
+                  <div className="absolute top-4 right-4">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        const baseUrl = window.location.origin;
-                        if (isRented) {
-                          const conciergeToken = (p as any).concierge_token;
-                          const link = conciergeToken ? `${baseUrl}/support/${conciergeToken}` : '';
-                          const tenantFirst = (p.tenant_name || 'there').split(' ')[0];
-                          const msg = link
-                            ? `Hey ${tenantFirst}! Je hebt vragen over ${p.address}? Gebruik dit als je hulp nodig hebt:\n\n${link}`
-                            : `Geen concierge-link beschikbaar voor dit pand.`;
-                          navigator.clipboard.writeText(msg);
-                          sonnerToast.success(t('properties.copied_concierge'));
-                        } else {
-                          const appToken = (p as any).application_token;
-                          const link = appToken ? `${baseUrl}/apply/${appToken}` : '';
-                          const msg = link
-                            ? `Hoi! Ik verhuur ${p.address}. Aanmelden duurt 5 minuten:\n\n${link}`
-                            : `Geen aanmeldlink beschikbaar.`;
-                          navigator.clipboard.writeText(msg);
-                          sonnerToast.success(t('properties.copied_screening'));
-                        }
+                        const appToken = (p as any).application_token;
+                        const link = appToken ? `${window.location.origin}/apply/${appToken}` : '';
+                        const msg = link
+                          ? `Hoi! Ik verhuur ${p.address}. Aanmelden duurt 5 minuten:\n\n${link}`
+                          : 'Geen aanmeldlink beschikbaar.';
+                        navigator.clipboard.writeText(msg);
+                        sonnerToast.success(t('properties.copied_screening'));
                       }}
                       className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/8 transition-colors"
-                      aria-label={isRented ? 'Kopieer concierge link' : 'Kopieer screening link'}
-                      title={isRented ? 'Concierge link kopiëren' : 'Screening link kopiëren'}
+                      aria-label="Copy apply link"
+                      title="Copy apply link"
                     >
                       <Link2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setKbDialog({ id: p.id, address: p.address }); }}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/8 transition-colors"
-                      aria-label="Documenten uploaden"
-                      title="Documenten uploaden"
-                    >
-                      <Paperclip className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </motion.div>
@@ -395,14 +321,6 @@ export default function PropertiesPage() {
       </motion.button>
 
       <AddPropertyDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={fetchProperties} />
-      {kbDialog && (
-        <PropertyKnowledgeBaseDialog
-          open={!!kbDialog}
-          onOpenChange={(v) => { if (!v) { setKbDialog(null); fetchProperties(); } }}
-          propertyId={kbDialog.id}
-          propertyAddress={kbDialog.address}
-        />
-      )}
     </div>
   );
 }

@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   ArrowRight, Check, RotateCcw, Building2, User, ChevronRight, Trash2, Shield,
-  LogOut, Mail, Info, UserCircle2,
+  LogOut, Mail, Info, UserCircle2, HelpCircle, Bell, PlayCircle, BookOpen, Globe,
 } from 'lucide-react';
 
 interface CriteriaState {
@@ -63,7 +63,7 @@ function QuickTile({ icon: Icon, label, onClick }: { icon: any; label: string; o
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang, setLang } = useLanguage();
   const { toast } = useToast();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -240,10 +240,29 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Language toggle */}
+        <div className="bg-muted rounded-2xl p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Globe className="w-6 h-6 text-foreground shrink-0" strokeWidth={1.75} />
+            <div>
+              <p className="text-[17px] font-medium text-foreground">Language</p>
+              <p className="text-[13px] text-muted-foreground mt-0.5">Dutch / Engels</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-sm font-medium ${lang === 'en' ? 'text-foreground' : 'text-muted-foreground'}`}>EN</span>
+            <Switch checked={lang === 'nl'} onCheckedChange={(v) => setLang(v ? 'nl' : 'en')} />
+            <span className={`text-sm font-medium ${lang === 'nl' ? 'text-foreground' : 'text-muted-foreground'}`}>NL</span>
+          </div>
+        </div>
+
         {/* List rows */}
         <div className="pt-4 divide-y divide-border">
+          <ListRow icon={Info} title="How it works" onClick={() => setOpenSheet('how')} />
+          <ListRow icon={BookOpen} title="FAQ" onClick={() => setOpenSheet('faq')} />
           <ListRow icon={Mail} title="Contact" subtitle="support@fairkamer.nl" onClick={() => setOpenSheet('contact')} />
-          <ListRow icon={LogOut} title="Uitloggen" onClick={async () => { await supabase.auth.signOut(); }} />
+          <ListRow icon={Trash2} title="Developer tools" onClick={() => setOpenSheet('devtools')} />
+          <ListRow icon={LogOut} title="Sign out" danger onClick={async () => { await supabase.auth.signOut(); }} />
         </div>
 
         <p className="text-[11px] text-center text-muted-foreground/60 pt-6">FairKamer v1.0 · Netherlands</p>
@@ -322,11 +341,78 @@ export default function SettingsPage() {
         <SheetContent side="bottom" className="rounded-t-3xl">
           <SheetHeader><SheetTitle>About & legal</SheetTitle></SheetHeader>
           <div className="space-y-3 text-sm text-muted-foreground mt-4">
-            <p>FairKamer helps Dutch landlords screen and schedule tenants fairly under AVG/GDPR.</p>
+            <p>FairKamer helps Dutch landlords screen tenants fairly under AVG/GDPR.</p>
             <div className="grid grid-cols-2 gap-2 pt-2">
               <div className="rounded-xl bg-muted p-3"><p className="text-[10px]">Version</p><p className="text-foreground font-medium">1.0.0</p></div>
               <div className="rounded-xl bg-muted p-3"><p className="text-[10px]">Region</p><p className="text-foreground font-medium">Netherlands</p></div>
             </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openSheet === 'how'} onOpenChange={closeSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto">
+          <SheetHeader><SheetTitle>How FairKamer works</SheetTitle></SheetHeader>
+          <div className="space-y-4 mt-4 text-sm text-muted-foreground">
+            {[
+              { step: '1', title: 'Add a property', desc: 'Use the + button on the Properties tab to add your rental listing via BAG lookup.' },
+              { step: '2', title: 'Share the apply link', desc: 'Copy the link from the property card and share it on Pararius, WhatsApp, or anywhere you advertise.' },
+              { step: '3', title: 'Tenants apply', desc: 'Candidates fill in a 10-question form on their phone. Takes under 2 minutes.' },
+              { step: '4', title: 'See ranked candidates', desc: 'Go to the Tenants tab — best matches appear at the top, scored 0–10 based on financials and preferences.' },
+              { step: '5', title: 'Contact via WhatsApp', desc: 'Tap any tenant card, review their profile, then tap the green WhatsApp button to message them directly.' },
+            ].map(({ step, title, desc }) => (
+              <div key={step} className="flex gap-3">
+                <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{step}</div>
+                <div><p className="font-medium text-foreground">{title}</p><p className="text-[13px] mt-0.5">{desc}</p></div>
+              </div>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openSheet === 'faq'} onOpenChange={closeSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto">
+          <SheetHeader><SheetTitle>FAQ</SheetTitle></SheetHeader>
+          <div className="space-y-4 mt-4">
+            {[
+              { q: 'Is my data GDPR-compliant?', a: 'Yes. Applicants give explicit GDPR consent before submitting. Data is stored securely and only you can view it.' },
+              { q: 'How is the match score calculated?', a: 'Scores are 0–10 based on 3 blocks: tenant preferences (smoking, pets, occupants), financial stability (income vs rent, employment type), and background signals from social media.' },
+              { q: 'Can I use FairKamer for multiple properties?', a: 'Yes — each property gets its own apply link and its own tenant list.' },
+              { q: 'What happens when I tap the WhatsApp button?', a: 'WhatsApp opens with a pre-written Dutch message. You can edit it before sending. The tenant is automatically marked as "Contacted" in the app.' },
+              { q: 'Can tenants reapply?', a: 'Currently each phone number can submit once per property. Contact support if you need to reset an application.' },
+            ].map(({ q, a }) => (
+              <div key={q} className="border-b border-border pb-4 last:border-0">
+                <p className="text-sm font-semibold text-foreground">{q}</p>
+                <p className="text-[13px] text-muted-foreground mt-1">{a}</p>
+              </div>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={openSheet === 'devtools'} onOpenChange={closeSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl">
+          <SheetHeader><SheetTitle>Developer tools</SheetTitle></SheetHeader>
+          <div className="space-y-3 mt-4 text-sm text-muted-foreground">
+            <p>Use these only for testing. Actions are permanent.</p>
+            <button
+              onClick={async () => {
+                await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                toast({ title: 'All notifications deleted' });
+              }}
+              className="w-full p-3 rounded-xl bg-destructive/10 text-destructive text-left font-medium hover:bg-destructive/20 transition-colors"
+            >
+              Delete all notifications
+            </button>
+            <button
+              onClick={async () => {
+                await supabase.from('applicants').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                toast({ title: 'All applicants deleted' });
+              }}
+              className="w-full p-3 rounded-xl bg-destructive/10 text-destructive text-left font-medium hover:bg-destructive/20 transition-colors"
+            >
+              Delete all applicants
+            </button>
           </div>
         </SheetContent>
       </Sheet>
