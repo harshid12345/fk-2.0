@@ -28,6 +28,7 @@ interface ApplicationPayload {
   bkr_status: string;
   // Optional
   social_handle?: string;
+  social_platform?: string | null;
   consent_given: boolean;
   preferred_language: "en" | "nl";
 }
@@ -197,6 +198,7 @@ serve(async (req) => {
       desired_lease_length: payload.desired_lease_length,
       bkr_status: payload.bkr_status,
       social_handle: payload.social_handle || null,
+      social_platform: payload.social_platform || null,
       consent_given: payload.consent_given,
       preferred_language: payload.preferred_language,
       stage: "new",

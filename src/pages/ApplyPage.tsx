@@ -27,6 +27,8 @@ interface FormState {
   smoking: string;
   pets: string;
   bkr_status: string;
+  social_platform: string;
+  social_handle: string;
   consent_given: boolean;
 }
 
@@ -35,18 +37,19 @@ const EMPTY: FormState = {
   num_occupants: "", desired_move_in: "",
   employment_type: "", monthly_income_range: "",
   smoking: "", pets: "", bkr_status: "",
+  social_platform: "", social_handle: "",
   consent_given: false,
 };
 
-// Step indexes
+// Step keys
 const STEPS = [
   "phone", "email", "name", "age",
   "occupants", "move_in",
   "employment", "income",
   "smoking", "pets",
-  "bkr", "consent",
+  "bkr", "social", "consent",
 ] as const;
-const TOTAL = STEPS.length; // 12
+const TOTAL = STEPS.length; // 13
 
 // ─── Option Button ────────────────────────────────────────────────────────────
 
@@ -128,12 +131,21 @@ export default function ApplyPage() {
     if (key === "smoking" && !form.smoking) return false;
     if (key === "pets" && !form.pets) return false;
     if (key === "bkr" && !form.bkr_status) return false;
+    // social step is always valid — it's optional
     if (key === "consent" && !form.consent_given) { setValidErr(nl ? "Je moet akkoord gaan om door te gaan." : "You must agree to continue."); return false; }
     return true;
   }
 
   function next() { if (!validate()) return; if (step < TOTAL - 1) setStep(s => s + 1); }
-  function back() { setValidErr(""); setStep(s => Math.max(s - 1, 0)); }
+  function back() {
+    setValidErr("");
+    // If on handle sub-state of social step, go back to platform picker instead
+    if (STEPS[step] === "social" && form.social_platform && form.social_platform !== "skip") {
+      setForm(f => ({ ...f, social_platform: "", social_handle: "" }));
+      return;
+    }
+    setStep(s => Math.max(s - 1, 0));
+  }
 
   // ─── Submit ────────────────────────────────────────────────────────────────
 
@@ -157,6 +169,8 @@ export default function ApplyPage() {
           smoking: form.smoking,
           pets: form.pets,
           bkr_status: form.bkr_status,
+          social_platform: form.social_platform === "skip" ? null : (form.social_platform || null),
+          social_handle: form.social_handle.trim() || null,
           consent_given: true,
           preferred_language: lang,
         }),
@@ -214,6 +228,14 @@ export default function ApplyPage() {
   const key = STEPS[step];
   const isLast = step === TOTAL - 1;
 
+  // Platform config for handle input sub-state
+  const platformConfig: Record<string, { placeholder: string; hint: string; hintNl: string }> = {
+    instagram: { placeholder: "@gebruikersnaam", hint: "Your Instagram username", hintNl: "Je Instagram gebruikersnaam" },
+    facebook:  { placeholder: "facebook.com/jouwprofiel", hint: "Your Facebook profile URL", hintNl: "Je Facebook profiel URL" },
+    twitter:   { placeholder: "@gebruikersnaam of twitter.com/jij", hint: "Your Twitter / X handle or URL", hintNl: "Je Twitter/X gebruikersnaam of URL" },
+    linkedin:  { placeholder: "linkedin.com/in/jounaam", hint: "Your LinkedIn profile URL", hintNl: "Je LinkedIn profiel URL" },
+  };
+
   function renderStep() {
     switch (key) {
       case "phone": return (
@@ -236,7 +258,7 @@ export default function ApplyPage() {
         <>
           <p className="text-2xl font-serif font-bold text-foreground mb-1">{nl ? "Hoe heet je?" : "What's your name?"}</p>
           <p className="text-sm text-muted-foreground mb-6">{nl ? "Voor- en achternaam." : "First and last name."}</p>
-          <input type="text" value={form.full_name} onChange={e => s("full_name", e.target.value)} placeholder={nl ? "Jan de Vries" : "Jan de Vries"} autoComplete="name"
+          <input type="text" value={form.full_name} onChange={e => s("full_name", e.target.value)} placeholder="Jan de Vries" autoComplete="name"
             className="w-full h-14 px-4 text-lg rounded-2xl border-2 border-border bg-card text-foreground focus:border-[#C84B2F] focus:outline-none transition-colors" />
         </>
       );
@@ -342,6 +364,69 @@ export default function ApplyPage() {
           </div>
         </>
       );
+      case "social": {
+        // Sub-state B: handle input (platform chosen, not "skip")
+        if (form.social_platform && form.social_platform !== "skip") {
+          const cfg = platformConfig[form.social_platform] || platformConfig.instagram;
+          const platformLabel = { instagram: "Instagram", facebook: "Facebook", twitter: "Twitter / X", linkedin: "LinkedIn" }[form.social_platform] || "";
+          return (
+            <>
+              <p className="text-2xl font-serif font-bold text-foreground mb-1">
+                {nl ? `Jouw ${platformLabel} profiel` : `Your ${platformLabel} profile`}
+              </p>
+              <p className="text-sm text-muted-foreground mb-6">{nl ? cfg.hintNl : cfg.hint}</p>
+              <input
+                type="url"
+                inputMode="url"
+                value={form.social_handle}
+                onChange={e => s("social_handle", e.target.value)}
+                placeholder={cfg.placeholder}
+                autoFocus
+                className="w-full h-14 px-4 text-base rounded-2xl border-2 border-border bg-card text-foreground focus:border-[#C84B2F] focus:outline-none transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, social_platform: "", social_handle: "" }))}
+                className="mt-3 text-sm text-muted-foreground underline underline-offset-2"
+              >
+                {nl ? "Andere keuze" : "Change platform"}
+              </button>
+            </>
+          );
+        }
+
+        // Sub-state A: platform picker
+        return (
+          <>
+            <p className="text-2xl font-serif font-bold text-foreground mb-1">
+              {nl ? "Welk socialmedia gebruik je?" : "Which social media do you use?"}
+            </p>
+            <p className="text-sm text-muted-foreground mb-6">
+              {nl ? "Optioneel — helpt ons je profiel verifiëren." : "Optional — helps us verify your profile."}
+            </p>
+            <div className="space-y-3">
+              {([
+                ["instagram", "Instagram"],
+                ["facebook", "Facebook"],
+                ["twitter", "Twitter / X"],
+                ["linkedin", "LinkedIn"],
+                ["skip", nl ? "Liever niet" : "I'd prefer not to"],
+              ] as [string, string][]).map(([val, label]) => (
+                <Opt
+                  key={val}
+                  label={label}
+                  selected={form.social_platform === val}
+                  onClick={() => {
+                    s("social_platform", val);
+                    if (val === "skip") setTimeout(next, 120);
+                    // For actual platforms: stay, show sub-state B
+                  }}
+                />
+              ))}
+            </div>
+          </>
+        );
+      }
       case "consent": return (
         <>
           <p className="text-2xl font-serif font-bold text-foreground mb-2">{nl ? "Bijna klaar!" : "Almost done!"}</p>
