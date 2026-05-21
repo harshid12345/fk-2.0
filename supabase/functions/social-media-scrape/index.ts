@@ -365,7 +365,7 @@ async function recalculateMatchScore(supabase: any, applicantId: string) {
   else if (total >= 4.5) label = 'Moderate match'; else label = 'Weak match';
 
   await supabase.from('applicants').update({
-    match_score: Math.round(total * 10),
+    match_score: Math.round(total * 10) / 10,
     match_label: label,
     match_flags: flags,
     hard_disqualified: false,

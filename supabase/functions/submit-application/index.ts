@@ -218,7 +218,7 @@ serve(async (req) => {
 
     const { data: applicant, error: insertErr } = await supabase
       .from("applicants")
-      .insert(applicantData)
+      .upsert(applicantData, { onConflict: 'property_id,phone' })
       .select("id, schedule_token")
       .single();
 
