@@ -23,26 +23,6 @@ interface Property {
   bag_verified: boolean | null;
 }
 
-const MOCK_PROPERTIES: Property[] = [
-  {
-    id: 'demo-hague-studio-01',
-    address: 'Laan van Meerdervoort 57A',
-    city: 'Den Haag',
-    rent_amount: 895,
-    surface_m2: 32,
-    tenant_name: null,
-    accommodation_type: 'independent',
-    status: 'seeking',
-    knowledge_base_urls: [],
-    bag_verified: true,
-  },
-];
-
-const MOCK_APPLICANTS = [
-  { id: 'demo-app-01', property_id: 'demo-hague-studio-01', full_name: 'Sophie Vermeer', stage: 'screening_complete', match_score: 8.8, match_label: 'Strong match', hard_disqualified: false },
-  { id: 'demo-app-02', property_id: 'demo-hague-studio-01', full_name: 'Julien Bakker', stage: 'screening_complete', match_score: 6.2, match_label: 'Good match', hard_disqualified: false },
-  { id: 'demo-app-03', property_id: 'demo-hague-studio-01', full_name: 'Karim el-Amrani', stage: 'screening_complete', match_score: 2.9, match_label: 'Weak match', hard_disqualified: false },
-];
 
 function scoreColor(score: number, disqualified: boolean): string {
   if (disqualified) return 'hsl(var(--destructive))';
@@ -109,7 +89,7 @@ export default function PropertiesPage() {
       .select('*')
       .order('created_at', { ascending: false });
     const fetched = (data as Property[]) || [];
-    setProperties(fetched.length === 0 ? MOCK_PROPERTIES : fetched);
+    setProperties(fetched);
     setLoading(false);
   }, [user]);
 
@@ -118,17 +98,13 @@ export default function PropertiesPage() {
   const fetchApplicants = useCallback(async () => {
     if (!user) return;
     const { data: props } = await supabase.from('landlord_properties').select('id, address, rent_amount').eq('landlord_id', user.id);
-    const realProps = props || [];
-    const useMocks = realProps.length === 0;
-    const propList = useMocks ? MOCK_PROPERTIES : realProps;
+    const propList = props || [];
 
     let apps: any[] = [];
-    if (!useMocks && propList.length > 0) {
+    if (propList.length > 0) {
       const ids = propList.map((p: any) => p.id);
       const { data: fetchedApps } = await supabase.from('applicants').select('*').in('property_id', ids).neq('stage', 'rejected').order('created_at', { ascending: false });
       apps = fetchedApps || [];
-    } else {
-      apps = MOCK_APPLICANTS;
     }
 
     const enriched = apps.map(a => {
@@ -147,10 +123,14 @@ export default function PropertiesPage() {
   const handleApproveApplicant = async (applicant: any) => {
     setApplicantActionLoading(applicant.id);
     try {
-      await supabase.functions.invoke('whatsapp-notify-tenant', { body: { applicantId: applicant.id, action: 'approve' } });
-      sonnerToast.success(t('applicants.approved_name', { name: applicant.full_name || t('applicants.unknown') }));
-    } catch {
-      sonnerToast.error(t('applicants.error_approve'));
+      const { error } = await supabase.functions.invoke('email-notify-tenant', { body: { applicantId: applicant.id, action: 'approve' } });
+      if (error) {
+        sonnerToast.error(`Failed: ${error.message || String(error)}`);
+      } else {
+        sonnerToast.success(t('applicants.approved_name', { name: applicant.full_name || t('applicants.unknown') }));
+      }
+    } catch (e: any) {
+      sonnerToast.error(e.message || t('applicants.error_approve'));
     }
     setApplicantActionLoading(null);
     fetchApplicants();
@@ -159,10 +139,14 @@ export default function PropertiesPage() {
   const handleRejectApplicant = async (applicant: any) => {
     setApplicantActionLoading(applicant.id);
     try {
-      await supabase.functions.invoke('whatsapp-notify-tenant', { body: { applicantId: applicant.id, action: 'reject' } });
-      sonnerToast.success(t('applicants.rejected_name', { name: applicant.full_name || t('applicants.unknown') }));
-    } catch {
-      sonnerToast.error(t('applicants.error_reject'));
+      const { error } = await supabase.functions.invoke('email-notify-tenant', { body: { applicantId: applicant.id, action: 'reject' } });
+      if (error) {
+        sonnerToast.error(`Failed: ${error.message || String(error)}`);
+      } else {
+        sonnerToast.success(t('applicants.rejected_name', { name: applicant.full_name || t('applicants.unknown') }));
+      }
+    } catch (e: any) {
+      sonnerToast.error(e.message || t('applicants.error_reject'));
     }
     setApplicantActionLoading(null);
     fetchApplicants();

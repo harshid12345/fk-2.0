@@ -11,73 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
-const MOCK_PROPERTIES = [
-  { id: 'demo-hague-studio-01', address: 'Laan van Meerdervoort 57A', rent_amount: 895, landlord_id: 'dev' },
-];
-
-const MOCK_APPLICANTS = [
-  {
-    id: 'demo-app-01',
-    property_id: 'demo-hague-studio-01',
-    full_name: 'Sophie Vermeer',
-    employment_type: 'Loondienst (employed)',
-    monthly_income: 2800,
-    num_occupants: 'Just me',
-    desired_move_in: 'Next month',
-    stage: 'screening_complete',
-    match_score: 8.8,
-    match_label: 'Strong match',
-    hard_disqualified: false,
-    hard_disqualify_reason: null,
-    match_flags: [],
-    lifestyle_answers: { smoking: 'No', pets: 'No pets' },
-    social_scrape_data: null,
-    cancellation_count: 0,
-    no_response_count: 0,
-    created_at: '2026-05-13T09:15:00Z',
-  },
-  {
-    id: 'demo-app-02',
-    property_id: 'demo-hague-studio-01',
-    full_name: 'Julien Bakker',
-    employment_type: 'ZZP (self-employed)',
-    monthly_income: 2200,
-    num_occupants: 'Just me',
-    desired_move_in: 'Flexible',
-    stage: 'screening_complete',
-    match_score: 6.2,
-    match_label: 'Good match',
-    hard_disqualified: false,
-    hard_disqualify_reason: null,
-    match_flags: ['Smoking preference mismatch'],
-    lifestyle_answers: { smoking: 'Outside only', pets: 'Cat' },
-    social_scrape_data: null,
-    cancellation_count: 0,
-    no_response_count: 0,
-    created_at: '2026-05-13T14:40:00Z',
-  },
-  {
-    id: 'demo-app-03',
-    property_id: 'demo-hague-studio-01',
-    full_name: 'Karim el-Amrani',
-    employment_type: 'Student',
-    monthly_income: 1100,
-    num_occupants: '2 people',
-    desired_move_in: 'In 2-3 months',
-    stage: 'screening_complete',
-    match_score: 2.9,
-    match_label: 'Weak match',
-    hard_disqualified: false,
-    hard_disqualify_reason: null,
-    match_flags: ['Too many occupants', 'Move-in date may not align', 'Employment type: limited financial stability'],
-    lifestyle_answers: { smoking: 'No', pets: 'Dog' },
-    social_scrape_data: null,
-    cancellation_count: 0,
-    no_response_count: 0,
-    created_at: '2026-05-14T08:20:00Z',
-  },
-];
-
 // ─── Slot generation (mirrors SchedulePage logic) ─────────────────────────────
 
 interface TimeSlot { start: string; end: string; label: string; }
@@ -149,27 +82,20 @@ export default function ApplicantsPage() {
     if (!user) return;
     const { data: props } = await supabase.from('landlord_properties').select('id, address, rent_amount, landlord_id').eq('landlord_id', user.id);
     const realProps = props || [];
-    const useMocks = realProps.length === 0;
-    const allProps = useMocks ? MOCK_PROPERTIES : realProps;
-    setProperties(allProps);
-    if (allProps.length > 0) {
-      let apps: any[] = [];
-      if (!useMocks) {
-        const realIds = realProps.map((p: any) => p.id);
-        const { data: fetchedApps } = await supabase.from('applicants').select('*').in('property_id', realIds).neq('stage', 'rejected').order('created_at', { ascending: false });
-        apps = fetchedApps || [];
-      }
-      if (useMocks) apps = MOCK_APPLICANTS;
-      setApplicants(apps);
+    setProperties(realProps);
+
+    if (realProps.length > 0) {
+      const realIds = realProps.map((p: any) => p.id);
+      const [{ data: fetchedApps }, { data: crits }, { data: bks }] = await Promise.all([
+        supabase.from('applicants').select('*').in('property_id', realIds).neq('stage', 'rejected').order('created_at', { ascending: false }),
+        supabase.from('landlord_criteria').select('*').in('property_id', realIds),
+        supabase.from('viewing_bookings').select('*').eq('landlord_id', user.id).in('status', ['pending_landlord', 'confirmed']),
+      ]);
+      setApplicants(fetchedApps || []);
       const critMap: Record<string, any> = {};
-      if (!useMocks) {
-        const realIds = realProps.map((p: any) => p.id);
-        const { data: crits } = await supabase.from('landlord_criteria').select('*').in('property_id', realIds);
-        (crits || []).forEach((c: any) => { critMap[c.property_id] = c; });
-        const { data: bks } = await supabase.from('viewing_bookings').select('*').eq('landlord_id', user.id).in('status', ['pending_landlord']);
-        setBookings(bks || []);
-      }
+      (crits || []).forEach((c: any) => { critMap[c.property_id] = c; });
       setCriteria(critMap);
+      setBookings(bks || []);
     } else {
       setApplicants([]);
     }
