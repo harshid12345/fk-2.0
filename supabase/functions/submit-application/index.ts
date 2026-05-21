@@ -200,6 +200,10 @@ serve(async (req) => {
       consent_given: payload.consent_given,
       preferred_language: payload.preferred_language,
       stage: "new",
+      // Direct columns (added in migration 20260521000002)
+      smoking: payload.smoking || null,
+      pets: payload.pets || null,
+      monthly_income_range: payload.monthly_income_range || null,
       lifestyle_answers: {
         smoking: payload.smoking,
         pets: payload.pets,

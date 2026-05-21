@@ -1,0 +1,443 @@
+/**
+ * FairKamer dev seed — 4 properties + 17 sample applicants
+ * Run: node seed.mjs
+ */
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL  = 'https://nycfhumiaofwsefhruwj.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55Y2ZodW1pYW9md3NlZmhydXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTQ0MTAsImV4cCI6MjA5MjI5MDQxMH0.k1bZ92AD97RVy9wZhomic7sOiWCC36u5EMFbXpoi_7Y';
+const EMAIL        = 'tanush@fairkamer.nl';
+const PASSWORD     = 'FairKamer2026!';
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── 1. Sign in ───────────────────────────────────────────────────────────────
+const { data: auth, error: authErr } = await sb.auth.signInWithPassword({ email: EMAIL, password: PASSWORD });
+if (authErr) { console.error('❌ Auth failed:', authErr.message); process.exit(1); }
+const uid = auth.user.id;
+console.log('✅ Signed in as', EMAIL, '— uid:', uid);
+
+// ── 2. Wipe existing seed data (clean slate) ─────────────────────────────────
+// Get property IDs first so we can cascade-delete applicants
+const { data: existingProps } = await sb.from('landlord_properties').select('id').eq('landlord_id', uid);
+if (existingProps?.length) {
+  const ids = existingProps.map(p => p.id);
+  await sb.from('applicants').delete().in('property_id', ids);
+  await sb.from('landlord_properties').delete().eq('landlord_id', uid);
+  console.log(`🗑  Cleared ${existingProps.length} old properties + their applicants`);
+}
+
+// ── 3. Insert 4 properties ───────────────────────────────────────────────────
+const propertyData = [
+  {
+    landlord_id: uid,
+    address: 'Keizersgracht 312',
+    postcode: '1016 EX',
+    city: 'Amsterdam',
+    surface_m2: 72,
+    rent_amount: 1850,
+    accommodation_type: 'independent',
+    property_type: 'apartment',
+    status: 'seeking',
+    bag_verified: true,
+    application_token: 'seed-prop-1-token',
+  },
+  {
+    landlord_id: uid,
+    address: 'Witte de Withstraat 88',
+    postcode: '3012 BN',
+    city: 'Rotterdam',
+    surface_m2: 55,
+    rent_amount: 1200,
+    accommodation_type: 'independent',
+    property_type: 'apartment',
+    status: 'seeking',
+    bag_verified: false,
+    application_token: 'seed-prop-2-token',
+  },
+  {
+    landlord_id: uid,
+    address: 'Binnenhof 9',
+    postcode: '2513 AA',
+    city: 'Den Haag',
+    surface_m2: 90,
+    rent_amount: 2100,
+    accommodation_type: 'independent',
+    property_type: 'house',
+    status: 'seeking',
+    bag_verified: true,
+    application_token: 'seed-prop-3-token',
+  },
+  {
+    landlord_id: uid,
+    address: 'Nachtegaalstraat 24',
+    postcode: '3581 AC',
+    city: 'Utrecht',
+    surface_m2: 48,
+    rent_amount: 1050,
+    accommodation_type: 'shared',
+    property_type: 'room',
+    status: 'seeking',
+    bag_verified: false,
+    application_token: 'seed-prop-4-token',
+  },
+];
+
+const { data: props, error: propErr } = await sb.from('landlord_properties').insert(propertyData).select('id, address');
+if (propErr) { console.error('❌ Properties insert failed:', propErr.message); process.exit(1); }
+console.log('🏠 Inserted 4 properties:');
+props.forEach(p => console.log('   ', p.id, '—', p.address));
+
+const [p1, p2, p3, p4] = props.map(p => p.id);
+
+// ── 4. Insert 17 applicants ──────────────────────────────────────────────────
+// Helpers
+function waPhone(local) { return '+31' + local.replace(/^0/, ''); }
+function randomFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+const applicants = [
+  // ── Property 1: Keizersgracht 312 (Amsterdam, €1 850) — 5 applicants
+  {
+    property_id: p1,
+    full_name: 'Lena de Vries',
+    phone: waPhone('0612345601'),
+    email: 'lena.devries@gmail.com',
+    age: 29,
+    employment_type: 'Loondienst (employed)',
+    monthly_income_range: '€3 500 – €4 500',
+    num_occupants: '2 people',
+    desired_move_in: 'This month',
+    smoking: 'No',
+    pets: 'Cat',
+    bkr_status: 'No',
+    match_score: 9.1,
+    match_label: 'Strong match',
+    hard_disqualified: false,
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p1,
+    full_name: 'Bram Janssen',
+    phone: waPhone('0612345602'),
+    email: 'bram.j@outlook.com',
+    age: 34,
+    employment_type: 'ZZP (self-employed)',
+    monthly_income_range: '€4 500 – €6 000',
+    num_occupants: 'Just me',
+    desired_move_in: 'Next month',
+    smoking: 'No',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 8.7,
+    match_label: 'Strong match',
+    hard_disqualified: false,
+    stage: 'accepted',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p1,
+    full_name: 'Sophie Meijer',
+    phone: waPhone('0612345603'),
+    email: 'sophiemeijer@hotmail.nl',
+    age: 26,
+    employment_type: 'Student',
+    monthly_income_range: '€1 000 – €1 500',
+    num_occupants: 'Just me',
+    desired_move_in: '2–3 months',
+    smoking: 'No',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 3.4,
+    match_label: 'Weak match',
+    hard_disqualified: true,
+    hard_disqualify_reason: 'Income below 3× rent threshold',
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p1,
+    full_name: 'Niels Bakker',
+    phone: waPhone('0612345604'),
+    email: 'niels.bakker@gmail.com',
+    age: 31,
+    employment_type: 'Loondienst (employed)',
+    monthly_income_range: '€3 000 – €3 500',
+    num_occupants: '2 people',
+    desired_move_in: 'Next month',
+    smoking: 'Outside only',
+    pets: 'Dog',
+    bkr_status: 'No',
+    match_score: 6.8,
+    match_label: 'Good match',
+    hard_disqualified: false,
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p1,
+    full_name: 'Emma van den Berg',
+    phone: waPhone('0612345605'),
+    email: 'emma.vdberg@gmail.com',
+    age: 28,
+    employment_type: 'Loondienst (employed)',
+    monthly_income_range: '€2 500 – €3 000',
+    num_occupants: 'Just me',
+    desired_move_in: 'Flexible',
+    smoking: 'No',
+    pets: 'No pets',
+    bkr_status: 'Yes I can explain',
+    match_score: 5.2,
+    match_label: 'Moderate match',
+    hard_disqualified: false,
+    stage: 'rejected',
+    lifestyle_answers: {},
+  },
+
+  // ── Property 2: Witte de Withstraat 88 (Rotterdam, €1 200) — 4 applicants
+  {
+    property_id: p2,
+    full_name: 'Lars Visser',
+    phone: waPhone('0612345606'),
+    email: 'lars.visser@kpn.nl',
+    age: 24,
+    employment_type: 'Loondienst (employed)',
+    monthly_income_range: '€2 500 – €3 000',
+    num_occupants: 'Just me',
+    desired_move_in: 'This month',
+    smoking: 'No',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 8.2,
+    match_label: 'Strong match',
+    hard_disqualified: false,
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p2,
+    full_name: 'Anouk Smit',
+    phone: waPhone('0612345607'),
+    email: 'anouksmit@live.nl',
+    age: 22,
+    employment_type: 'Student',
+    monthly_income_range: '€1 500 – €2 000',
+    num_occupants: 'Just me',
+    desired_move_in: 'Next month',
+    smoking: 'No',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 5.9,
+    match_label: 'Moderate match',
+    hard_disqualified: false,
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p2,
+    full_name: 'Tim van Dijk',
+    phone: waPhone('0612345608'),
+    email: 'tim.dijk@ziggo.nl',
+    age: 38,
+    employment_type: 'Uitkering (benefits)',
+    monthly_income_range: '€1 000 – €1 500',
+    num_occupants: '2 people',
+    desired_move_in: 'This month',
+    smoking: 'Yes',
+    pets: 'Dog',
+    bkr_status: 'No',
+    match_score: 0,
+    match_label: 'Disqualified',
+    hard_disqualified: true,
+    hard_disqualify_reason: 'Active BKR registration',
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p2,
+    full_name: 'Mila Oosterhout',
+    phone: waPhone('0612345609'),
+    email: 'mila.o@gmail.com',
+    age: 27,
+    employment_type: 'ZZP (self-employed)',
+    monthly_income_range: '€3 000 – €3 500',
+    num_occupants: 'Just me',
+    desired_move_in: '2–3 months',
+    smoking: 'No',
+    pets: 'Cat',
+    bkr_status: 'No',
+    match_score: 7.4,
+    match_label: 'Good match',
+    hard_disqualified: false,
+    stage: 'accepted',
+    lifestyle_answers: {},
+  },
+
+  // ── Property 3: Binnenhof 9 (Den Haag, €2 100) — 4 applicants
+  {
+    property_id: p3,
+    full_name: 'Daan Koopman',
+    phone: waPhone('0612345610'),
+    email: 'daan.k@proton.me',
+    age: 41,
+    employment_type: 'Loondienst (employed)',
+    monthly_income_range: '€6 000+',
+    num_occupants: '4+ people',
+    desired_move_in: 'Next month',
+    smoking: 'No',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 9.4,
+    match_label: 'Strong match',
+    hard_disqualified: false,
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p3,
+    full_name: 'Fleur Hendriksen',
+    phone: waPhone('0612345611'),
+    email: 'fleur.h@gmail.com',
+    age: 33,
+    employment_type: 'Loondienst (employed)',
+    monthly_income_range: '€4 500 – €6 000',
+    num_occupants: '2 people',
+    desired_move_in: 'This month',
+    smoking: 'No',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 8.9,
+    match_label: 'Strong match',
+    hard_disqualified: false,
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p3,
+    full_name: 'Joost Mulder',
+    phone: waPhone('0612345612'),
+    email: 'joost.mulder@xs4all.nl',
+    age: 45,
+    employment_type: 'ZZP (self-employed)',
+    monthly_income_range: '€3 500 – €4 500',
+    num_occupants: '2 people',
+    desired_move_in: '2–3 months',
+    smoking: 'Outside only',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 7.1,
+    match_label: 'Good match',
+    hard_disqualified: false,
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p3,
+    full_name: 'Roos van Leeuwen',
+    phone: waPhone('0612345613'),
+    email: 'roos.vl@gmail.com',
+    age: 30,
+    employment_type: 'Loondienst (employed)',
+    monthly_income_range: '€3 000 – €3 500',
+    num_occupants: 'Just me',
+    desired_move_in: 'Flexible',
+    smoking: 'No',
+    pets: 'Cat',
+    bkr_status: 'No',
+    match_score: 6.3,
+    match_label: 'Good match',
+    hard_disqualified: false,
+    stage: 'rejected',
+    lifestyle_answers: {},
+  },
+
+  // ── Property 4: Nachtegaalstraat 24 (Utrecht, €1 050) — 4 applicants
+  {
+    property_id: p4,
+    full_name: 'Kevin Arends',
+    phone: waPhone('0612345614'),
+    email: 'kevin.arends@student.uu.nl',
+    age: 21,
+    employment_type: 'Student',
+    monthly_income_range: '€1 000 – €1 500',
+    num_occupants: 'Just me',
+    desired_move_in: 'This month',
+    smoking: 'No',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 6.5,
+    match_label: 'Good match',
+    hard_disqualified: false,
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p4,
+    full_name: 'Yasmine El Fassi',
+    phone: waPhone('0612345615'),
+    email: 'yasmine.ef@hotmail.com',
+    age: 25,
+    employment_type: 'Loondienst (employed)',
+    monthly_income_range: '€2 000 – €2 500',
+    num_occupants: 'Just me',
+    desired_move_in: 'Next month',
+    smoking: 'No',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 7.8,
+    match_label: 'Good match',
+    hard_disqualified: false,
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p4,
+    full_name: 'Pieter Hoekstra',
+    phone: waPhone('0612345616'),
+    email: 'p.hoekstra@gmail.com',
+    age: 23,
+    employment_type: 'Student',
+    monthly_income_range: '€1 500 – €2 000',
+    num_occupants: 'Just me',
+    desired_move_in: '2–3 months',
+    smoking: 'Yes',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 4.8,
+    match_label: 'Moderate match',
+    hard_disqualified: false,
+    stage: 'new',
+    lifestyle_answers: {},
+  },
+  {
+    property_id: p4,
+    full_name: 'Nina Brouwer',
+    phone: waPhone('0612345617'),
+    email: 'nina.brouwer@gmail.com',
+    age: 26,
+    employment_type: 'Loondienst (employed)',
+    monthly_income_range: '€2 000 – €2 500',
+    num_occupants: 'Just me',
+    desired_move_in: 'This month',
+    smoking: 'No',
+    pets: 'No pets',
+    bkr_status: 'No',
+    match_score: 8.1,
+    match_label: 'Strong match',
+    hard_disqualified: false,
+    stage: 'accepted',
+    lifestyle_answers: {},
+  },
+];
+
+const { data: insertedApps, error: appErr } = await sb.from('applicants').insert(applicants).select('id, full_name, property_id');
+if (appErr) { console.error('❌ Applicants insert failed:', appErr.message); process.exit(1); }
+
+console.log(`\n👥 Inserted ${insertedApps.length} applicants:`);
+for (const p of props) {
+  const propApps = insertedApps.filter(a => a.property_id === p.id);
+  console.log(`\n  ${p.address} (${propApps.length} applicants):`);
+  propApps.forEach(a => console.log(`    · ${a.full_name}`));
+}
+
+console.log('\n✅ Seed complete! Open the app and log in as tanush@fairkamer.nl');

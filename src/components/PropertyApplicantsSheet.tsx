@@ -26,7 +26,7 @@ export default function PropertyApplicantsSheet({ property, onClose }: {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from('applicants')
-      .select('id, full_name, phone, email, age, employment_type, monthly_income_range, num_occupants, desired_move_in, smoking, pets, bkr_status, match_score, match_label, match_flags, hard_disqualified, hard_disqualify_reason, social_scrape_data, stage, property_id, lifestyle_answers')
+      .select('id, full_name, phone, email, age, employment_type, num_occupants, desired_move_in, bkr_status, match_score, match_label, match_flags, hard_disqualified, hard_disqualify_reason, social_scrape_data, stage, property_id, lifestyle_answers')
       .eq('property_id', property.id)
       .order('match_score', { ascending: false, nullsFirst: false });
     setApplicants((data as Applicant[]) || []);

@@ -10,10 +10,13 @@ export interface Applicant {
   email: string | null;
   age: number | null;
   employment_type: string | null;
+  /** Stored in lifestyle_answers.income_range */
   monthly_income_range: string | null;
   num_occupants: string | null;
   desired_move_in: string | null;
+  /** Stored in lifestyle_answers.smoking */
   smoking: string | null;
+  /** Stored in lifestyle_answers.pets */
   pets: string | null;
   bkr_status: string | null;
   match_score: number | null;
@@ -25,6 +28,16 @@ export interface Applicant {
   stage: string | null;
   property_id: string;
   lifestyle_answers: any;
+}
+
+/** Resolve smoking/pets/income_range from either direct column or lifestyle_answers fallback */
+export function resolveField(applicant: Applicant, field: 'smoking' | 'pets' | 'monthly_income_range'): string | null {
+  const direct = applicant[field];
+  if (direct) return direct;
+  const la = applicant.lifestyle_answers;
+  if (!la) return null;
+  if (field === 'monthly_income_range') return la.income_range ?? null;
+  return la[field] ?? null;
 }
 
 export function scoreColor(score: number, disqualified: boolean): string {
@@ -89,6 +102,8 @@ export function TenantCard({ applicant, onOpen, onStageChange }: {
     if (applicant.phone) window.open(waLink(applicant.phone), '_blank', 'noopener');
   }
 
+  const incomeRange = resolveField(applicant, 'monthly_income_range');
+
   return (
     <div className="rounded-[14px] p-[14px]" style={{ background: 'hsl(27 100% 97%)', border: '1px solid hsl(27 30% 90%)', boxShadow: '0 1px 3px rgba(26,20,16,0.04)' }}>
       {/* Body */}
@@ -102,7 +117,7 @@ export function TenantCard({ applicant, onOpen, onStageChange }: {
             {isAccepted && <span className="text-[9px] font-bold px-[7px] py-[2px] rounded-full uppercase tracking-wide shrink-0" style={{ background: 'hsl(142 52% 38% / 0.12)', color: 'hsl(142, 52%, 32%)' }}>{t('tenants.accepted_badge')}</span>}
             {isRejected && <span className="text-[9px] font-bold px-[7px] py-[2px] rounded-full uppercase tracking-wide shrink-0" style={{ background: 'hsl(0 60% 55% / 0.10)', color: 'hsl(0 60% 55%)' }}>{t('tenants.f_rejected')}</span>}
           </div>
-          <p className="text-[11px] text-muted-foreground truncate">{locValue(applicant.employment_type, t)} · {applicant.monthly_income_range ?? '—'}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{locValue(applicant.employment_type, t)} · {incomeRange ?? '—'}</p>
           <p className="text-[11px] text-muted-foreground truncate">{locValue(applicant.num_occupants, t)} · {locValue(applicant.desired_move_in, t)}</p>
           {disq && applicant.hard_disqualify_reason && (
             <p className="text-[10.5px] text-destructive truncate mt-0.5">⚠ {applicant.hard_disqualify_reason}</p>

@@ -44,7 +44,7 @@ export default function TenantsPage() {
       const ids = propList.map(p => p.id);
       const { data: apps } = await supabase
         .from('applicants')
-        .select('id, full_name, phone, email, age, employment_type, monthly_income_range, num_occupants, desired_move_in, smoking, pets, bkr_status, match_score, match_label, match_flags, hard_disqualified, hard_disqualify_reason, social_scrape_data, stage, property_id, lifestyle_answers')
+        .select('id, full_name, phone, email, age, employment_type, num_occupants, desired_move_in, bkr_status, match_score, match_label, match_flags, hard_disqualified, hard_disqualify_reason, social_scrape_data, stage, property_id, lifestyle_answers')
         .in('property_id', ids)
         .order('match_score', { ascending: false, nullsFirst: false });
       setApplicants((apps as Applicant[]) || []);

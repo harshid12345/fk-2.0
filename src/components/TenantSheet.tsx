@@ -3,7 +3,7 @@ import { X, Check, Copy, MessageCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Applicant, scoreColor, locValue } from './TenantCard';
+import { Applicant, scoreColor, locValue, resolveField } from './TenantCard';
 
 interface Property {
   id: string;
@@ -217,7 +217,7 @@ export default function TenantSheet({ applicant, property, onClose, onStageChang
 
           {/* Financial */}
           <DetailCard label={t('tenants.financial')} rows={[
-            [t('tenants.income'),    applicant.monthly_income_range],
+            [t('tenants.income'),    resolveField(applicant, 'monthly_income_range')],
             [t('tenants.work'),      locValue(applicant.employment_type, t)],
             [t('tenants.bkr'),       locValue(applicant.bkr_status, t)],
             [t('tenants.age'),       applicant.age != null ? `${applicant.age} ${t('tenants.age_years')}` : null],
@@ -227,8 +227,8 @@ export default function TenantSheet({ applicant, property, onClose, onStageChang
           <DetailCard label={t('tenants.living')} rows={[
             [t('tenants.occupants'), locValue(applicant.num_occupants, t)],
             [t('tenants.movein'),    locValue(applicant.desired_move_in, t)],
-            [t('tenants.smoking'),   locValue(applicant.smoking, t)],
-            [t('tenants.pets'),      locValue(applicant.pets, t)],
+            [t('tenants.smoking'),   locValue(resolveField(applicant, 'smoking'), t)],
+            [t('tenants.pets'),      locValue(resolveField(applicant, 'pets'), t)],
           ]} />
 
           {/* Background check */}
