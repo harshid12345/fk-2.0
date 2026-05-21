@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -55,6 +56,7 @@ const EMPTY_FORM: FormState = {
 };
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 // ─── Option Button ────────────────────────────────────────────────────────────
 
@@ -105,17 +107,21 @@ export default function ApplyPage() {
   useEffect(() => {
     if (!token) { setLoadError(t("apply.invalid_link")); return; }
 
-    fetch(`${SUPABASE_URL}/functions/v1/get-property`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ application_token: token }),
+    // Query via REST with x-application-token header (RLS policy allows this)
+    fetch(`${SUPABASE_URL}/rest/v1/landlord_properties?application_token=eq.${encodeURIComponent(token)}&select=id,address,city,postcode,rent_amount,property_type,available_date&limit=1`, {
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "x-application-token": token,
+      },
     })
       .then((res) => res.json())
       .then((data) => {
-        if (!data?.id) {
+        const property = Array.isArray(data) ? data[0] : null;
+        if (!property?.id) {
           setLoadError(t("apply.invalid_link"));
         } else {
-          setProperty(data as Property);
+          setProperty(property as Property);
           // Check localStorage for partial progress
           const saved = localStorage.getItem(`fk_apply_${token}`);
           if (saved) {
