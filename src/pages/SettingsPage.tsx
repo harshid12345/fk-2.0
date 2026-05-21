@@ -185,7 +185,7 @@ export default function SettingsPage() {
       {/* Header — name + avatar */}
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="px-5 pt-6 pb-6 flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-[34px] font-bold leading-[1.05] text-foreground tracking-tight">
+          <h1 className="font-serif font-normal text-foreground leading-tight" style={{ fontSize: 34, letterSpacing: '-0.02em' }}>
             {fullName || 'Your account'}
           </h1>
           <div className="mt-3 inline-flex items-center gap-1.5 bg-muted rounded-md px-2 py-1">
@@ -249,10 +249,18 @@ export default function SettingsPage() {
               <p className="text-[13px] text-muted-foreground mt-0.5">Dutch / Engels</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-sm font-medium ${lang === 'en' ? 'text-foreground' : 'text-muted-foreground'}`}>EN</span>
-            <Switch checked={lang === 'nl'} onCheckedChange={(v) => setLang(v ? 'nl' : 'en')} />
-            <span className={`text-sm font-medium ${lang === 'nl' ? 'text-foreground' : 'text-muted-foreground'}`}>NL</span>
+          {/* Segmented pill: EN | NL */}
+          <div style={{ display: 'inline-flex', background: 'hsl(27 100% 97%)', border: '1px solid hsl(27 30% 90%)', borderRadius: 999, overflow: 'hidden', padding: 2 }}>
+            {(['en', 'nl'] as const).map(l => (
+              <button key={l} onClick={() => setLang(l)} style={{
+                padding: '5px 14px', borderRadius: 999, border: 'none',
+                fontSize: 11.5, fontWeight: 600, fontFamily: 'inherit',
+                background: lang === l ? 'hsl(0 0% 10%)' : 'transparent',
+                color: lang === l ? '#fff' : 'hsl(24 10% 45%)',
+                cursor: 'pointer', transition: 'all 120ms',
+                textTransform: 'uppercase', letterSpacing: '0.04em',
+              }}>{l}</button>
+            ))}
           </div>
         </div>
 

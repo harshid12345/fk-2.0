@@ -1,13 +1,15 @@
-import { ReactNode, useCallback } from 'react';
+import { ReactNode, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import BottomTabBar from './BottomTabBar';
+import FloatingBell from './FloatingBell';
 
 const TAB_PATHS = ['/properties', '/tenants', '/settings'];
 
 export default function MobileLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const activeIndex = TAB_PATHS.findIndex(p => location.pathname.startsWith(p));
 
@@ -23,14 +25,23 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
     }
   }, [activeIndex, navigate]);
 
+  // Track scroll to set --scroll-y CSS var for animated page headers
+  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
+    const y = (e.target as HTMLDivElement).scrollTop;
+    wrapperRef.current?.style.setProperty('--scroll-y', String(y));
+  }
+
   return (
-    <div className="min-h-screen bg-background">
+    <div ref={wrapperRef} className="min-h-screen bg-background" style={{ position: 'relative' }}>
+      <FloatingBell />
+
       <motion.div
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.08}
         onDragEnd={handleSwipe}
-        className="pb-[83px]"
+        className="pb-[83px] overflow-y-auto h-screen"
+        onScroll={handleScroll}
       >
         <AnimatePresence mode="wait">
           <motion.div
