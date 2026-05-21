@@ -24,18 +24,24 @@ interface NotifyRequest {
   proposedSlots?: ProposedSlot[];
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/email-send`, {
+async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
     },
-    body: JSON.stringify({ to, subject, html }),
+    body: JSON.stringify({
+      from: "FairKamer <onboarding@resend.dev>",
+      to,
+      subject,
+      html,
+    }),
   });
   if (!res.ok) {
     const err = await res.text();
-    console.error("[email-notify-tenant] Email failed:", err);
+    throw new Error(`Resend ${res.status}: ${err}`);
   }
 }
 
