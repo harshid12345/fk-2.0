@@ -31,6 +31,7 @@ interface ApplicationPayload {
   social_platform?: string | null;
   consent_given: boolean;
   preferred_language: "en" | "nl";
+  custom_answers?: Record<string, string> | null;
 }
 
 // Inline match score calculation (duplicates logic from matchScore.ts)
@@ -211,6 +212,7 @@ serve(async (req) => {
         pets: payload.pets,
         income_range: payload.monthly_income_range,
       },
+      custom_answers: payload.custom_answers || null,
       match_score: Math.round(scoreResult.score * 10) / 10,
       match_label: scoreResult.label,
       match_flags: scoreResult.flags,

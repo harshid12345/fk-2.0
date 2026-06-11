@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Property {
   id: string;
@@ -15,6 +15,13 @@ interface Property {
   postcode: string;
   rent_amount: number;
   photo_url?: string | null;
+}
+
+interface CustomQuestion {
+  id: string;
+  question_text: string;
+  is_required: boolean;
+  sort_order: number;
 }
 
 interface FormState {
@@ -34,6 +41,21 @@ interface FormState {
   consent_given: boolean;
 }
 
+interface ProfileData {
+  full_name: string;
+  phone: string;
+  age: number;
+  num_occupants: string;
+  desired_move_in: string;
+  employment_type: string;
+  monthly_income_range: string;
+  smoking: string;
+  pets: string;
+  bkr_status: string;
+  social_platform: string | null;
+  social_handle: string | null;
+}
+
 const EMPTY: FormState = {
   phone: "", email: "", full_name: "", age: "",
   num_occupants: "", desired_move_in: "",
@@ -43,14 +65,13 @@ const EMPTY: FormState = {
   consent_given: false,
 };
 
-const STEPS = [
+const BASE_STEPS = [
   "phone", "email", "name", "age",
   "occupants", "move_in",
   "employment", "income",
   "smoking", "pets",
-  "bkr", "social", "consent",
+  "bkr", "social",
 ] as const;
-const TOTAL = STEPS.length; // 13
 
 // ─── Option Button ────────────────────────────────────────────────────────────
 
@@ -74,62 +95,94 @@ function Opt({ label, selected, onClick }: { label: string; selected: boolean; o
 export default function ApplyPage() {
   const { token } = useParams<{ token: string }>();
   const { lang, setLang } = useLanguage();
+  const nl = lang === "nl";
 
   const [property, setProperty] = useState<Property | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([]);
+
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
   const [step, setStep] = useState(0);
   const [validErr, setValidErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [introShown, setIntroShown] = useState(false);
+  const [heroLoaded, setHeroLoaded] = useState(false);
 
-  // Account prompt shown BEFORE submitting (after consent)
-  // idle → prompt → sending → sent → (submit fires) → done
+  // Email → account check
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [foundProfile, setFoundProfile] = useState<ProfileData | null>(null);
+
+  // Pre-submit account creation
   const [preSubmit, setPreSubmit] = useState<"idle" | "prompt" | "sending" | "sent">("idle");
 
-  // ─── Load property ─────────────────────────────────────────────────────────
+  // Dynamic steps: base steps + custom questions + consent
+  const allSteps: string[] = [
+    ...BASE_STEPS,
+    ...customQuestions.map(q => `custom_${q.id}`),
+    "consent",
+  ];
+  const TOTAL = allSteps.length;
+
+  // ─── Load property + custom questions ──────────────────────────────────────
 
   useEffect(() => {
-    if (!token) { setLoadError(lang === "nl" ? "Ongeldige link." : "Invalid link."); return; }
+    if (!token) { setLoadError(nl ? "Ongeldige link." : "Invalid link."); return; }
+
+    // Fetch property
     fetch(
       `${SUPABASE_URL}/rest/v1/landlord_properties?application_token=eq.${encodeURIComponent(token)}&select=id,address,city,postcode,rent_amount,photo_url&limit=1`,
       { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
     )
       .then(r => r.json())
-      .then(data => {
+      .then(async data => {
         const prop = Array.isArray(data) ? data[0] : null;
         if (!prop?.id) {
-          setLoadError(lang === "nl" ? "Ongeldige link — neem contact op met de verhuurder." : "Invalid link — contact the landlord.");
+          setLoadError(nl ? "Ongeldige link — neem contact op met de verhuurder." : "Invalid link — contact the landlord.");
           return;
         }
         setProperty(prop as Property);
+
+        // Fetch custom questions for this property
+        const { data: questions } = await supabase
+          .from("property_custom_questions")
+          .select("id, question_text, is_required, sort_order")
+          .eq("property_id", prop.id)
+          .order("sort_order");
+        setCustomQuestions(questions || []);
+
+        // Restore saved progress
         const saved = localStorage.getItem(`fk_apply_${token}`);
         if (saved) {
           try {
             const p = JSON.parse(saved);
-            if (p.phone) { setForm(f => ({ ...f, ...p })); setStep(p._step || 0); setIntroShown(true); }
+            if (p.phone) {
+              setForm(f => ({ ...f, ...p }));
+              setStep(p._step || 0);
+              if (p._customAnswers) setCustomAnswers(p._customAnswers);
+              setIntroShown(true);
+            }
           } catch { /* ignore */ }
         }
       })
-      .catch(() => setLoadError(lang === "nl" ? "Kon de woning niet laden." : "Could not load property."));
+      .catch(() => setLoadError(nl ? "Kon de woning niet laden." : "Could not load property."));
   }, [token]);
 
   // ─── Persist progress ──────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!token || !form.phone) return;
-    localStorage.setItem(`fk_apply_${token}`, JSON.stringify({ ...form, _step: step }));
-  }, [form, step]);
+    localStorage.setItem(`fk_apply_${token}`, JSON.stringify({ ...form, _step: step, _customAnswers: customAnswers }));
+  }, [form, step, customAnswers]);
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  const nl = lang === "nl";
   const s = (field: keyof FormState, value: string) => { setForm(f => ({ ...f, [field]: value })); setValidErr(""); };
 
   function validate(): boolean {
     setValidErr("");
-    const key = STEPS[step];
+    const key = allSteps[step];
     if (key === "phone") {
       const c = form.phone.replace(/\s/g, "");
       if (!c || !/^\+?[0-9]{8,15}$/.test(c)) { setValidErr(nl ? "Voer een geldig telefoonnummer in (+31...)" : "Enter a valid phone number (+31...)"); return false; }
@@ -146,31 +199,87 @@ export default function ApplyPage() {
     if (key === "smoking" && !form.smoking) return false;
     if (key === "pets" && !form.pets) return false;
     if (key === "bkr" && !form.bkr_status) return false;
+    if (key.startsWith("custom_")) {
+      const qId = key.replace("custom_", "");
+      const q = customQuestions.find(q => q.id === qId);
+      if (q?.is_required && !customAnswers[qId]) return false;
+    }
     if (key === "consent" && !form.consent_given) { setValidErr(nl ? "Je moet akkoord gaan om door te gaan." : "You must agree to continue."); return false; }
     return true;
   }
 
-  function next() { if (!validate()) return; if (step < TOTAL - 1) setStep(s => s + 1); }
+  // ─── Check account after email step ────────────────────────────────────────
+
+  async function handleNext() {
+    if (!validate()) return;
+    const key = allSteps[step];
+
+    // After email: check if tenant has existing profile
+    if (key === "email") {
+      setCheckingEmail(true);
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/check-tenant`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ email: form.email.trim() }),
+        });
+        const result = await res.json();
+        if (result.exists && result.profile) {
+          setFoundProfile(result.profile);
+          setCheckingEmail(false);
+          return; // Show account found screen — don't advance
+        }
+      } catch { /* ignore, proceed normally */ }
+      setCheckingEmail(false);
+    }
+
+    setStep(s => s + 1);
+  }
+
   function back() {
     setValidErr("");
-    if (STEPS[step] === "social" && form.social_platform && form.social_platform !== "skip") {
+    const key = allSteps[step];
+    if (key === "social" && form.social_platform && form.social_platform !== "skip") {
       setForm(f => ({ ...f, social_platform: "", social_handle: "" }));
       return;
     }
     setStep(s => Math.max(s - 1, 0));
   }
 
-  // ─── Submit (actual DB write) ──────────────────────────────────────────────
+  // Use existing profile — prefill form and skip to custom questions / consent
+  function useExistingProfile() {
+    if (!foundProfile) return;
+    setForm(f => ({
+      ...f,
+      full_name: foundProfile.full_name || f.full_name,
+      phone: foundProfile.phone || f.phone,
+      age: foundProfile.age ? String(foundProfile.age) : f.age,
+      num_occupants: foundProfile.num_occupants || f.num_occupants,
+      desired_move_in: foundProfile.desired_move_in || f.desired_move_in,
+      employment_type: foundProfile.employment_type || f.employment_type,
+      monthly_income_range: foundProfile.monthly_income_range || f.monthly_income_range,
+      smoking: foundProfile.smoking || f.smoking,
+      pets: foundProfile.pets || f.pets,
+      bkr_status: foundProfile.bkr_status || f.bkr_status,
+      social_platform: foundProfile.social_platform || f.social_platform,
+      social_handle: foundProfile.social_handle || f.social_handle,
+    }));
+    setFoundProfile(null);
+    // Skip to first custom question or consent
+    const customStart = allSteps.findIndex(s => s.startsWith("custom_"));
+    const targetStep = customStart >= 0 ? customStart : allSteps.indexOf("consent");
+    setStep(targetStep);
+  }
+
+  // ─── Submit ────────────────────────────────────────────────────────────────
 
   async function submit() {
-    if (!form.consent_given) { setValidErr(nl ? "Je moet akkoord gaan." : "You must agree."); return; }
     setSubmitting(true);
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-application`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Required by Supabase edge functions
           "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
@@ -190,9 +299,9 @@ export default function ApplyPage() {
           social_handle: form.social_handle.trim() || null,
           consent_given: true,
           preferred_language: lang,
-          // Fields not collected in the form — passed as null to avoid edge function errors
           gender: null,
           desired_lease_length: null,
+          custom_answers: customAnswers,
         }),
       });
       if (res.ok) {
@@ -210,22 +319,17 @@ export default function ApplyPage() {
     setSubmitting(false);
   }
 
-  // ─── Account creation (OTP magic link) ────────────────────────────────────
+  // ─── Account creation (OTP) ────────────────────────────────────────────────
 
   async function createAccount() {
     setPreSubmit("sending");
     try {
-      await supabase.auth.signInWithOtp({
-        email: form.email.trim(),
-        options: { shouldCreateUser: true },
-      });
-    } catch {
-      // Rate limit or other error — treat as sent anyway
-    }
+      await supabase.auth.signInWithOtp({ email: form.email.trim(), options: { shouldCreateUser: true } });
+    } catch { /* treat as sent */ }
     setPreSubmit("sent");
   }
 
-  // ─── Error / Loading ───────────────────────────────────────────────────────
+  // ─── Screens ───────────────────────────────────────────────────────────────
 
   if (loadError) return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -242,13 +346,25 @@ export default function ApplyPage() {
     </div>
   );
 
-  // ─── Intro screen ──────────────────────────────────────────────────────────
+  // ── Intro ──────────────────────────────────────────────────────────────────
 
   if (!introShown) return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="relative w-full flex-1 min-h-[55vh] max-h-[65vh] overflow-hidden bg-muted">
+        {/* Placeholder shown immediately */}
+        {!heroLoaded && property.photo_url && (
+          <div className="absolute inset-0 bg-gradient-to-br from-[#C84B2F]/15 to-[#C84B2F]/5 animate-pulse" />
+        )}
         {property.photo_url ? (
-          <img src={property.photo_url} alt={property.address} className="w-full h-full object-cover" />
+          <img
+            src={property.photo_url}
+            alt={property.address}
+            // @ts-ignore — fetchpriority is valid HTML but TS types lag
+            fetchpriority="high"
+            loading="eager"
+            className={`w-full h-full object-cover transition-opacity duration-500 ${heroLoaded ? "opacity-100" : "opacity-0"}`}
+            onLoad={() => setHeroLoaded(true)}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#C84B2F]/10 to-[#C84B2F]/5">
             <svg className="w-24 h-24 text-[#C84B2F]/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -293,7 +409,68 @@ export default function ApplyPage() {
     </div>
   );
 
-  // ─── Account prompt (shown BEFORE submitting, after consent) ───────────────
+  // ── Account found interstitial ─────────────────────────────────────────────
+
+  if (foundProfile) return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="text-center max-w-sm w-full">
+        <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-5">
+          <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </div>
+        <h1 className="text-xl font-serif font-bold text-foreground mb-1">
+          {nl ? "Welkom terug!" : "Welcome back!"}
+        </h1>
+        <p className="text-sm text-muted-foreground mb-6">
+          {nl
+            ? `We hebben een bestaand profiel gevonden voor ${form.email}. Wil je dit gebruiken?`
+            : `We found an existing profile for ${form.email}. Want to use it?`}
+        </p>
+
+        {/* Profile preview */}
+        <div className="bg-card border border-border rounded-2xl p-4 text-left mb-5">
+          {[
+            [nl ? "Naam" : "Name", foundProfile.full_name],
+            [nl ? "Telefoon" : "Phone", foundProfile.phone],
+            [nl ? "Werk" : "Work", foundProfile.employment_type],
+            [nl ? "Inkomen" : "Income", foundProfile.monthly_income_range],
+          ].filter(([, v]) => !!v).map(([label, val]) => (
+            <div key={label as string} className="flex justify-between text-sm py-1.5 border-b border-border last:border-0">
+              <span className="text-muted-foreground">{label as string}</span>
+              <span className="font-medium text-foreground">{val as string}</span>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={useExistingProfile}
+          className="w-full h-12 rounded-2xl bg-[#C84B2F] text-white font-semibold text-sm active:scale-[0.98] transition-all mb-3"
+        >
+          {nl ? "Ja, gebruik mijn profiel" : "Yes, use my profile"}
+        </button>
+
+        {customQuestions.length > 0 && (
+          <p className="text-xs text-muted-foreground mb-3">
+            {nl
+              ? `Je hoeft dan alleen nog ${customQuestions.length} extra vra${customQuestions.length === 1 ? "ag" : "gen"} van de verhuurder te beantwoorden.`
+              : `You'll only need to answer ${customQuestions.length} custom question${customQuestions.length === 1 ? "" : "s"} from the landlord.`}
+          </p>
+        )}
+
+        <button
+          onClick={() => { setFoundProfile(null); setStep(s => s + 1); }}
+          className="w-full h-10 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {nl ? "Nee, ik wil alles zelf invullen" : "No, I'll fill it in myself"}
+        </button>
+
+        <p className="text-xs text-muted-foreground/50 mt-6">Powered by FairKamer</p>
+      </div>
+    </div>
+  );
+
+  // ── Pre-submit account creation ────────────────────────────────────────────
 
   if (preSubmit === "prompt") return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -303,20 +480,18 @@ export default function ApplyPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
         </div>
-
         <h1 className="text-xl font-serif font-bold text-foreground mb-1">
           {nl ? "Sla je profiel op!" : "Save your profile!"}
         </h1>
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground mb-5">
           {nl
-            ? "Maak een gratis FairKamer account aan en je gegevens worden bewaard voor de volgende keer. Geen wachtwoord nodig."
-            : "Create a free FairKamer account and your details are saved for next time. No password needed."}
+            ? "Maak een gratis FairKamer account aan — volgende keer hoef je niets meer in te vullen."
+            : "Create a free FairKamer account — next time you won't need to fill anything in."}
         </p>
-
         <div className="bg-card border border-border rounded-2xl p-4 text-left mb-5">
           <ul className="space-y-2.5">
             {[
-              nl ? "Meld je in seconden aan bij andere woningen" : "Apply to other properties in seconds",
+              nl ? "Aanmelden bij andere woningen in seconden" : "Apply to other properties in seconds",
               nl ? "Bekijk al je aanmeldingen op één plek" : "Track all your applications in one place",
               nl ? "Ontvang meldingen wanneer verhuurders reageren" : "Get notified when landlords respond",
             ].map((benefit, i) => (
@@ -329,27 +504,17 @@ export default function ApplyPage() {
             ))}
           </ul>
         </div>
-
-        <button
-          onClick={createAccount}
-          className="w-full h-12 rounded-2xl bg-[#C84B2F] text-white font-semibold text-sm active:scale-[0.98] transition-all mb-3"
-        >
+        <button onClick={createAccount} className="w-full h-12 rounded-2xl bg-[#C84B2F] text-white font-semibold text-sm active:scale-[0.98] transition-all mb-3">
           {nl ? "Ja, sla mijn profiel op" : "Yes, save my profile"}
         </button>
-
-        <button
-          onClick={() => { setPreSubmit("idle"); submit(); }}
-          className="w-full h-10 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
+        <button onClick={() => { setPreSubmit("idle"); submit(); }} className="w-full h-10 text-sm text-muted-foreground hover:text-foreground transition-colors">
           {nl ? "Nee bedankt, direct aanmelden" : "No thanks, just submit"}
         </button>
-
         <p className="text-xs text-muted-foreground/50 mt-6">Powered by FairKamer</p>
       </div>
     </div>
   );
 
-  // Sending OTP
   if (preSubmit === "sending") return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="text-center max-w-sm">
@@ -359,7 +524,6 @@ export default function ApplyPage() {
     </div>
   );
 
-  // OTP sent → user continues to submit
   if (preSubmit === "sent") return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="text-center max-w-sm w-full">
@@ -368,25 +532,20 @@ export default function ApplyPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         </div>
-        <h1 className="text-2xl font-serif font-bold text-foreground mb-2">
-          {nl ? "Check je inbox!" : "Check your inbox!"}
-        </h1>
+        <h1 className="text-2xl font-serif font-bold text-foreground mb-2">{nl ? "Check je inbox!" : "Check your inbox!"}</h1>
         <p className="text-sm text-muted-foreground mb-8">
           {nl
             ? `We hebben een magic link gestuurd naar ${form.email}. Klik erop om je account te activeren.`
             : `We sent a magic link to ${form.email}. Click it to activate your account.`}
         </p>
-
         <button
           onClick={() => { setPreSubmit("idle"); submit(); }}
           disabled={submitting}
           className="w-full h-12 rounded-2xl bg-[#C84B2F] text-white font-semibold text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
         >
-          {submitting ? (
-            <><div className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />{nl ? "Verzenden..." : "Sending..."}</>
-          ) : (
-            <>{nl ? "Aanmelding versturen →" : "Submit my application →"}</>
-          )}
+          {submitting
+            ? <><div className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />{nl ? "Verzenden..." : "Sending..."}</>
+            : (nl ? "Aanmelding versturen →" : "Submit my application →")}
         </button>
         {validErr && <p className="text-sm text-destructive mt-3">{validErr}</p>}
         <p className="text-xs text-muted-foreground/50 mt-6">Powered by FairKamer</p>
@@ -394,7 +553,7 @@ export default function ApplyPage() {
     </div>
   );
 
-  // ─── Done screen ───────────────────────────────────────────────────────────
+  // ── Done ───────────────────────────────────────────────────────────────────
 
   if (done) return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -404,9 +563,7 @@ export default function ApplyPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 className="text-2xl font-serif font-bold text-foreground mb-3">
-          {nl ? "Aanmelding ontvangen!" : "Application received!"}
-        </h1>
+        <h1 className="text-2xl font-serif font-bold text-foreground mb-3">{nl ? "Aanmelding ontvangen!" : "Application received!"}</h1>
         <p className="text-muted-foreground text-sm mb-2">
           {nl ? `Bedankt voor je aanmelding voor ${property.address}.` : `Thanks for applying to ${property.address}.`}
         </p>
@@ -418,16 +575,20 @@ export default function ApplyPage() {
     </div>
   );
 
-  // ─── Step content ──────────────────────────────────────────────────────────
+  // ─── Form steps ────────────────────────────────────────────────────────────
 
   const progress = (step / (TOTAL - 1)) * 100;
-  const key = STEPS[step];
+  const key = allSteps[step];
   const isLast = step === TOTAL - 1;
+
+  // Steps that use auto-advance (option buttons) — Next button is hidden/disabled
+  const isAutoStep = ["occupants", "move_in", "employment", "income", "smoking", "pets", "bkr"].includes(key)
+    || key.startsWith("custom_");
 
   const platformConfig: Record<string, { placeholder: string; hint: string; hintNl: string }> = {
     instagram: { placeholder: "@gebruikersnaam", hint: "Your Instagram username", hintNl: "Je Instagram gebruikersnaam" },
     facebook:  { placeholder: "facebook.com/jouwprofiel", hint: "Your Facebook profile URL", hintNl: "Je Facebook profiel URL" },
-    twitter:   { placeholder: "@gebruikersnaam of twitter.com/jij", hint: "Your Twitter / X handle or URL", hintNl: "Je Twitter/X gebruikersnaam of URL" },
+    twitter:   { placeholder: "@gebruikersnaam", hint: "Your Twitter / X handle or URL", hintNl: "Je Twitter/X gebruikersnaam of URL" },
     linkedin:  { placeholder: "linkedin.com/in/jounaam", hint: "Your LinkedIn profile URL", hintNl: "Je LinkedIn profiel URL" },
   };
 
@@ -470,7 +631,7 @@ export default function ApplyPage() {
           <p className="text-2xl font-serif font-bold text-foreground mb-6">{nl ? "Hoeveel personen trekken er in?" : "How many people will move in?"}</p>
           <div className="space-y-3">
             {[nl ? "Alleen ik" : "Just me", nl ? "2 personen" : "2 people", nl ? "3 personen" : "3 people", "4+"].map(v => (
-              <Opt key={v} label={v} selected={form.num_occupants === v} onClick={() => { s("num_occupants", v); setTimeout(() => setStep(prev => prev + 1), 80); }} />
+              <Opt key={v} label={v} selected={form.num_occupants === v} onClick={() => { s("num_occupants", v); setTimeout(() => setStep(p => p + 1), 80); }} />
             ))}
           </div>
         </>
@@ -485,7 +646,7 @@ export default function ApplyPage() {
               [nl ? "Over 2-3 maanden" : "2-3 months", "2-3 months"],
               [nl ? "Flexibel" : "Flexible", "Flexible"],
             ].map(([label, val]) => (
-              <Opt key={val} label={label} selected={form.desired_move_in === val} onClick={() => { s("desired_move_in", val); setTimeout(() => setStep(prev => prev + 1), 80); }} />
+              <Opt key={val} label={label} selected={form.desired_move_in === val} onClick={() => { s("desired_move_in", val); setTimeout(() => setStep(p => p + 1), 80); }} />
             ))}
           </div>
         </>
@@ -500,7 +661,7 @@ export default function ApplyPage() {
               ["Student", "Student"],
               ["Uitkering (benefits)", nl ? "Uitkering" : "Benefits"],
             ].map(([val, label]) => (
-              <Opt key={val} label={label} selected={form.employment_type === val} onClick={() => { s("employment_type", val); setTimeout(() => setStep(prev => prev + 1), 80); }} />
+              <Opt key={val} label={label} selected={form.employment_type === val} onClick={() => { s("employment_type", val); setTimeout(() => setStep(p => p + 1), 80); }} />
             ))}
           </div>
         </>
@@ -511,7 +672,7 @@ export default function ApplyPage() {
           <p className="text-sm text-muted-foreground mb-6">{nl ? "Netto per maand." : "Net per month."}</p>
           <div className="space-y-3">
             {["Under \u20ac1,500", "\u20ac1,500 - \u20ac2,500", "\u20ac2,500 - \u20ac3,500", "\u20ac3,500 - \u20ac5,000", "\u20ac5,000+"].map(v => (
-              <Opt key={v} label={v} selected={form.monthly_income_range === v} onClick={() => { s("monthly_income_range", v); setTimeout(() => setStep(prev => prev + 1), 80); }} />
+              <Opt key={v} label={v} selected={form.monthly_income_range === v} onClick={() => { s("monthly_income_range", v); setTimeout(() => setStep(p => p + 1), 80); }} />
             ))}
           </div>
         </>
@@ -525,7 +686,7 @@ export default function ApplyPage() {
               ["Outside only", nl ? "Alleen buiten" : "Outside only"],
               ["Yes", nl ? "Ja, binnenshuis" : "Yes, indoors"],
             ].map(([val, label]) => (
-              <Opt key={val} label={label} selected={form.smoking === val} onClick={() => { s("smoking", val); setTimeout(() => setStep(prev => prev + 1), 80); }} />
+              <Opt key={val} label={label} selected={form.smoking === val} onClick={() => { s("smoking", val); setTimeout(() => setStep(p => p + 1), 80); }} />
             ))}
           </div>
         </>
@@ -540,7 +701,7 @@ export default function ApplyPage() {
               ["Dog", nl ? "Hond" : "Dog"],
               ["Other pet", nl ? "Ander huisdier" : "Other pet"],
             ].map(([val, label]) => (
-              <Opt key={val} label={label} selected={form.pets === val} onClick={() => { s("pets", val); setTimeout(() => setStep(prev => prev + 1), 80); }} />
+              <Opt key={val} label={label} selected={form.pets === val} onClick={() => { s("pets", val); setTimeout(() => setStep(p => p + 1), 80); }} />
             ))}
           </div>
         </>
@@ -554,7 +715,7 @@ export default function ApplyPage() {
               ["No", nl ? "Nee" : "No"],
               ["Yes, I can explain", nl ? "Ja, ik kan dit toelichten" : "Yes, I can explain"],
             ].map(([val, label]) => (
-              <Opt key={val} label={label} selected={form.bkr_status === val} onClick={() => { s("bkr_status", val); setTimeout(() => setStep(prev => prev + 1), 80); }} />
+              <Opt key={val} label={label} selected={form.bkr_status === val} onClick={() => { s("bkr_status", val); setTimeout(() => setStep(p => p + 1), 80); }} />
             ))}
           </div>
         </>
@@ -565,16 +726,10 @@ export default function ApplyPage() {
           const platformLabel = { instagram: "Instagram", facebook: "Facebook", twitter: "Twitter / X", linkedin: "LinkedIn" }[form.social_platform] || "";
           return (
             <>
-              <p className="text-2xl font-serif font-bold text-foreground mb-1">
-                {nl ? `Jouw ${platformLabel} profiel` : `Your ${platformLabel} profile`}
-              </p>
+              <p className="text-2xl font-serif font-bold text-foreground mb-1">{nl ? `Jouw ${platformLabel} profiel` : `Your ${platformLabel} profile`}</p>
               <p className="text-sm text-muted-foreground mb-6">{nl ? cfg.hintNl : cfg.hint}</p>
-              <input
-                type="url" inputMode="url" value={form.social_handle}
-                onChange={e => s("social_handle", e.target.value)}
-                placeholder={cfg.placeholder} autoFocus
-                className="w-full h-14 px-4 text-base rounded-2xl border-2 border-border bg-card text-foreground focus:border-[#C84B2F] focus:outline-none transition-colors"
-              />
+              <input type="url" inputMode="url" value={form.social_handle} onChange={e => s("social_handle", e.target.value)} placeholder={cfg.placeholder} autoFocus
+                className="w-full h-14 px-4 text-base rounded-2xl border-2 border-border bg-card text-foreground focus:border-[#C84B2F] focus:outline-none transition-colors" />
               <button type="button" onClick={() => setForm(f => ({ ...f, social_platform: "", social_handle: "" }))} className="mt-3 text-sm text-muted-foreground underline underline-offset-2">
                 {nl ? "Andere keuze" : "Change platform"}
               </button>
@@ -594,7 +749,7 @@ export default function ApplyPage() {
                 ["skip", nl ? "Liever niet" : "I'd prefer not to"],
               ] as [string, string][]).map(([val, label]) => (
                 <Opt key={val} label={label} selected={form.social_platform === val}
-                  onClick={() => { s("social_platform", val); if (val === "skip") setTimeout(() => setStep(prev => prev + 1), 80); }} />
+                  onClick={() => { s("social_platform", val); if (val === "skip") setTimeout(() => setStep(p => p + 1), 80); }} />
               ))}
             </div>
           </>
@@ -631,11 +786,46 @@ export default function ApplyPage() {
           </label>
         </>
       );
-      default: return null;
+      default: {
+        // Custom landlord question
+        if (key.startsWith("custom_")) {
+          const qId = key.replace("custom_", "");
+          const question = customQuestions.find(q => q.id === qId);
+          if (!question) return null;
+          return (
+            <>
+              <p className="text-xs font-semibold text-[#C84B2F] uppercase tracking-wide mb-3">
+                {nl ? "Vraag van de verhuurder" : "Question from landlord"}
+              </p>
+              <p className="text-2xl font-serif font-bold text-foreground mb-6">{question.question_text}</p>
+              <div className="space-y-3">
+                {[
+                  nl ? "Ja, ik ga akkoord" : "Yes, I agree",
+                  nl ? "Nee" : "No",
+                ].map(label => (
+                  <Opt
+                    key={label}
+                    label={label}
+                    selected={customAnswers[qId] === label}
+                    onClick={() => {
+                      setCustomAnswers(prev => ({ ...prev, [qId]: label }));
+                      setTimeout(() => setStep(p => p + 1), 80);
+                    }}
+                  />
+                ))}
+              </div>
+              {!question.is_required && (
+                <button type="button" onClick={() => setTimeout(() => setStep(p => p + 1), 80)} className="mt-4 text-sm text-muted-foreground underline underline-offset-2">
+                  {nl ? "Overslaan" : "Skip"}
+                </button>
+              )}
+            </>
+          );
+        }
+        return null;
+      }
     }
   }
-
-  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-background">
@@ -671,11 +861,13 @@ export default function ApplyPage() {
           )}
           {!isLast ? (
             <button
-              onClick={next}
-              disabled={key === "occupants" || key === "move_in" || key === "employment" || key === "income" || key === "smoking" || key === "pets" || key === "bkr"}
-              className="flex-1 h-12 rounded-2xl bg-[#C84B2F] text-white font-semibold text-sm disabled:opacity-40 active:scale-[0.98] transition-all"
+              onClick={handleNext}
+              disabled={isAutoStep || checkingEmail}
+              className="flex-1 h-12 rounded-2xl bg-[#C84B2F] text-white font-semibold text-sm disabled:opacity-40 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
-              {nl ? "Volgende" : "Next"}
+              {checkingEmail
+                ? <><div className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />{nl ? "Controleren…" : "Checking…"}</>
+                : (nl ? "Volgende" : "Next")}
             </button>
           ) : (
             <button

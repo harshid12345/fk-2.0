@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ImageIcon } from 'lucide-react';
+import { Loader2, ImageIcon, Plus, Trash2, MessageSquare } from 'lucide-react';
 
 interface PropertyToEdit {
   id: string;
@@ -34,9 +34,17 @@ interface Props {
   onSaved: () => void;
 }
 
+interface CustomQuestion {
+  id: string;
+  question_text: string;
+  is_required: boolean;
+  sort_order: number;
+}
+
 export default function EditPropertyDialog({ property, open, onOpenChange, onSaved }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Fields
   const [address, setAddress] = useState('');
@@ -60,9 +68,21 @@ export default function EditPropertyDialog({ property, open, onOpenChange, onSav
   const [photoUploading, setPhotoUploading] = useState(false);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
 
+  // Custom questions
+  const [customQuestions, setCustomQuestions] = useState<CustomQuestion[]>([]);
+  const [newQuestion, setNewQuestion] = useState('');
+  const [savingQuestion, setSavingQuestion] = useState(false);
+
   // Populate form when property changes
   useEffect(() => {
     if (!property) return;
+    // Fetch custom questions
+    supabase
+      .from('property_custom_questions')
+      .select('id, question_text, is_required, sort_order')
+      .eq('property_id', property.id)
+      .order('sort_order')
+      .then(({ data }) => setCustomQuestions(data || []));
     setAddress(property.address ?? '');
     setCity(property.city ?? '');
     setPostcode(property.postcode ?? '');
@@ -82,11 +102,31 @@ export default function EditPropertyDialog({ property, open, onOpenChange, onSav
     setPhotoPreview(null);
   }, [property]);
 
+  const addQuestion = async () => {
+    if (!property || !newQuestion.trim()) return;
+    setSavingQuestion(true);
+    const { data, error } = await supabase
+      .from('property_custom_questions')
+      .insert({ property_id: property.id, question_text: newQuestion.trim(), is_required: true, sort_order: customQuestions.length })
+      .select('id, question_text, is_required, sort_order')
+      .single();
+    if (data) setCustomQuestions(prev => [...prev, data]);
+    if (error) toast({ title: 'Could not save question', variant: 'destructive' });
+    setNewQuestion('');
+    setSavingQuestion(false);
+  };
+
+  const deleteQuestion = async (id: string) => {
+    await supabase.from('property_custom_questions').delete().eq('id', id);
+    setCustomQuestions(prev => prev.filter(q => q.id !== id));
+  };
+
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
+    e.target.value = '';
   };
 
   const handleSave = async () => {
@@ -154,23 +194,35 @@ export default function EditPropertyDialog({ property, open, onOpenChange, onSav
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Photo */}
+          {/* Photo — ref-based for reliability */}
           <div className="space-y-2">
             <Label>Property photo</Label>
+            <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
             {currentPhoto ? (
               <div className="relative rounded-xl overflow-hidden border border-border h-36">
+                {photoUploading && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
                 <img src={currentPhoto} alt="Property" className="w-full h-full object-cover" />
-                <label className="absolute bottom-2 right-2 bg-black/60 text-white rounded-lg px-2.5 py-1 text-xs cursor-pointer hover:bg-black/80 transition-colors flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="absolute bottom-2 right-2 bg-black/60 text-white rounded-lg px-2.5 py-1 text-xs hover:bg-black/80 transition-colors flex items-center gap-1"
+                >
                   <ImageIcon className="w-3 h-3" /> Change photo
-                  <input type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
-                </label>
+                </button>
               </div>
             ) : (
-              <label className="flex flex-col items-center justify-center h-24 rounded-xl border-2 border-dashed border-border bg-accent/30 cursor-pointer hover:bg-accent/50 transition-colors gap-1.5">
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="w-full flex flex-col items-center justify-center h-24 rounded-xl border-2 border-dashed border-border bg-accent/30 hover:bg-accent/50 transition-colors gap-1.5"
+              >
                 <ImageIcon className="w-5 h-5 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Add a property photo</span>
-                <input type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
-              </label>
+              </button>
             )}
           </div>
 
@@ -287,6 +339,54 @@ export default function EditPropertyDialog({ property, open, onOpenChange, onSav
                 <SelectItem value="Middenhuur">Middenhuur</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Custom Questions */}
+          <div className="border-t border-border pt-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-primary" />
+              <Label className="text-sm font-semibold">Custom questions for applicants</Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Every applicant — including returning users — must answer these before submitting.
+            </p>
+
+            {customQuestions.length > 0 && (
+              <div className="space-y-2">
+                {customQuestions.map(q => (
+                  <div key={q.id} className="flex items-start gap-2 p-3 rounded-xl bg-accent/40 border border-border">
+                    <p className="text-sm text-foreground flex-1 leading-snug">{q.question_text}</p>
+                    <button
+                      type="button"
+                      onClick={() => deleteQuestion(q.id)}
+                      className="shrink-0 w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Input
+                value={newQuestion}
+                onChange={e => setNewQuestion(e.target.value)}
+                placeholder='e.g. "No noise after 10 pm — do you agree?"'
+                className="text-sm"
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addQuestion(); } }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addQuestion}
+                disabled={savingQuestion || !newQuestion.trim()}
+                className="shrink-0"
+              >
+                {savingQuestion ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              </Button>
+            </div>
           </div>
 
           <Button className="w-full" onClick={handleSave} disabled={loading || photoUploading || !address.trim()}>
