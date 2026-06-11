@@ -37,10 +37,12 @@ export type Database = {
           match_label: string | null
           match_score: number | null
           monthly_income: number | null
+          monthly_income_range: string | null
           no_response_count: number | null
           num_occupants: string | null
           occupation: string | null
           pending_viewing_slots: string | null
+          pets: string | null
           phone: string | null
           preferred_language: string | null
           property_id: string
@@ -48,7 +50,9 @@ export type Database = {
           scrape_google: Json | null
           scrape_kvk: Json | null
           scrape_linkedin: Json | null
+          smoking: string | null
           social_handle: string | null
+          social_platform: string | null
           social_scrape_data: Json | null
           stage: string | null
           telegram_chat_id: number | null
@@ -77,10 +81,12 @@ export type Database = {
           match_label?: string | null
           match_score?: number | null
           monthly_income?: number | null
+          monthly_income_range?: string | null
           no_response_count?: number | null
           num_occupants?: string | null
           occupation?: string | null
           pending_viewing_slots?: string | null
+          pets?: string | null
           phone?: string | null
           preferred_language?: string | null
           property_id: string
@@ -88,7 +94,9 @@ export type Database = {
           scrape_google?: Json | null
           scrape_kvk?: Json | null
           scrape_linkedin?: Json | null
+          smoking?: string | null
           social_handle?: string | null
+          social_platform?: string | null
           social_scrape_data?: Json | null
           stage?: string | null
           telegram_chat_id?: number | null
@@ -117,10 +125,12 @@ export type Database = {
           match_label?: string | null
           match_score?: number | null
           monthly_income?: number | null
+          monthly_income_range?: string | null
           no_response_count?: number | null
           num_occupants?: string | null
           occupation?: string | null
           pending_viewing_slots?: string | null
+          pets?: string | null
           phone?: string | null
           preferred_language?: string | null
           property_id?: string
@@ -128,7 +138,9 @@ export type Database = {
           scrape_google?: Json | null
           scrape_kvk?: Json | null
           scrape_linkedin?: Json | null
+          smoking?: string | null
           social_handle?: string | null
+          social_platform?: string | null
           social_scrape_data?: Json | null
           stage?: string | null
           telegram_chat_id?: number | null
@@ -211,6 +223,7 @@ export type Database = {
         Row: {
           accommodation_type: string | null
           address: string
+          application_token: string | null
           available_date: string | null
           bag_verified: boolean | null
           building_year: number | null
@@ -224,6 +237,7 @@ export type Database = {
           landlord_id: string
           min_lease_length: string | null
           num_rooms: number | null
+          photo_url: string | null
           postcode: string | null
           property_type: string | null
           rent_amount: number | null
@@ -246,6 +260,7 @@ export type Database = {
         Insert: {
           accommodation_type?: string | null
           address: string
+          application_token?: string | null
           available_date?: string | null
           bag_verified?: boolean | null
           building_year?: number | null
@@ -259,6 +274,7 @@ export type Database = {
           landlord_id: string
           min_lease_length?: string | null
           num_rooms?: number | null
+          photo_url?: string | null
           postcode?: string | null
           property_type?: string | null
           rent_amount?: number | null
@@ -281,6 +297,7 @@ export type Database = {
         Update: {
           accommodation_type?: string | null
           address?: string
+          application_token?: string | null
           available_date?: string | null
           bag_verified?: boolean | null
           building_year?: number | null
@@ -294,6 +311,7 @@ export type Database = {
           landlord_id?: string
           min_lease_length?: string | null
           num_rooms?: number | null
+          photo_url?: string | null
           postcode?: string | null
           property_type?: string | null
           rent_amount?: number | null
