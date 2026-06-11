@@ -16,13 +16,13 @@ interface ApplicationPayload {
   email?: string;
   full_name: string;
   age: number;
-  gender: string;
+  gender?: string | null;
   // Screening answers
   num_occupants: string;
   desired_move_in: string;
   employment_type: string;
   monthly_income_range: string;
-  desired_lease_length: string;
+  desired_lease_length?: string | null;
   smoking: string;
   pets: string;
   bkr_status: string;
@@ -191,11 +191,11 @@ serve(async (req) => {
       email: payload.email || null,
       full_name: payload.full_name,
       age: payload.age,
-      gender: payload.gender,
+      gender: payload.gender || null,
       num_occupants: payload.num_occupants,
       desired_move_in: payload.desired_move_in,
       employment_type: payload.employment_type,
-      desired_lease_length: payload.desired_lease_length,
+      desired_lease_length: payload.desired_lease_length || null,
       bkr_status: payload.bkr_status,
       social_handle: payload.social_handle || null,
       social_platform: payload.social_platform || null,
