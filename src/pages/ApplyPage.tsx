@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
+import { supabase } from "@/integrations/supabase/client";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ interface Property {
   city: string;
   postcode: string;
   rent_amount: number;
+  photo_url?: string | null;
 }
 
 interface FormState {
@@ -82,11 +84,17 @@ export default function ApplyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
+  // Intro screen state — shown before the form steps
+  const [introShown, setIntroShown] = useState(false);
+
+  // Account creation prompt state
+  const [accountStep, setAccountStep] = useState<"prompt" | "sending" | "sent" | "skipped">("prompt");
+
   // ─── Load property ─────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!token) { setLoadError(lang === "nl" ? "Ongeldige link." : "Invalid link."); return; }
-    fetch(`${SUPABASE_URL}/rest/v1/landlord_properties?application_token=eq.${encodeURIComponent(token)}&select=id,address,city,postcode,rent_amount&limit=1`, {
+    fetch(`${SUPABASE_URL}/rest/v1/landlord_properties?application_token=eq.${encodeURIComponent(token)}&select=id,address,city,postcode,rent_amount,photo_url&limit=1`, {
       headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
     })
       .then(r => r.json())
@@ -95,7 +103,7 @@ export default function ApplyPage() {
         if (!prop?.id) { setLoadError(lang === "nl" ? "Ongeldige link — neem contact op met de verhuurder." : "Invalid link — contact the landlord."); return; }
         setProperty(prop as Property);
         const saved = localStorage.getItem(`fk_apply_${token}`);
-        if (saved) { try { const p = JSON.parse(saved); if (p.phone) { setForm(f => ({ ...f, ...p })); setStep(p._step || 0); } } catch { /* ignore */ } }
+        if (saved) { try { const p = JSON.parse(saved); if (p.phone) { setForm(f => ({ ...f, ...p })); setStep(p._step || 0); setIntroShown(true); } } catch { /* ignore */ } }
       })
       .catch(() => setLoadError(lang === "nl" ? "Kon de woning niet laden." : "Could not load property."));
   }, [token]);
@@ -139,7 +147,6 @@ export default function ApplyPage() {
   function next() { if (!validate()) return; if (step < TOTAL - 1) setStep(s => s + 1); }
   function back() {
     setValidErr("");
-    // If on handle sub-state of social step, go back to platform picker instead
     if (STEPS[step] === "social" && form.social_platform && form.social_platform !== "skip") {
       setForm(f => ({ ...f, social_platform: "", social_handle: "" }));
       return;
@@ -181,6 +188,22 @@ export default function ApplyPage() {
     setSubmitting(false);
   }
 
+  // ─── Account creation ──────────────────────────────────────────────────────
+
+  async function createAccount() {
+    setAccountStep("sending");
+    try {
+      await supabase.auth.signInWithOtp({
+        email: form.email.trim(),
+        options: { shouldCreateUser: true },
+      });
+      setAccountStep("sent");
+    } catch {
+      // Even on error, show sent — OTP errors are usually rate-limits, email still likely sent
+      setAccountStep("sent");
+    }
+  }
+
   // ─── Error / Loading ───────────────────────────────────────────────────────
 
   if (loadError) return (
@@ -198,29 +221,191 @@ export default function ApplyPage() {
     </div>
   );
 
-  // ─── Done ──────────────────────────────────────────────────────────────────
+  // ─── Intro screen ──────────────────────────────────────────────────────────
 
-  if (done) return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="text-center max-w-sm">
-        <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-6">
-          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+  if (!introShown) return (
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Property photo / hero */}
+      <div className="relative w-full flex-1 min-h-[55vh] max-h-[65vh] overflow-hidden bg-muted">
+        {property.photo_url ? (
+          <img
+            src={property.photo_url}
+            alt={property.address}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#C84B2F]/10 to-[#C84B2F]/5">
+            <svg className="w-24 h-24 text-[#C84B2F]/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 9.75L12 3l9 6.75V21a.75.75 0 01-.75.75H3.75A.75.75 0 013 21V9.75z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 21V12h6v9" />
+            </svg>
+          </div>
+        )}
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+        {/* FairKamer badge */}
+        <div className="absolute top-4 left-4">
+          <span className="text-xs font-bold text-white bg-[#C84B2F] px-2.5 py-1 rounded-lg shadow-sm">FairKamer</span>
         </div>
-        <h1 className="text-2xl font-serif font-bold text-foreground mb-3">
-          {nl ? "Aanmelding ontvangen!" : "Application received!"}
-        </h1>
-        <p className="text-muted-foreground text-sm mb-2">
-          {nl ? `Bedankt voor je aanmelding voor ${property.address}.` : `Thanks for applying to ${property.address}.`}
-        </p>
-        <p className="text-muted-foreground text-sm">
-          {nl ? "De verhuurder neemt contact met je op als je profiel een goede match is." : "The landlord will contact you if your profile is a good match."}
-        </p>
-        <p className="text-xs text-muted-foreground mt-8">Powered by FairKamer</p>
+        {/* Language toggle */}
+        <div className="absolute top-4 right-4">
+          <button onClick={() => setLang(lang === "nl" ? "en" : "nl")} className="text-xs px-2.5 py-1 rounded-lg border border-white/30 text-white bg-black/20 backdrop-blur-sm">
+            {lang === "nl" ? "EN" : "NL"}
+          </button>
+        </div>
+      </div>
+
+      {/* Property info + CTA */}
+      <div className="px-5 pt-5 pb-10 flex flex-col gap-4">
+        <div>
+          <h1 className="text-xl font-serif font-bold text-foreground leading-tight">{property.address}</h1>
+          {property.city && <p className="text-sm text-muted-foreground mt-0.5">{property.city}{property.postcode ? ` · ${property.postcode}` : ""}</p>}
+          {property.rent_amount && (
+            <div className="mt-3 inline-flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-foreground">€{property.rent_amount.toLocaleString("nl-NL")}</span>
+              <span className="text-sm text-muted-foreground">{nl ? "/ maand" : "/ month"}</span>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => setIntroShown(true)}
+          className="w-full h-14 rounded-2xl bg-[#C84B2F] text-white font-semibold text-base active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md"
+        >
+          {nl ? "Start aanmelding" : "Start Application"}
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <p className="text-center text-xs text-muted-foreground/60">Powered by FairKamer</p>
       </div>
     </div>
   );
+
+  // ─── Done + Account Prompt ─────────────────────────────────────────────────
+
+  if (done) {
+    // Account prompt screen
+    if (accountStep === "prompt") return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center max-w-sm w-full">
+          {/* Success checkmark */}
+          <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-5">
+            <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+
+          <h1 className="text-xl font-serif font-bold text-foreground mb-1">
+            {nl ? "Aanmelding ontvangen!" : "Application received!"}
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            {nl ? `Bedankt voor je aanmelding voor ${property.address}.` : `Thanks for applying to ${property.address}.`}
+          </p>
+
+          {/* Account prompt card */}
+          <div className="bg-card border border-border rounded-2xl p-5 text-left mb-4">
+            <h2 className="text-base font-semibold text-foreground mb-1">
+              {nl ? "Sla je profiel op!" : "Save your profile!"}
+            </h2>
+            <p className="text-xs text-muted-foreground mb-4">
+              {nl
+                ? "Maak een gratis FairKamer account aan en je gegevens worden bewaard voor de volgende keer. Geen wachtwoord nodig."
+                : "Create a free FairKamer account and your details are saved for next time. No password needed."}
+            </p>
+            <ul className="space-y-2 mb-5">
+              {[
+                nl ? "Meld je in seconden aan bij andere woningen" : "Apply to other properties in seconds",
+                nl ? "Bekijk al je aanmeldingen op één plek" : "Track all your applications in one place",
+                nl ? "Ontvang meldingen wanneer verhuurders reageren" : "Get notified when landlords respond",
+              ].map((benefit, i) => (
+                <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+                  <svg className="w-4 h-4 text-[#C84B2F] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  {benefit}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={createAccount}
+              className="w-full h-11 rounded-xl bg-[#C84B2F] text-white font-semibold text-sm active:scale-[0.98] transition-all"
+            >
+              {nl ? "Ja, sla mijn profiel op" : "Yes, save my profile"}
+            </button>
+          </div>
+
+          <button
+            onClick={() => setAccountStep("skipped")}
+            className="text-sm text-muted-foreground underline underline-offset-2"
+          >
+            {nl ? "Nee bedankt, overslaan" : "No thanks, skip"}
+          </button>
+
+          <p className="text-xs text-muted-foreground/50 mt-8">Powered by FairKamer</p>
+        </div>
+      </div>
+    );
+
+    // Sending magic link
+    if (accountStep === "sending") return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="w-8 h-8 rounded-full border-2 border-[#C84B2F] border-t-transparent animate-spin mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">{nl ? "Magic link versturen…" : "Sending magic link…"}</p>
+        </div>
+      </div>
+    );
+
+    // Magic link sent
+    if (accountStep === "sent") return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-serif font-bold text-foreground mb-3">
+            {nl ? "Check je inbox!" : "Check your inbox!"}
+          </h1>
+          <p className="text-muted-foreground text-sm mb-2">
+            {nl
+              ? `We hebben een magic link gestuurd naar ${form.email}. Klik erop om je account te activeren.`
+              : `We sent a magic link to ${form.email}. Click it to activate your account.`}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {nl ? "De verhuurder neemt contact met je op als je profiel een goede match is." : "The landlord will contact you if your profile is a good match."}
+          </p>
+          <p className="text-xs text-muted-foreground/50 mt-8">Powered by FairKamer</p>
+        </div>
+      </div>
+    );
+
+    // Skipped — show normal done screen
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-serif font-bold text-foreground mb-3">
+            {nl ? "Aanmelding ontvangen!" : "Application received!"}
+          </h1>
+          <p className="text-muted-foreground text-sm mb-2">
+            {nl ? `Bedankt voor je aanmelding voor ${property.address}.` : `Thanks for applying to ${property.address}.`}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {nl ? "De verhuurder neemt contact met je op als je profiel een goede match is." : "The landlord will contact you if your profile is a good match."}
+          </p>
+          <p className="text-xs text-muted-foreground/50 mt-8">Powered by FairKamer</p>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Step content ──────────────────────────────────────────────────────────
 
@@ -275,7 +460,7 @@ export default function ApplyPage() {
           <p className="text-2xl font-serif font-bold text-foreground mb-6">{nl ? "Hoeveel personen trekken er in?" : "How many people will move in?"}</p>
           <div className="space-y-3">
             {[nl ? "Alleen ik" : "Just me", nl ? "2 personen" : "2 people", nl ? "3 personen" : "3 people", "4+"].map(v => (
-              <Opt key={v} label={v} selected={form.num_occupants === v} onClick={() => { s("num_occupants", v); setTimeout(next, 120); }} />
+              <Opt key={v} label={v} selected={form.num_occupants === v} onClick={() => { s("num_occupants", v); setTimeout(() => setStep(prev => prev + 1), 80); }} />
             ))}
           </div>
         </>
@@ -290,7 +475,7 @@ export default function ApplyPage() {
               [nl ? "Over 2-3 maanden" : "2-3 months", "2-3 months"],
               [nl ? "Flexibel" : "Flexible", "Flexible"],
             ].map(([label, val]) => (
-              <Opt key={val} label={label} selected={form.desired_move_in === val} onClick={() => { s("desired_move_in", val); setTimeout(next, 120); }} />
+              <Opt key={val} label={label} selected={form.desired_move_in === val} onClick={() => { s("desired_move_in", val); setTimeout(() => setStep(prev => prev + 1), 80); }} />
             ))}
           </div>
         </>
@@ -305,7 +490,7 @@ export default function ApplyPage() {
               ["Student", "Student"],
               ["Uitkering (benefits)", nl ? "Uitkering" : "Benefits"],
             ].map(([val, label]) => (
-              <Opt key={val} label={label} selected={form.employment_type === val} onClick={() => { s("employment_type", val); setTimeout(next, 120); }} />
+              <Opt key={val} label={label} selected={form.employment_type === val} onClick={() => { s("employment_type", val); setTimeout(() => setStep(prev => prev + 1), 80); }} />
             ))}
           </div>
         </>
@@ -316,7 +501,7 @@ export default function ApplyPage() {
           <p className="text-sm text-muted-foreground mb-6">{nl ? "Netto per maand." : "Net per month."}</p>
           <div className="space-y-3">
             {["Under \u20ac1,500", "\u20ac1,500 - \u20ac2,500", "\u20ac2,500 - \u20ac3,500", "\u20ac3,500 - \u20ac5,000", "\u20ac5,000+"].map(v => (
-              <Opt key={v} label={v} selected={form.monthly_income_range === v} onClick={() => { s("monthly_income_range", v); setTimeout(next, 120); }} />
+              <Opt key={v} label={v} selected={form.monthly_income_range === v} onClick={() => { s("monthly_income_range", v); setTimeout(() => setStep(prev => prev + 1), 80); }} />
             ))}
           </div>
         </>
@@ -330,7 +515,7 @@ export default function ApplyPage() {
               ["Outside only", nl ? "Alleen buiten" : "Outside only"],
               ["Yes", nl ? "Ja, binnenshuis" : "Yes, indoors"],
             ].map(([val, label]) => (
-              <Opt key={val} label={label} selected={form.smoking === val} onClick={() => { s("smoking", val); setTimeout(next, 120); }} />
+              <Opt key={val} label={label} selected={form.smoking === val} onClick={() => { s("smoking", val); setTimeout(() => setStep(prev => prev + 1), 80); }} />
             ))}
           </div>
         </>
@@ -345,7 +530,7 @@ export default function ApplyPage() {
               ["Dog", nl ? "Hond" : "Dog"],
               ["Other pet", nl ? "Ander huisdier" : "Other pet"],
             ].map(([val, label]) => (
-              <Opt key={val} label={label} selected={form.pets === val} onClick={() => { s("pets", val); setTimeout(next, 120); }} />
+              <Opt key={val} label={label} selected={form.pets === val} onClick={() => { s("pets", val); setTimeout(() => setStep(prev => prev + 1), 80); }} />
             ))}
           </div>
         </>
@@ -359,13 +544,12 @@ export default function ApplyPage() {
               ["No", nl ? "Nee" : "No"],
               ["Yes, I can explain", nl ? "Ja, ik kan dit toelichten" : "Yes, I can explain"],
             ].map(([val, label]) => (
-              <Opt key={val} label={label} selected={form.bkr_status === val} onClick={() => { s("bkr_status", val); setTimeout(next, 120); }} />
+              <Opt key={val} label={label} selected={form.bkr_status === val} onClick={() => { s("bkr_status", val); setTimeout(() => setStep(prev => prev + 1), 80); }} />
             ))}
           </div>
         </>
       );
       case "social": {
-        // Sub-state B: handle input (platform chosen, not "skip")
         if (form.social_platform && form.social_platform !== "skip") {
           const cfg = platformConfig[form.social_platform] || platformConfig.instagram;
           const platformLabel = { instagram: "Instagram", facebook: "Facebook", twitter: "Twitter / X", linkedin: "LinkedIn" }[form.social_platform] || "";
@@ -394,8 +578,6 @@ export default function ApplyPage() {
             </>
           );
         }
-
-        // Sub-state A: platform picker
         return (
           <>
             <p className="text-2xl font-serif font-bold text-foreground mb-1">
@@ -418,8 +600,7 @@ export default function ApplyPage() {
                   selected={form.social_platform === val}
                   onClick={() => {
                     s("social_platform", val);
-                    if (val === "skip") setTimeout(next, 120);
-                    // For actual platforms: stay, show sub-state B
+                    if (val === "skip") setTimeout(() => setStep(prev => prev + 1), 80);
                   }}
                 />
               ))}

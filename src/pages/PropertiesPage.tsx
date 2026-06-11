@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
-import { Plus, MapPin, Users, TrendingUp, Link2 } from 'lucide-react';
+import { Plus, MapPin, Users, TrendingUp, Link2, Pencil } from 'lucide-react';
 import AddPropertyDialog from '@/components/AddPropertyDialog';
+import EditPropertyDialog from '@/components/EditPropertyDialog';
 import PropertyApplicantsSheet from '@/components/PropertyApplicantsSheet';
 import { toast as sonnerToast } from 'sonner';
 
@@ -89,6 +90,7 @@ export default function PropertiesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [counts, setCounts] = useState<Record<string, ApplicantCounts>>({});
   const [openProperty, setOpenProperty] = useState<Property | null>(null);
+  const [editProperty, setEditProperty] = useState<Property | null>(null);
 
   const fetchProperties = useCallback(async () => {
     if (!user) return;
@@ -232,25 +234,38 @@ export default function PropertiesPage() {
                       (e.currentTarget as HTMLDivElement).style.borderColor = 'hsl(27 30% 90%)';
                     }}
                   >
-                    {/* Copy apply link button */}
-                    <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        const link = p.application_token
-                          ? `${window.location.origin}/apply/${p.application_token}`
-                          : '';
-                        const msg = link
-                          ? `Hoi! Ik verhuur ${p.address}. Aanmelden duurt 5 minuten:\n\n${link}`
-                          : 'Geen aanmeldlink beschikbaar.';
-                        navigator.clipboard.writeText(msg).catch(() => {});
-                        sonnerToast.success(t('properties.link_copied'));
-                      }}
-                      className="absolute top-3.5 right-3.5 w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
-                      aria-label="Copy apply link"
-                    >
-                      <Link2 className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Action buttons */}
+                    <div className="absolute top-3 right-3 flex items-center gap-1">
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          setEditProperty(p);
+                        }}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                        aria-label="Edit property"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          const link = p.application_token
+                            ? `${window.location.origin}/apply/${p.application_token}`
+                            : '';
+                          const msg = link
+                            ? `Hoi! Ik verhuur ${p.address}. Aanmelden duurt 5 minuten:\n\n${link}`
+                            : 'Geen aanmeldlink beschikbaar.';
+                          navigator.clipboard.writeText(msg).catch(() => {});
+                          sonnerToast.success(t('properties.link_copied'));
+                        }}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                        aria-label="Copy apply link"
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
                     {/* Address */}
                     <div className="mb-3 pr-10">
@@ -309,6 +324,13 @@ export default function PropertiesPage() {
       </motion.button>
 
       <AddPropertyDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={fetchProperties} />
+
+      <EditPropertyDialog
+        property={editProperty as any}
+        open={!!editProperty}
+        onOpenChange={v => { if (!v) setEditProperty(null); }}
+        onSaved={fetchProperties}
+      />
 
       {/* Property applicants sheet */}
       <AnimatePresence>

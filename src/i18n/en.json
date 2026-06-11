@@ -545,5 +545,20 @@
   "v.Dog": "Dog",
   "v.Other": "Other",
   "v.Other pet": "Other pet",
-  "v.Yes, I can explain": "Yes, I can explain"
+  "v.Yes, I can explain": "Yes, I can explain",
+
+  "apply.intro_start_btn": "Start Application",
+  "apply.intro_rent_label": "Monthly rent",
+
+  "apply.account_prompt_title": "One more thing — save your profile!",
+  "apply.account_prompt_desc": "Create a free FairKamer account and your details are saved for next time. No password needed — just click the magic link we email you.",
+  "apply.account_benefit_1": "Apply to other properties in seconds — no re-filling forms",
+  "apply.account_benefit_2": "Track all your applications in one place",
+  "apply.account_benefit_3": "Get notified when landlords view or respond to your profile",
+  "apply.account_yes_btn": "Yes, save my profile",
+  "apply.account_no_btn": "No thanks, skip",
+  "apply.account_sending": "Sending magic link…",
+  "apply.account_sent_title": "Check your inbox!",
+  "apply.account_sent_desc": "We sent a magic link to {email}. Click it to activate your FairKamer account — no password required.",
+  "apply.account_sent_continue": "Continue"
 }

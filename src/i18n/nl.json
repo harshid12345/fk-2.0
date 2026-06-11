@@ -545,5 +545,20 @@
   "v.Dog": "Hond",
   "v.Other": "Anders",
   "v.Other pet": "Ander huisdier",
-  "v.Yes, I can explain": "Ja, ik kan dit toelichten"
+  "v.Yes, I can explain": "Ja, ik kan dit toelichten",
+
+  "apply.intro_start_btn": "Start aanmelding",
+  "apply.intro_rent_label": "Maandelijkse huur",
+
+  "apply.account_prompt_title": "Nog één ding — sla je profiel op!",
+  "apply.account_prompt_desc": "Maak een gratis FairKamer account aan en je gegevens worden bewaard voor de volgende keer. Geen wachtwoord nodig — klik gewoon op de magic link die we je mailen.",
+  "apply.account_benefit_1": "Meld je in seconden aan bij andere woningen — geen formulieren meer opnieuw invullen",
+  "apply.account_benefit_2": "Bekijk al je aanmeldingen op één plek",
+  "apply.account_benefit_3": "Ontvang een melding wanneer verhuurders je profiel bekijken of reageren",
+  "apply.account_yes_btn": "Ja, sla mijn profiel op",
+  "apply.account_no_btn": "Nee bedankt, overslaan",
+  "apply.account_sending": "Magic link versturen…",
+  "apply.account_sent_title": "Check je inbox!",
+  "apply.account_sent_desc": "We hebben een magic link gestuurd naar {email}. Klik erop om je FairKamer account te activeren — geen wachtwoord nodig.",
+  "apply.account_sent_continue": "Doorgaan"
 }

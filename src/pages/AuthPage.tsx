@@ -1,87 +1,69 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
-import { Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useLanguage } from '@/hooks/useLanguage';
 
-const DEV_EMAIL = 'dev@fairkamer.local';
-const DEV_PASSWORD = 'FairKamerDev123!';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-// FairKamer wordmark — the "F" monogram in terracotta
+async function instantLogin(type: 'dev' | 'investor') {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/instant-auth`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({ type }),
+  });
+  const data = await res.json();
+  if (!data.access_token) throw new Error(data.error || 'Login failed');
+  await supabase.auth.setSession({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  });
+}
+
 function FKMonogram() {
   return (
     <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <rect width="44" height="44" rx="12" fill="hsl(11, 62%, 48%)" />
-      <path
-        d="M13 11h18v4H17v6h12v4H17v8h-4V11z"
-        fill="white"
-      />
+      <path d="M13 11h18v4H17v6h12v4H17v8h-4V11z" fill="white" />
     </svg>
   );
 }
 
 export default function AuthPage() {
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [devLoading, setDevLoading] = useState(false);
+  const [loading, setLoading] = useState<'google' | 'dev' | 'investor' | null>(null);
   const { toast } = useToast();
-  const { t } = useLanguage();
 
-  const handleGoogleSignIn = useCallback(async () => {
-    setGoogleLoading(true);
+  const handleGoogleSignIn = async () => {
+    setLoading('google');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },
     });
     if (error) {
-      toast({ title: t('auth.failed'), description: error.message, variant: 'destructive' });
-      setGoogleLoading(false);
+      toast({ title: 'Sign-in failed', description: error.message, variant: 'destructive' });
+      setLoading(null);
     }
-  }, [toast]);
+  };
 
-  const handleDevLogin = useCallback(async () => {
-    setDevLoading(true);
+  const handleInstantLogin = async (type: 'dev' | 'investor') => {
+    setLoading(type);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/token?grant_type=password`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ email: DEV_EMAIL, password: DEV_PASSWORD }),
-        }
-      );
-      const data = await res.json();
-      if (data.access_token) {
-        console.warn('DEV MODE: Auto-logged in as dev@fairkamer.local');
-        await supabase.auth.setSession({
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-        });
-      } else {
-        throw new Error(data.error_description || data.msg || 'Auth failed');
-      }
+      await instantLogin(type);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      toast({ title: t('auth.dev_failed'), description: message, variant: 'destructive' });
-      setDevLoading(false);
+      toast({ title: 'Login failed', description: message, variant: 'destructive' });
+      setLoading(null);
     }
-  }, [toast]);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-6">
-      {/* Subtle background texture — two soft blobs */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
-        <div
-          className="absolute -top-32 -right-32 w-[480px] h-[480px] rounded-full opacity-[0.04]"
-          style={{ background: 'hsl(11, 62%, 48%)' }}
-        />
-        <div
-          className="absolute -bottom-24 -left-24 w-[360px] h-[360px] rounded-full opacity-[0.03]"
-          style={{ background: 'hsl(11, 62%, 48%)' }}
-        />
+        <div className="absolute -top-32 -right-32 w-[480px] h-[480px] rounded-full opacity-[0.04]" style={{ background: 'hsl(11, 62%, 48%)' }} />
+        <div className="absolute -bottom-24 -left-24 w-[360px] h-[360px] rounded-full opacity-[0.03]" style={{ background: 'hsl(11, 62%, 48%)' }} />
       </div>
 
       <motion.div
@@ -90,7 +72,7 @@ export default function AuthPage() {
         transition={{ type: 'spring', damping: 26, stiffness: 200 }}
         className="w-full max-w-[340px] relative"
       >
-        {/* Logo + brand */}
+        {/* Logo */}
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -105,12 +87,8 @@ export default function AuthPage() {
           >
             <FKMonogram />
           </motion.div>
-          <h1 className="text-2xl font-serif text-foreground tracking-tight">
-            FairKamer
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('auth.subtitle')}
-          </p>
+          <h1 className="text-2xl font-serif text-foreground tracking-tight">FairKamer</h1>
+          <p className="text-sm text-muted-foreground mt-1">Property management, automated.</p>
         </motion.div>
 
         {/* Auth card */}
@@ -118,20 +96,16 @@ export default function AuthPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.12 }}
-          className="glass-card rounded-2xl px-7 py-8 space-y-4"
+          className="glass-card rounded-2xl px-7 py-8 space-y-3"
         >
-          <p className="text-xs text-muted-foreground text-center pb-1">
-            {t('auth.sign_in_hint')}
-          </p>
-
-          {/* Google button */}
+          {/* Google */}
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={handleGoogleSignIn}
-            disabled={googleLoading}
+            disabled={loading !== null}
             className="w-full h-11 flex items-center justify-center gap-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-60 shadow-sm"
           >
-            {googleLoading ? (
+            {loading === 'google' ? (
               <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/40 border-t-foreground animate-spin" />
             ) : (
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
@@ -141,31 +115,53 @@ export default function AuthPage() {
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
             )}
-            {googleLoading ? t('auth.loading') : t('auth.google_btn')}
+            {loading === 'google' ? 'Signing in…' : 'Continue with Google'}
           </motion.button>
 
-          {/* Divider */}
           <div className="relative flex items-center gap-3">
             <div className="flex-1 h-px bg-border" />
-            <span className="text-[11px] text-muted-foreground">of</span>
+            <span className="text-[11px] text-muted-foreground">or</span>
             <div className="flex-1 h-px bg-border" />
           </div>
 
-          {/* Dev skip */}
+          {/* Investor login — one tap, always works */}
           <motion.button
             whileTap={{ scale: 0.97 }}
-            onClick={handleDevLogin}
-            disabled={devLoading}
+            onClick={() => handleInstantLogin('investor')}
+            disabled={loading !== null}
+            className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-[#C84B2F] text-white text-sm font-semibold disabled:opacity-60 transition-all"
+          >
+            {loading === 'investor' ? (
+              <div className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            )}
+            {loading === 'investor' ? 'Opening demo…' : 'Investor Demo'}
+          </motion.button>
+
+          {/* Dev login */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => handleInstantLogin('dev')}
+            disabled={loading !== null}
             className="w-full h-9 flex items-center justify-center gap-1.5 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
           >
-            <Zap className="w-3.5 h-3.5" />
-            {devLoading ? t('auth.loading') : t('auth.dev_skip')}
+            {loading === 'dev' ? (
+              <div className="w-3.5 h-3.5 rounded-full border-2 border-muted-foreground/40 border-t-foreground animate-spin" />
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            )}
+            {loading === 'dev' ? 'Loading…' : 'Dev login'}
           </motion.button>
         </motion.div>
 
-        {/* Footer note */}
         <p className="text-[11px] text-muted-foreground/60 text-center mt-5">
-          {t('auth.footer')}
+          FairKamer Landlord · For landlords only
         </p>
       </motion.div>
     </div>
