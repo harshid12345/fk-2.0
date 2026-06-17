@@ -16,13 +16,13 @@ interface ApplicationPayload {
   email?: string;
   full_name: string;
   age: number;
-  gender: string;
+  gender?: string;
   // Screening answers
   num_occupants: string;
   desired_move_in: string;
   employment_type: string;
   monthly_income_range: string;
-  desired_lease_length: string;
+  desired_lease_length?: string;
   smoking: string;
   pets: string;
   bkr_status: string;

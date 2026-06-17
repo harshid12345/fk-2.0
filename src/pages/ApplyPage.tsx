@@ -162,7 +162,10 @@ export default function ApplyPage() {
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-application`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        },
         body: JSON.stringify({
           application_token: token,
           phone: form.phone.replace(/\s/g, ""),
