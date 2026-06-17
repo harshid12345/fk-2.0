@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import FairKamerLogo from '@/components/FairKamerLogo';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -31,7 +32,7 @@ export default function TopNav() {
           <div className="flex items-center gap-8">
             <Link to="/properties" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-primary-foreground" />
+                <FairKamerLogo size={16} className="text-primary-foreground" />
               </div>
               <span className="font-semibold text-foreground text-sm">FairKamer</span>
             </Link>

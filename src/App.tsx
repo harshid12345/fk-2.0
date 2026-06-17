@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
 import MobileLayout from "@/components/MobileLayout";
+import HomeScreenPrompt from "@/components/HomeScreenPrompt";
 import AuthPage from "./pages/AuthPage";
 import PropertiesPage from "./pages/PropertiesPage";
 import TenantsPage from "./pages/TenantsPage";
@@ -24,7 +25,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     </div>
   );
   if (!user) return <Navigate to="/auth" replace />;
-  return <MobileLayout>{children}</MobileLayout>;
+  return <MobileLayout><HomeScreenPrompt />{children}</MobileLayout>;
 }
 
 function AuthRoute({ children }: { children: React.ReactNode }) {

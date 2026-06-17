@@ -560,5 +560,10 @@
   "apply.account_sending": "Magic link versturen…",
   "apply.account_sent_title": "Check je inbox!",
   "apply.account_sent_desc": "We hebben een magic link gestuurd naar {email}. Klik erop om je FairKamer account te activeren — geen wachtwoord nodig.",
-  "apply.account_sent_continue": "Doorgaan"
+  "apply.account_sent_continue": "Doorgaan",
+  "home.prompt_title": "Voeg FairKamer toe aan je beginscherm",
+  "home.prompt_ios": "Tik op het Deel-icoon (□↑) onderaan je browser en kies 'Zet op beginscherm'.",
+  "home.prompt_android": "Tik op het menu (⋮) rechtsboven in Chrome en kies 'Toevoegen aan beginscherm'.",
+  "home.prompt_other": "Open deze pagina in Safari (iOS) of Chrome (Android) voor de beste ervaring.",
+  "home.prompt_dismiss": "Begrepen"
 }

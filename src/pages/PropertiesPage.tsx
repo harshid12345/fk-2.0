@@ -7,6 +7,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { Plus, MapPin, Users, TrendingUp, Link2, Pencil } from 'lucide-react';
 import AddPropertyDialog from '@/components/AddPropertyDialog';
 import EditPropertyDialog from '@/components/EditPropertyDialog';
+import TimeSavedBar from '@/components/TimeSavedBar';
 import PropertyApplicantsSheet from '@/components/PropertyApplicantsSheet';
 import { toast as sonnerToast } from 'sonner';
 
@@ -187,6 +188,15 @@ export default function PropertiesPage() {
           </div>
         )}
       </div>
+
+      {/* Time saved bar */}
+      {!loading && properties.length > 0 && (
+        <TimeSavedBar
+          propertyCount={properties.length}
+          applicantCount={Object.values(counts).reduce((sum, c) => sum + c.newCount + c.acceptedCount + c.rejectedCount, 0)}
+          lang={lang}
+        />
+      )}
 
       {/* Property list */}
       <div className="px-5 pt-5 flex flex-col gap-3">

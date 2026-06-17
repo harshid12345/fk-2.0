@@ -560,5 +560,10 @@
   "apply.account_sending": "Sending magic link…",
   "apply.account_sent_title": "Check your inbox!",
   "apply.account_sent_desc": "We sent a magic link to {email}. Click it to activate your FairKamer account — no password required.",
-  "apply.account_sent_continue": "Continue"
+  "apply.account_sent_continue": "Continue",
+  "home.prompt_title": "Add FairKamer to your home screen",
+  "home.prompt_ios": "Tap the Share icon (□↑) at the bottom of your browser, then choose \"Add to Home Screen\".",
+  "home.prompt_android": "Tap the menu (⋮) at the top right of Chrome, then choose \"Add to Home Screen\".",
+  "home.prompt_other": "Open this page in Safari (iOS) or Chrome (Android) for the best experience.",
+  "home.prompt_dismiss": "Got it"
 }
