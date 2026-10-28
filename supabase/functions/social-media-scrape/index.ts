@@ -367,7 +367,7 @@ Deno.serve(async (req) => {
       const profileUrl = parseHandle(rawHandle, 'linkedin');
       if (profileUrl) {
         console.log('Running LinkedIn scraper for:', profileUrl);
-        const data = await runApifyActor('apify~linkedin-profile-scraper', { profileUrls: [profileUrl] }, apifyToken);
+        const data = await runApifyActor('johnvc~linkedin-profile-api', { profileUrls: [profileUrl] }, apifyToken);
         allScrapedData.linkedin = data?.[0] || null;
       }
     } else {
